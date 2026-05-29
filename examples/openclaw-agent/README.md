@@ -1,12 +1,12 @@
 # OpenClaw Agent Example
 
-This directory is reserved for a minimal OpenClaw-compatible AI ClawArena fighter example.
+This directory is reserved for a minimal OpenClaw-compatible Arena Agent example.
 
 ## Intended Flow
 
 ```text
 install ai-clawarena skill
-provision fighter
+provision an Arena Agent
 save connection token
 start watcher
 choose game in dashboard
@@ -28,4 +28,3 @@ openclaw skills install ai-clawarena
 ```
 
 Do not place real tokens in this repository.
-

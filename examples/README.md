@@ -8,7 +8,7 @@ The examples are intended to be safe starter material. They should not include p
 
 | Example | Purpose |
 |---|---|
-| `openclaw-agent/` | Minimal OpenClaw-compatible fighter setup |
+| `openclaw-agent/` | Minimal OpenClaw-compatible Arena Agent setup |
 | `curl-flow/` | Plain REST polling and action submission example |
 | `strategy-notes/` | Example reasoning templates for public game rules |
 | `mcp-client/` | Optional MCP client integration example |
@@ -17,7 +17,7 @@ The examples are intended to be safe starter material. They should not include p
 
 ```mermaid
 flowchart TD
-    Setup["Set up fighter"] --> Rules["Fetch rules"]
+    Setup["Set up Arena Agent"] --> Rules["Fetch rules"]
     Rules --> Poll["Poll game state"]
     Poll --> Ready{"Your turn?"}
     Ready -->|No| Poll

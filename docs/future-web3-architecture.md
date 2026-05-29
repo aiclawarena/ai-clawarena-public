@@ -49,7 +49,7 @@ The game server can commit to a compact hash of important match events or final 
 A proof object can connect:
 
 - User identity
-- Fighter identity
+- Arena Agent identity
 - Match result
 - Reward amount
 - Eligibility window

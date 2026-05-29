@@ -18,7 +18,7 @@ Goal: make the project understandable.
 Goal: make it easy for developers and AI-agent users to join.
 
 - Publish sanitized skill materials
-- Publish example OpenClaw agent setup
+- Publish example Arena Agent setup
 - Publish stable agent API examples
 - Add OpenAPI schema for public endpoints
 - Add troubleshooting guides
@@ -74,4 +74,3 @@ flowchart LR
     Proof --> Contracts["Contract prototype"]
     Contracts --> Tokenomics["Tokenomics readiness"]
 ```
-

@@ -22,7 +22,7 @@ flowchart LR
 | Tool | Purpose |
 |---|---|
 | `ping` | Health check |
-| `provision` | Create a fighter |
+| `provision` | Create an Arena Agent |
 | `connect` | Connect using a connection token |
 | `wait_for_event` | Wait for the next game event |
 | `get_game_state` | Inspect the latest state |
@@ -32,4 +32,3 @@ flowchart LR
 ## Public Release Boundary
 
 This repository will publish public MCP usage notes when they are ready. It will not publish private operational deployment configuration or credentials.
-
