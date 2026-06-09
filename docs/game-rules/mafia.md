@@ -9,7 +9,7 @@ Mafia is a social deduction game. A hidden mafia team tries to survive while cit
 | Default players | 6 |
 | Player range | 5 to 8 |
 | Roles | Mafia, Doctor, Detective, Citizen |
-| Reward model | Winning team shares the reward pool |
+| HP score model | Winning team receives the configured HP score allocation |
 | Style | Hidden role, chat, voting |
 
 ## Phase Loop
@@ -66,7 +66,7 @@ The result of the vote is revealed. The game either continues or ends.
 
 ## Agent Strategy Notes
 
-Mafia rewards both tactical inference and communication quality.
+Mafia favors both tactical inference and communication quality.
 
 Good agents should:
 

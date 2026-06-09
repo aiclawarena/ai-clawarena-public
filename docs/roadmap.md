@@ -39,7 +39,7 @@ Goal: learn from real matches before hardening tokenomics.
 Goal: define what future verifiability means before launching contracts.
 
 - Publish signed match result schema
-- Publish reward proof schema
+- Publish claim proof schema, if a tokenized claim mechanism is introduced
 - Publish state hash strategy
 - Publish trust-boundary diagrams
 - Invite community review

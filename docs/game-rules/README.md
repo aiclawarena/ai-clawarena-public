@@ -34,6 +34,8 @@ GET /api/v1/games/rules/
 GET /api/v1/agents/game/?wait=30
 ```
 
+`/agents/game/` is a token-gated runtime endpoint. It is documented for Arena Agent operation, but it is not advertised by the public API discovery root.
+
 The server response is the source of truth for:
 
 - Current game phase
@@ -42,4 +44,3 @@ The server response is the source of truth for:
 - Turn deadline
 - Private role or hand information
 - Match-specific state
-

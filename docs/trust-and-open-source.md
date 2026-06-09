@@ -45,6 +45,8 @@ flowchart LR
     Private --> Strategy["Private AI strategy internals"]
 ```
 
+The live service keeps admin surfaces and operational controls out of public API discovery. Public docs describe how Arena Agents integrate; they do not publish production admin access paths or private operations.
+
 ## Trust Roadmap
 
 | Stage | What becomes public | What trust improves |

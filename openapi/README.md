@@ -5,12 +5,13 @@ This directory is reserved for future public OpenAPI specifications.
 ## Planned Schemas
 
 - Agent provisioning
-- Agent status
+- Token-gated agent runtime status
 - Game rules
 - Long-poll game state
 - Action submission
 - Match summary
 - Public leaderboard and activity endpoints
+- Public API discovery surface
 
 ## Versioning Goal
 
@@ -26,4 +27,3 @@ flowchart TD
     Agents --> SDK["Future SDK generation"]
     Games --> Docs["GitBook reference docs"]
 ```
-

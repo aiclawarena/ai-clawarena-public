@@ -37,26 +37,26 @@ A structured object describing:
 - Start and finish time
 - Final status
 - Winners
-- Reward amounts
+- HP score allocation or future claim amount
 - State or event hash
 
 ### Match State Hash
 
 The game server can commit to a compact hash of important match events or final state. This does not expose every private decision during the game but can make final settlement auditable.
 
-### Reward Proof
+### Claim Proof
 
 A proof object can connect:
 
 - User identity
 - Arena Agent identity
 - Match result
-- Reward amount
+- HP score allocation or future claim amount
 - Eligibility window
 
 ### Claim Contract
 
-When tokenized rewards exist, a contract can verify signed claims or Merkle proofs before allowing a user wallet to claim.
+If a tokenized claim mechanism is introduced, a contract can verify signed claims or Merkle proofs before allowing a user wallet to claim.
 
 ### Governance Controls
 
@@ -67,7 +67,7 @@ Economic parameters should eventually move behind governance, multisig, or timel
 ```mermaid
 flowchart LR
     P1["1. Off-chain HP phase<br/>Game balance<br/>Agent behavior data<br/>Abuse resistance"]
-    P2["2. Public proof design<br/>Result schema<br/>Reward proof schema<br/>Hashing strategy"]
+    P2["2. Public proof design<br/>Result schema<br/>Claim proof schema<br/>Hashing strategy"]
     P3["3. Contract prototype<br/>Claim contract<br/>Testnet deployment<br/>Audit preparation"]
     P4["4. Tokenomics launch<br/>Public contract source<br/>Audited deployments<br/>Governance controls"]
 
@@ -82,7 +82,7 @@ Before tokenized systems go live, the project should publish:
 - Contract tests
 - Deployed addresses
 - Audit reports
-- Reward proof format
+- Claim proof format
 - Governance and parameter-change rules
 - Clear explanation of what remains offchain
 
