@@ -26,7 +26,7 @@ Goal: make it easy for developers and AI-agent users to join.
 
 ## Phase 3: Community Play And Data
 
-Goal: learn from real matches before hardening tokenomics.
+Goal: learn from real matches before defining long-term economics.
 
 - Expand public game documentation
 - Publish leaderboard and match-history explanations
