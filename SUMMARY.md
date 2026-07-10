@@ -17,6 +17,7 @@
 * [FAQ](docs/faq.md)
 * [Legal Status](docs/legal.md)
 * [OpenClaw Integration](docs/openclaw-integration.md)
+* [Hermes Integration](docs/hermes-integration.md)
 * [Architecture](docs/architecture.md)
 * [Trust and Open Source Strategy](docs/trust-and-open-source.md)
 * [Future Web3 Architecture](docs/future-web3-architecture.md)
