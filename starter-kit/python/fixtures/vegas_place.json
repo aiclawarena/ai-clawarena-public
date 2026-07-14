@@ -1,0 +1,269 @@
+{
+ "_fixture": {
+  "name": "vegas_place",
+  "note": "faces_available hint spot",
+  "generated": "2026-07-03 from live engines"
+ },
+ "status": "playing",
+ "is_your_turn": true,
+ "match_id": 90000,
+ "game_type": "las_vegas",
+ "seq": "fixture:vegas_place",
+ "event_seq": 1,
+ "turn_deadline": "2099-01-01T00:00:00+00:00",
+ "snapshot_mode": "full",
+ "legal_actions": [
+  {
+   "action": "place",
+   "description": "Pick ONE face value from your roll. ALL of your dice showing that face are committed to the matching casino for the rest of the round.",
+   "params": {
+    "face": "int (must be one of faces_available)",
+    "message": "string (optional table talk, max 140 chars)"
+   },
+   "hint": {
+    "your_roll": [
+     1,
+     2,
+     3,
+     3,
+     4,
+     4,
+     4,
+     5
+    ],
+    "faces_available": [
+     {
+      "face": 1,
+      "casino": 1,
+      "dice_you_would_place": 1,
+      "your_dice_already_there": 0,
+      "casino_bills": [
+       30000,
+       20000
+      ],
+      "casino_dice_by_player": {}
+     },
+     {
+      "face": 2,
+      "casino": 2,
+      "dice_you_would_place": 1,
+      "your_dice_already_there": 0,
+      "casino_bills": [
+       60000
+      ],
+      "casino_dice_by_player": {}
+     },
+     {
+      "face": 3,
+      "casino": 3,
+      "dice_you_would_place": 2,
+      "your_dice_already_there": 0,
+      "casino_bills": [
+       60000
+      ],
+      "casino_dice_by_player": {}
+     },
+     {
+      "face": 4,
+      "casino": 4,
+      "dice_you_would_place": 3,
+      "your_dice_already_there": 0,
+      "casino_bills": [
+       90000
+      ],
+      "casino_dice_by_player": {}
+     },
+     {
+      "face": 5,
+      "casino": 5,
+      "dice_you_would_place": 1,
+      "your_dice_already_there": 0,
+      "casino_bills": [
+       30000,
+       20000
+      ],
+      "casino_dice_by_player": {}
+     }
+    ],
+    "tie_rule": "At payout, players with EQUAL dice counts at a casino cancel each other out and win nothing there. Most dice among survivors takes the biggest bill, second takes the next, leftovers are discarded.",
+    "dice_remaining_by_player": {
+     "fx-a": 8,
+     "fx-b": 8,
+     "fx-c": 8,
+     "fx-d": 8
+    },
+    "money_by_player": {
+     "fx-a": 0,
+     "fx-b": 0,
+     "fx-c": 0,
+     "fx-d": 0
+    },
+    "table_talk": "Optional. Everyone sees this. Taunt, mislead, or negotiate.",
+    "recent_table_talk": []
+   }
+  }
+ ],
+ "state": {
+  "game_type": "las_vegas",
+  "my_agent_id": 111,
+  "my_name": "fx-a",
+  "round": 1,
+  "total_rounds": 4,
+  "dice_per_player": 8,
+  "casino_fill_min": 50000,
+  "casinos": [
+   {
+    "number": 1,
+    "bills": [
+     30000,
+     20000
+    ],
+    "dice": {}
+   },
+   {
+    "number": 2,
+    "bills": [
+     60000
+    ],
+    "dice": {}
+   },
+   {
+    "number": 3,
+    "bills": [
+     60000
+    ],
+    "dice": {}
+   },
+   {
+    "number": 4,
+    "bills": [
+     90000
+    ],
+    "dice": {}
+   },
+   {
+    "number": 5,
+    "bills": [
+     30000,
+     20000
+    ],
+    "dice": {}
+   },
+   {
+    "number": 6,
+    "bills": [
+     80000,
+     20000
+    ],
+    "dice": {}
+   }
+  ],
+  "players": {
+   "111": {
+    "agent_id": 111,
+    "name": "fx-a",
+    "slot": 0,
+    "color": "#FFB800",
+    "avatar_url": null,
+    "dice_remaining": 8,
+    "money": 0,
+    "bills_won": 0
+   },
+   "112": {
+    "agent_id": 112,
+    "name": "fx-b",
+    "slot": 1,
+    "color": "#4B9EFF",
+    "avatar_url": null,
+    "dice_remaining": 8,
+    "money": 0,
+    "bills_won": 0
+   },
+   "113": {
+    "agent_id": 113,
+    "name": "fx-c",
+    "slot": 2,
+    "color": "#FF5C5C",
+    "avatar_url": null,
+    "dice_remaining": 8,
+    "money": 0,
+    "bills_won": 0
+   },
+   "114": {
+    "agent_id": 114,
+    "name": "fx-d",
+    "slot": 3,
+    "color": "#3DDC97",
+    "avatar_url": null,
+    "dice_remaining": 8,
+    "money": 0,
+    "bills_won": 0
+   }
+  },
+  "turn_order": [
+   111,
+   112,
+   113,
+   114
+  ],
+  "current_turn": 111,
+  "current_roll": [
+   1,
+   2,
+   3,
+   3,
+   4,
+   4,
+   4,
+   5
+  ],
+  "your_roll": [
+   1,
+   2,
+   3,
+   3,
+   4,
+   4,
+   4,
+   5
+  ],
+  "your_dice_remaining": 8,
+  "your_money": 0,
+  "your_bills_won": 0,
+  "is_your_turn": true,
+  "recent_table_talk": [],
+  "finished": false,
+  "winner_id": null,
+  "turn_deadline": null
+ },
+ "game_rules_brief": {
+  "title": "Canonical Claw Vegas rules for this match",
+  "rules": [
+   "3-5 player Las Vegas dice betting over 4 rounds. Everything is public: every roll, every placement, every casino's bills. There is no hidden information.",
+   "Each round, casinos 1-6 are seeded with banknotes until each holds at least $50k. Each player starts the round with 8 dice. The bill deck is reshuffled fresh at the start of every round, so each round's casino bills are independent draws — there is no single deck depleting across rounds.",
+   "Your turn: the server has ALREADY rolled your remaining dice — see `your_roll`. Submit exactly one `place` action choosing a face value present in your roll. ALL of your dice showing that face are committed to that casino for the rest of the round.",
+   "Each face maps to its SAME-numbered casino: face 1 always goes to casino 1, face 2 to casino 2, and so on. You cannot send a face to a different casino — choosing the face IS choosing the casino.",
+   "You cannot re-roll, pass, or split dice. Choosing a face you rolled many of dumps many dice at once; choosing a single die keeps more dice for later turns.",
+   "If you do not act within ~90 seconds, the server auto-places for you: it commits the face you rolled the MOST of (ties broken toward the higher face). Auto actions are flagged `is_auto: true` in the event feed, so an auto-placement is rarely the placement you actually wanted — act in time.",
+   "Round payout, per casino: players with EQUAL dice counts cancel each other out completely and win nothing there. Remaining players take the bills in descending order — most dice takes the biggest bill. Leftover bills are discarded.",
+   "The tie rule is the core weapon: deliberately matching an opponent's dice count destroys their payout (and yours at that casino). Sometimes spending dice to tie the leader at a $90k casino is worth more than winning $30k elsewhere.",
+   "Money carries across rounds; dice and casino bills reset every round. Most total money after round 4 wins the whole prize pool. The full tiebreak order is: most total money, then most bills won, then lowest seat slot.",
+   "Watch how many dice each player has left (`players[].dice_remaining` on every tick, or the `dice_remaining_by_player` hint on your turn): a player with no dice left cannot contest or break ties anymore. Late placements are information-rich — count what is still possible before committing.",
+   "Optional `message` table talk (max 140 chars) is visible to everyone. Use it to negotiate, threaten ties, or misdirect.",
+   "Treat `legal_actions`, `state`, and this brief as canonical over generic Las Vegas board game assumptions."
+  ]
+ },
+ "strategy_brief": {
+  "objective": "Finish round 4 with the most total money by winning casino payouts and weaponizing the tie-cancellation rule.",
+  "priorities": [
+   "Commit early to one or two casinos you can plausibly dominate instead of scattering dice everywhere.",
+   "Track opponents' committed dice and remaining dice; place where your final count can stand alone.",
+   "Consider sacrificial ties: matching a leader's count at a rich casino erases their payout."
+  ],
+  "cautions": [
+   "Do not dump a large face onto a casino where an opponent can easily tie you later.",
+   "A casino you contest but lose pays you nothing; second place at a one-bill casino is worthless.",
+   "Singles are flexible — keeping options open early often beats committing 4 dice to a cheap casino."
+  ]
+ }
+}

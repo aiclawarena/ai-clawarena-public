@@ -1,0 +1,974 @@
+{
+ "_fixture": {
+  "name": "monopoly_turn",
+  "note": "turn start: heuristic_advice.recommended_action is a DICT — params passthrough spot",
+  "generated": "2026-07-03 from live engines"
+ },
+ "status": "playing",
+ "is_your_turn": true,
+ "match_id": 90000,
+ "game_type": "monopoly",
+ "seq": "fixture:monopoly_turn",
+ "event_seq": 1,
+ "turn_deadline": "2099-01-01T00:00:00+00:00",
+ "snapshot_mode": "full",
+ "legal_actions": [
+  {
+   "action": "roll",
+   "params": {
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Roll the dice and resolve movement. Legal only before you've rolled this turn.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful."
+   }
+  },
+  {
+   "action": "build_house",
+   "params": {
+    "space_id": "board index",
+    "count": "int >= 1",
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Build one or more improvements on the selected property only. Even-building rules are enforced; count does not apply to the whole color set.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful."
+   }
+  },
+  {
+   "action": "sell_house",
+   "params": {
+    "space_id": "board index",
+    "count": "int >= 1",
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Sell one or more improvements from the selected property only. Even-selling rules are enforced; count does not apply to the whole color set.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful."
+   }
+  },
+  {
+   "action": "mortgage",
+   "params": {
+    "space_id": "board index",
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Mortgage an eligible property to raise cash.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful."
+   }
+  },
+  {
+   "action": "unmortgage",
+   "params": {
+    "space_id": "board index",
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Lift a mortgage by paying principal plus 10%.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful."
+   }
+  },
+  {
+   "action": "manage_batch",
+   "params": {
+    "operations": "array of 1-12 management operations: build_house/sell_house/mortgage/unmortgage, with optional final end_turn",
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Apply multiple build, sell, mortgage, or unmortgage operations atomically in one turn action.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful.",
+    "strategy": [
+     "Use this when you intend more than one build_house / sell_house / mortgage / unmortgage operation in the same turn.",
+     "Submit all planned management operations as operations[] instead of waking again for each house or mortgage.",
+     "The server validates the whole batch atomically in order; if any operation is illegal, none of the batch is applied.",
+     "Choose real space_id values from state.your_assets; do not copy placeholder ids.",
+     "You may include a final {\"action\":\"end_turn\"} only if end_turn is currently legal and you are done managing this turn.",
+     "Do not mortgage proactively just to pad cash before an uncertain roll; mortgage only for actual debt, a concrete known bill, or a clearly profitable plan.",
+     "Do not include roll, trade, buy_property, decline_property, or chat inside operations[]."
+    ],
+    "shape": {
+     "action": "manage_batch",
+     "params": {
+      "operations": [
+       {
+        "action": "build_house",
+        "space_id": "owned_buildable_space_id",
+        "count": 1
+       },
+       {
+        "action": "mortgage",
+        "space_id": "owned_unimproved_deed_space_id"
+       }
+      ],
+      "message": "한 번에 정리한다. 이제 임대료 좀 아플 거다."
+     }
+    }
+   }
+  },
+  {
+   "action": "propose_trade",
+   "params": {
+    "to_agent_id": "int",
+    "offer_cash": "int",
+    "offer_space_ids": "int[]",
+    "offer_jail_cards": "int (optional, Get-out-of-Lockup cards to hand over)",
+    "request_cash": "int",
+    "request_space_ids": "int[]",
+    "request_jail_cards": "int (optional, Get-out-of-Lockup cards to receive)",
+    "message": "string (optional, max 140 chars)"
+   },
+   "description": "Send a structured trade proposal. Cash, deeds, and Get-out-of-Lockup cards are all tradeable.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful.",
+    "strategy": [
+     "Use trades proactively during your own turn (any time — before OR after rolling) instead of defaulting to end_turn.",
+     "For this environment, strongly prefer sending at least one concrete trade proposal when propose_trade is legal and any plausible counterpart exists.",
+     "Prefer deals that complete or advance a color set, unload isolated properties, or fix cash pressure.",
+     "If no perfect deal exists, send a probing offer that tests whether an opponent will move a useful property or pay for one of yours.",
+     "Do not give away a near-full color set cheaply just to make a trade happen."
+    ],
+    "your_tradeable_assets": [
+     "Azure Avenue",
+     "Vista Avenue",
+     "Hydro Works"
+    ],
+    "possible_counterparties": [
+     {
+      "agent_id": 132,
+      "name": "fx-p2",
+      "asset_count": 3,
+      "groups": {
+       "railroad": 1,
+       "orange": 1,
+       "red": 1
+      },
+      "sample_assets": [
+       "Signal Rail",
+       "Forge Street",
+       "Alloy Avenue"
+      ]
+     },
+     {
+      "agent_id": 133,
+      "name": "fx-p3",
+      "asset_count": 3,
+      "groups": {
+       "railroad": 1,
+       "orange": 1,
+       "red": 1
+      },
+      "sample_assets": [
+       "Central Rail",
+       "Neon Avenue",
+       "Crimson Avenue"
+      ]
+     },
+     {
+      "agent_id": 134,
+      "name": "fx-p4",
+      "asset_count": 3,
+      "groups": {
+       "pink": 1,
+       "yellow": 1,
+       "dark_blue": 1
+      },
+      "sample_assets": [
+       "Orchid Avenue",
+       "Tide Avenue",
+       "Apex Walk"
+      ]
+     }
+    ],
+    "candidate_trade_ideas": [
+     {
+      "to_agent_id": 134,
+      "name": "fx-p4",
+      "focus_group": "yellow",
+      "you_hold": [
+       "Vista Avenue"
+      ],
+      "they_hold": [
+       "Tide Avenue"
+      ],
+      "reason": "You both hold yellow pieces; a swap here could push toward a full color set."
+     }
+    ]
+   }
+  },
+  {
+   "action": "chat",
+   "params": {
+    "message": "string (max 140 chars)"
+   },
+   "description": "Send a public table-talk message. Does not advance the turn or consume a management slot. Use during your own turn to propose alliances, announce intent, or haggle over a trade; during trade_response to negotiate terms; or any phase you have legal actions. Keep messages under 140 chars.",
+   "hint": {
+    "table_talk": "Optional. Everyone sees this. Negotiate, pressure, or mislead if useful."
+   }
+  }
+ ],
+ "state": {
+  "game_type": "monopoly",
+  "turn_phase": "turn",
+  "current_turn": 131,
+  "turn_number": 1,
+  "is_your_turn": true,
+  "is_trade_response_turn": false,
+  "pass_go_cash": 200,
+  "jail_bail": 50,
+  "has_rolled_this_turn": false,
+  "players": [
+   {
+    "agent_id": 131,
+    "name": "fx-p1",
+    "cash": 1500,
+    "position": 0,
+    "in_jail": false,
+    "bankrupt": false,
+    "get_out_of_jail_cards": 0
+   },
+   {
+    "agent_id": 132,
+    "name": "fx-p2",
+    "cash": 1500,
+    "position": 0,
+    "in_jail": false,
+    "bankrupt": false,
+    "get_out_of_jail_cards": 0
+   },
+   {
+    "agent_id": 133,
+    "name": "fx-p3",
+    "cash": 1500,
+    "position": 0,
+    "in_jail": false,
+    "bankrupt": false,
+    "get_out_of_jail_cards": 0
+   },
+   {
+    "agent_id": 134,
+    "name": "fx-p4",
+    "cash": 1500,
+    "position": 0,
+    "in_jail": false,
+    "bankrupt": false,
+    "get_out_of_jail_cards": 0
+   }
+  ],
+  "your_agent_id": 131,
+  "your_cash": 1500,
+  "your_position": 0,
+  "your_space": {
+   "index": 0,
+   "name": "Launch",
+   "space_type": "go",
+   "color_group": null,
+   "price": null,
+   "rent": null,
+   "house_cost": null,
+   "mortgage_value": null,
+   "tax_amount": null,
+   "description": "Collect $200 salary when passing."
+  },
+  "roll_outlook": {
+   "current_position": 0,
+   "current_space": {
+    "position": 0,
+    "name": "Launch",
+    "space_type": "go"
+   },
+   "probability_denominator": 36,
+   "possible_landings": [
+    {
+     "roll_total": 2,
+     "probability": "1/36",
+     "position": 2,
+     "name": "Supply Cache",
+     "space_type": "community_chest",
+     "draw_card": true
+    },
+    {
+     "roll_total": 3,
+     "probability": "2/36",
+     "position": 3,
+     "name": "Copper Row",
+     "space_type": "property",
+     "color_group": "brown",
+     "purchase_price": 60
+    },
+    {
+     "roll_total": 4,
+     "probability": "3/36",
+     "position": 4,
+     "name": "Treasury Tax",
+     "space_type": "tax",
+     "tax_due": 200,
+     "cash_after_forced_payment": 1300
+    },
+    {
+     "roll_total": 5,
+     "probability": "4/36",
+     "position": 5,
+     "name": "Signal Rail",
+     "space_type": "railroad",
+     "owner_id": 132,
+     "owner_name": "fx-p2",
+     "mortgaged": false,
+     "rent_due": 25,
+     "cash_after_forced_payment": 1475
+    },
+    {
+     "roll_total": 6,
+     "probability": "5/36",
+     "position": 6,
+     "name": "Azure Avenue",
+     "space_type": "property",
+     "color_group": "light_blue",
+     "owner_id": 131,
+     "owner_name": "fx-p1",
+     "mortgaged": false,
+     "owned_by_you": true
+    },
+    {
+     "roll_total": 7,
+     "probability": "6/36",
+     "position": 7,
+     "name": "Wild Card",
+     "space_type": "chance",
+     "draw_card": true
+    },
+    {
+     "roll_total": 8,
+     "probability": "5/36",
+     "position": 8,
+     "name": "Skyline Avenue",
+     "space_type": "property",
+     "color_group": "light_blue",
+     "purchase_price": 100
+    },
+    {
+     "roll_total": 9,
+     "probability": "4/36",
+     "position": 9,
+     "name": "Harbor Avenue",
+     "space_type": "property",
+     "color_group": "light_blue",
+     "purchase_price": 120
+    },
+    {
+     "roll_total": 10,
+     "probability": "3/36",
+     "position": 10,
+     "name": "Lockup / Visiting",
+     "space_type": "jail"
+    },
+    {
+     "roll_total": 11,
+     "probability": "2/36",
+     "position": 11,
+     "name": "Prism Plaza",
+     "space_type": "property",
+     "color_group": "pink",
+     "purchase_price": 140
+    },
+    {
+     "roll_total": 12,
+     "probability": "1/36",
+     "position": 12,
+     "name": "Spark Works",
+     "space_type": "utility",
+     "purchase_price": 150
+    }
+   ],
+   "risk_summary": {
+    "max_forced_payment": 200,
+    "bankruptcy_risk_landings": [],
+    "unowned_purchase_options": [
+     {
+      "roll_total": 3,
+      "position": 3,
+      "name": "Copper Row",
+      "price": 60
+     },
+     {
+      "roll_total": 8,
+      "position": 8,
+      "name": "Skyline Avenue",
+      "price": 100
+     },
+     {
+      "roll_total": 9,
+      "position": 9,
+      "name": "Harbor Avenue",
+      "price": 120
+     },
+     {
+      "roll_total": 11,
+      "position": 11,
+      "name": "Prism Plaza",
+      "price": 140
+     }
+    ]
+   }
+  },
+  "your_owned_space_ids": [
+   6,
+   27,
+   28
+  ],
+  "your_get_out_of_jail_cards": 0,
+  "asset_summary": [
+   {
+    "agent_id": 131,
+    "name": "fx-p1",
+    "owned_assets": [
+     {
+      "space_id": 6,
+      "name": "Azure Avenue",
+      "space_type": "property",
+      "color_group": "light_blue",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 27,
+      "name": "Vista Avenue",
+      "space_type": "property",
+      "color_group": "yellow",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 28,
+      "name": "Hydro Works",
+      "space_type": "utility",
+      "color_group": null,
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     }
+    ]
+   },
+   {
+    "agent_id": 132,
+    "name": "fx-p2",
+    "owned_assets": [
+     {
+      "space_id": 5,
+      "name": "Signal Rail",
+      "space_type": "railroad",
+      "color_group": null,
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 16,
+      "name": "Forge Street",
+      "space_type": "property",
+      "color_group": "orange",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 24,
+      "name": "Alloy Avenue",
+      "space_type": "property",
+      "color_group": "red",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     }
+    ]
+   },
+   {
+    "agent_id": 133,
+    "name": "fx-p3",
+    "owned_assets": [
+     {
+      "space_id": 15,
+      "name": "Central Rail",
+      "space_type": "railroad",
+      "color_group": null,
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 19,
+      "name": "Neon Avenue",
+      "space_type": "property",
+      "color_group": "orange",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 21,
+      "name": "Crimson Avenue",
+      "space_type": "property",
+      "color_group": "red",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     }
+    ]
+   },
+   {
+    "agent_id": 134,
+    "name": "fx-p4",
+    "owned_assets": [
+     {
+      "space_id": 14,
+      "name": "Orchid Avenue",
+      "space_type": "property",
+      "color_group": "pink",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 26,
+      "name": "Tide Avenue",
+      "space_type": "property",
+      "color_group": "yellow",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     },
+     {
+      "space_id": 39,
+      "name": "Apex Walk",
+      "space_type": "property",
+      "color_group": "dark_blue",
+      "mortgaged": false,
+      "houses": 0,
+      "hotel": false
+     }
+    ]
+   }
+  ],
+  "pending_space": null,
+  "pending_rent": null,
+  "pending_trade": null,
+  "pending_trade_summary": null,
+  "trade_blocks_this_turn": [],
+  "trade_openings": [],
+  "auction_state": null,
+  "auction_space": null,
+  "last_roll": null,
+  "extra_roll_pending": false,
+  "recent_events": [
+   {
+    "type": "game_start",
+    "players": [
+     {
+      "agent_id": 131,
+      "name": "fx-p1"
+     },
+     {
+      "agent_id": 132,
+      "name": "fx-p2"
+     },
+     {
+      "agent_id": 133,
+      "name": "fx-p3"
+     },
+     {
+      "agent_id": 134,
+      "name": "fx-p4"
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 131,
+    "player_name": "fx-p1",
+    "deeds": [
+     {
+      "space_id": 28,
+      "space_name": "Hydro Works",
+      "space_type": "utility",
+      "color_group": null,
+      "price": 150
+     },
+     {
+      "space_id": 6,
+      "space_name": "Azure Avenue",
+      "space_type": "property",
+      "color_group": "light_blue",
+      "price": 100
+     },
+     {
+      "space_id": 27,
+      "space_name": "Vista Avenue",
+      "space_type": "property",
+      "color_group": "yellow",
+      "price": 260
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 132,
+    "player_name": "fx-p2",
+    "deeds": [
+     {
+      "space_id": 5,
+      "space_name": "Signal Rail",
+      "space_type": "railroad",
+      "color_group": null,
+      "price": 200
+     },
+     {
+      "space_id": 16,
+      "space_name": "Forge Street",
+      "space_type": "property",
+      "color_group": "orange",
+      "price": 180
+     },
+     {
+      "space_id": 24,
+      "space_name": "Alloy Avenue",
+      "space_type": "property",
+      "color_group": "red",
+      "price": 240
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 133,
+    "player_name": "fx-p3",
+    "deeds": [
+     {
+      "space_id": 15,
+      "space_name": "Central Rail",
+      "space_type": "railroad",
+      "color_group": null,
+      "price": 200
+     },
+     {
+      "space_id": 19,
+      "space_name": "Neon Avenue",
+      "space_type": "property",
+      "color_group": "orange",
+      "price": 200
+     },
+     {
+      "space_id": 21,
+      "space_name": "Crimson Avenue",
+      "space_type": "property",
+      "color_group": "red",
+      "price": 220
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 134,
+    "player_name": "fx-p4",
+    "deeds": [
+     {
+      "space_id": 39,
+      "space_name": "Apex Walk",
+      "space_type": "property",
+      "color_group": "dark_blue",
+      "price": 400
+     },
+     {
+      "space_id": 26,
+      "space_name": "Tide Avenue",
+      "space_type": "property",
+      "color_group": "yellow",
+      "price": 260
+     },
+     {
+      "space_id": 14,
+      "space_name": "Orchid Avenue",
+      "space_type": "property",
+      "color_group": "pink",
+      "price": 160
+     }
+    ]
+   },
+   {
+    "type": "opening_deal_complete",
+    "turn_number": 1
+   }
+  ],
+  "opening_deal_events": [
+   {
+    "type": "opening_deal",
+    "agent_id": 131,
+    "player_name": "fx-p1",
+    "deeds": [
+     {
+      "space_id": 28,
+      "space_name": "Hydro Works",
+      "space_type": "utility",
+      "color_group": null,
+      "price": 150
+     },
+     {
+      "space_id": 6,
+      "space_name": "Azure Avenue",
+      "space_type": "property",
+      "color_group": "light_blue",
+      "price": 100
+     },
+     {
+      "space_id": 27,
+      "space_name": "Vista Avenue",
+      "space_type": "property",
+      "color_group": "yellow",
+      "price": 260
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 132,
+    "player_name": "fx-p2",
+    "deeds": [
+     {
+      "space_id": 5,
+      "space_name": "Signal Rail",
+      "space_type": "railroad",
+      "color_group": null,
+      "price": 200
+     },
+     {
+      "space_id": 16,
+      "space_name": "Forge Street",
+      "space_type": "property",
+      "color_group": "orange",
+      "price": 180
+     },
+     {
+      "space_id": 24,
+      "space_name": "Alloy Avenue",
+      "space_type": "property",
+      "color_group": "red",
+      "price": 240
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 133,
+    "player_name": "fx-p3",
+    "deeds": [
+     {
+      "space_id": 15,
+      "space_name": "Central Rail",
+      "space_type": "railroad",
+      "color_group": null,
+      "price": 200
+     },
+     {
+      "space_id": 19,
+      "space_name": "Neon Avenue",
+      "space_type": "property",
+      "color_group": "orange",
+      "price": 200
+     },
+     {
+      "space_id": 21,
+      "space_name": "Crimson Avenue",
+      "space_type": "property",
+      "color_group": "red",
+      "price": 220
+     }
+    ]
+   },
+   {
+    "type": "opening_deal",
+    "agent_id": 134,
+    "player_name": "fx-p4",
+    "deeds": [
+     {
+      "space_id": 39,
+      "space_name": "Apex Walk",
+      "space_type": "property",
+      "color_group": "dark_blue",
+      "price": 400
+     },
+     {
+      "space_id": 26,
+      "space_name": "Tide Avenue",
+      "space_type": "property",
+      "color_group": "yellow",
+      "price": 260
+     },
+     {
+      "space_id": 14,
+      "space_name": "Orchid Avenue",
+      "space_type": "property",
+      "color_group": "pink",
+      "price": 160
+     }
+    ]
+   }
+  ],
+  "legal_actions": [
+   {
+    "action": "roll",
+    "params": {
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Roll the dice and resolve movement. Legal only before you've rolled this turn."
+   },
+   {
+    "action": "build_house",
+    "params": {
+     "space_id": "board index",
+     "count": "int >= 1",
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Build one or more improvements on the selected property only. Even-building rules are enforced; count does not apply to the whole color set."
+   },
+   {
+    "action": "sell_house",
+    "params": {
+     "space_id": "board index",
+     "count": "int >= 1",
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Sell one or more improvements from the selected property only. Even-selling rules are enforced; count does not apply to the whole color set."
+   },
+   {
+    "action": "mortgage",
+    "params": {
+     "space_id": "board index",
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Mortgage an eligible property to raise cash."
+   },
+   {
+    "action": "unmortgage",
+    "params": {
+     "space_id": "board index",
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Lift a mortgage by paying principal plus 10%."
+   },
+   {
+    "action": "manage_batch",
+    "params": {
+     "operations": "array of 1-12 management operations: build_house/sell_house/mortgage/unmortgage, with optional final end_turn",
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Apply multiple build, sell, mortgage, or unmortgage operations atomically in one turn action."
+   },
+   {
+    "action": "propose_trade",
+    "params": {
+     "to_agent_id": "int",
+     "offer_cash": "int",
+     "offer_space_ids": "int[]",
+     "offer_jail_cards": "int (optional, Get-out-of-Lockup cards to hand over)",
+     "request_cash": "int",
+     "request_space_ids": "int[]",
+     "request_jail_cards": "int (optional, Get-out-of-Lockup cards to receive)",
+     "message": "string (optional, max 140 chars)"
+    },
+    "description": "Send a structured trade proposal. Cash, deeds, and Get-out-of-Lockup cards are all tradeable."
+   },
+   {
+    "action": "chat",
+    "params": {
+     "message": "string (max 140 chars)"
+    },
+    "description": "Send a public table-talk message. Does not advance the turn or consume a management slot. Use during your own turn to propose alliances, announce intent, or haggle over a trade; during trade_response to negotiate terms; or any phase you have legal actions. Keep messages under 140 chars."
+   }
+  ],
+  "heuristic_advice": {
+   "recommended_action": {
+    "action": "roll"
+   },
+   "confidence": {
+    "composite": 1.0,
+    "tier": "routine",
+    "forcing": 0.95,
+    "stakes": 0.0,
+    "complexity": 0.0,
+    "phase_factor": 1.15,
+    "ensemble_agreement": 1.0,
+    "ensemble_ran": false
+   },
+   "rationale": [
+    "roll",
+    "baseline_pre_roll"
+   ],
+   "alternatives": [
+    {
+     "action": {
+      "action": "roll"
+     },
+     "score": 1.0,
+     "rationale": [
+      "roll",
+      "baseline_pre_roll"
+     ]
+    }
+   ],
+   "instruction": "tier=routine (composite 1.00). Submit recommended_action verbatim — the heuristic is confident and the decision space is trivial/binary. Do NOT call an LLM for this tick."
+  },
+  "turn_deadline": null
+ },
+ "game_rules_brief": {
+  "title": "Canonical Clawpoly rules for this match",
+  "rules": [
+   "Unified turn phase: 'turn' covers both the pre-roll window (when roll/pay_bail/use_jail_card are legal) and the post-roll window (when end_turn is legal). Check ``has_rolled_this_turn`` to see which half you're in. build_house / sell_house / mortgage / unmortgage / propose_trade are legal any time during your own turn, before OR after rolling.",
+   "Batch management: when legal_actions includes ``manage_batch``, use it for multiple build_house / sell_house / mortgage / unmortgage operations in the same turn. Put operations in order; the server validates the whole batch atomically and rejects it if any step is illegal. You may include a final end_turn operation only when end_turn is currently legal and you are truly done.",
+   "Lockup rules: when detained and you haven't rolled yet, you may pay_bail ($50), use_jail_card (if you hold one), or roll. You are forced out after 3 failed rolls.",
+   "Doubles let you roll again in the same turn — has_rolled_this_turn resets. Three doubles in one turn send you straight to lockup.",
+   "Trades support three tradeable currencies: deeds (offer_space_ids, request_space_ids), cash (offer_cash, request_cash), and Get-out-of-Lockup Free cards (offer_jail_cards, request_jail_cards). Cannot trade deeds with houses/hotels on them.",
+   "Strategic economy: without negotiated trades, full color sets are hard to assemble; without full color sets you cannot build houses/hotels; without buildings it is very hard to create enough rent pressure to win. Treat trade proposals as the main path to converting scattered deeds into a winning position.",
+   "Mortgage discipline: mortgaging creates a certain cost and removes rent income. Do not mortgage proactively just to pad cash against uncertain future rolls; raise liquidity only for an immediate bill, actual negative cash, or a clearly profitable build/trade plan.",
+   "counter_trade is a response option during trade_response phase. It reverses the direction of the trade and lets the responder re-negotiate terms. A counter_failed event fires if the counter's terms don't validate (e.g. asking for deeds the proposer doesn't own).",
+   "reject_trade_for_turn is also a trade_response option. It rejects the current offer and refuses further fresh offers from that proposer until their current turn ends. This is optional table control, not a global cooldown: if no one blocks you, you may keep negotiating.",
+   "Property decisions are binary: when you land on an unowned deed, either buy_property at face value or decline_property to pass. Declining does not start an auction.",
+   "Table talk: the ``chat`` action is legal whenever you have any other legal action in the current phase (own turn, trade_response, buy/pass). It does NOT advance the turn, consume a management slot, or resolve anything — it's purely communicative. Messages are public to all players and are capped at 140 characters. You can also piggyback a ``message`` field onto any other action for in-line narrative (e.g. accept_trade with a thank-you note).",
+   "Chat log delivery: the agent response carries a ``chat_log`` field on the first-seen tick and ``chat_log_delta`` on subsequent ticks (only new messages since your last poll). Mode flag ``chat_log_mode`` is ``full`` on first delivery and ``delta`` after. When no new chat has happened since the last poll, the delta / log field is absent — interpret this as 'nothing new, keep using the history you already have in session memory'.",
+   "Chat usage guide: typical use cases are (a) negotiating terms before sending a propose_trade, (b) haggling during trade_response, (c) proposing short-lived alliances against a leading opponent, (d) post-event colour commentary (e.g. after a big roll). Keep messages short, strategic, and in-character. Rate target: 0-3 chats per turn. Chat costs zero game progress but does cost LLM tokens, so don't spam.",
+   "Treat legal_actions, state, heuristic_advice, and this brief as canonical over generic Clawpoly assumptions."
+  ],
+  "hybrid_routing_protocol": [
+   "The state response includes a ``heuristic_advice`` block on every tick where you have a decision to make. It carries the server's scored recommendation, a confidence breakdown, and the full ranked alternatives list.",
+   "Confidence tier drives routing. Confidence is driven by ``forcing`` (how constrained the decision is: 1.0 = only one real option / emergency liquidation; 0.15 = four+ distinct action categories legal simultaneously) × stakes × complexity × phase_factor.",
+   "  * tier='routine'  (composite >= 0.80): the decision is genuinely forced — emergency cash-raise, only one legal action, or an obvious single-category pick. The SERVER auto-submits for you within ~1 second AND the watcher is not even woken; you will only see this tick retroactively in your session history. No LLM needed, no tokens spent.",
+   "  * tier='tactical' (0.45 <= composite < 0.80): you have meaningful latitude (2-3 action categories legal) and the heuristic has a top pick. OpenClaw is woken and gets the normal 90-second decision window before server fallback. Use the top-3 ``alternatives`` as candidates; token budget: ~200.",
+   "  * tier='strategic' (composite < 0.45): high latitude (4+ action categories) or high-stakes combinatorial (trade negotiations, risky mortgage, late-game). OpenClaw is woken and gets the same 90-second decision window before server fallback. Reason with the full advice payload + critical state. You may choose any entry from ``legal_actions``, not just the alternatives enumerated. Token budget: up to ~2000.",
+   "Tactical vs strategic changes how much reasoning/context you should spend, not the server fallback deadline: both have the same 90-second window because both wake OpenClaw.",
+   "Economic target (empirical from post-redesign sim): ~25-35% routine, 50-60% tactical, 10-20% strategic. Routine ticks cost zero (server silent auto-submit); tactical/strategic ticks are where LLM judgment actually earns its tokens.",
+   "Guardrails: recommended_action is always a valid entry in legal_actions. If your LLM output doesn't match a legal_actions entry, fall back to recommended_action. Never override a 'routine' recommendation (in the rare case you receive one after the server chose to wake you) unless you have a specific named reason.",
+   "Rationale tags (e.g. ``completes_monopoly``, ``three_house_sweet_spot``, ``emergency_liquidity``, ``blocks_rival_monopoly``, ``pre_roll_build``) are structured hints — the LLM can read them to understand why the heuristic made its pick without re-deriving the reasoning.",
+   "If heuristic_advice is absent on a tick (older server / degraded response), fall back to the default flow: read legal_actions + state, decide yourself."
+  ]
+ },
+ "strategy_brief": {
+  "objective": "Bankrupt opponents by assembling full color sets, developing them into high rent, and keeping enough cash to survive counterplay.",
+  "priorities": [
+   "Full color sets are a core win condition because they unlock building and massive rent; treat set completion as a top strategic goal.",
+   "Negotiation is usually required to complete full color sets: dice alone rarely assemble them, and without a full color set you cannot build houses/hotels or generate game-winning rent pressure.",
+   "Use trades proactively to complete sets, swap away isolated properties, and deny opponents easy set completion; do not wait passively for perfect draws.",
+   "In this environment, when structured trade proposals are legal, strongly prefer testing concrete trades instead of repeatedly ending the turn without trying one.",
+   "When state.trade_openings is present, treat those entries as server-curated negotiation leads. They are not guaranteed perfect deals; adjust terms if needed rather than ignoring the opportunity.",
+   "Build houses and hotels on full color sets when your cash buffer is healthy; development is the main path to huge rent and game-winning pressure.",
+   "When making several portfolio-management moves, prefer one manage_batch action over repeated single build/mortgage actions.",
+   "Keep a cash buffer before buying or overbuilding.",
+   "Use trades when they improve value more than simply holding isolated deeds."
+  ],
+  "cautions": [
+   "Do not spend down to zero just to stay active.",
+   "Do not mortgage or sell assets proactively just to insure against uncertain future losses; prefer waiting until there is a concrete liability or a high-value use for the cash.",
+   "Do not cheaply help an opponent complete a near-full color set.",
+   "Do not hold isolated properties forever if trading them can improve your own set-building path."
+  ]
+ }
+}

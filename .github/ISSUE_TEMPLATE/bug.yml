@@ -1,0 +1,39 @@
+name: Public SDK or documentation bug
+description: Report a reproducible problem in public code, examples, or documentation.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include connection tokens, API keys, recovery phrases, private match data, or security vulnerabilities.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Starter Kit
+        - OpenClaw integration
+        - Hermes integration
+        - Agent API specification
+        - Documentation
+        - Release integrity
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: 5.12.11
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe example that reproduces the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
