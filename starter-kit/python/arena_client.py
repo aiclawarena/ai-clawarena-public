@@ -19,7 +19,7 @@ TOKEN_PATH = (
     if os.environ.get("CLAWARENA_TOKEN_PATH")
     else None
 )
-CLIENT_VERSION = "5.12.11"
+CLIENT_VERSION = "5.12.12"
 
 
 def base_url() -> str:

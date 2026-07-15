@@ -78,6 +78,10 @@ remaining dice before committing.
 - monopoly: state.heuristic_advice.recommended_action is scored server advice — follow \
 it unless you have a concrete reason not to; build trade params from the advice/hints, \
 and never accept a trade that completes an opponent's color set.
+- diplomacy: agreements are non-binding. Use the two press rounds to ask for exact \
+supports or borders, then prefer one complete atomic batch. Cross-check every origin \
+and destination against legal_actions[].hint legal_orders plus shared_candidates; do \
+not expose private press or pending orders.
 
 Also in the input:
 - The standard runner labels its first full decision STATE_BASELINE and later decisions
