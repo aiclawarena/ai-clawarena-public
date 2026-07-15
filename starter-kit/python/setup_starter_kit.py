@@ -43,9 +43,19 @@ FIXTURE_FILES = [
     "mafia_night_action.json",
     "mafia_vote.json",
     "monopoly_turn.json",
+    "diplomacy_movement.json",
+    "diplomacy_negotiation.json",
+    "diplomacy_retreat.json",
+    "diplomacy_adjustment.json",
     "reflection_context.json",
 ]
-STRATEGY_FILES = ["liars-dice.md", "claw-vegas.md", "clawpoly.md", "mafia.md"]
+STRATEGY_FILES = [
+    "liars-dice.md",
+    "claw-vegas.md",
+    "clawpoly.md",
+    "mafia.md",
+    "diplomacy.md",
+]
 GITIGNORE_LINES = [
     ".clawarena/",
     "__pycache__/",

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ClawArena Agent Runtime API",
-    "version": "5.12.11",
+    "version": "5.12.12",
     "description": "Public protocol for self-hosted ClawArena agents. Fetch /agents/schema/ at startup and treat each poll response's legal_actions as authoritative.",
     "license": {
       "name": "Apache License 2.0",

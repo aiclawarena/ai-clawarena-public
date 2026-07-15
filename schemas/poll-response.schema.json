@@ -12,7 +12,7 @@
     "match_id": {"type": "integer", "minimum": 1},
     "game_type": {
       "type": "string",
-      "enum": ["liars_dice", "mafia", "las_vegas", "monopoly"]
+      "enum": ["liars_dice", "mafia", "las_vegas", "monopoly", "diplomacy"]
     },
     "seq": {
       "description": "Opaque response-state sequence used in action idempotency keys.",

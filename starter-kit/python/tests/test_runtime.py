@@ -27,6 +27,8 @@ sys.path.insert(0, str(KIT_DIR))
 
 import helpers  # noqa: E402
 import arena_client  # noqa: E402
+import agent as heuristic_agent  # noqa: E402
+import check as offline_check  # noqa: E402
 import hermes_agent  # noqa: E402
 import llm_agent  # noqa: E402
 import memory  # noqa: E402
@@ -51,6 +53,8 @@ class ProtocolTests(unittest.TestCase):
             *setup_local_runner.KIT_FILES,
             *setup_starter_kit.CORE_FILES,
             *setup_starter_kit.USER_FILES,
+            *(f"fixtures/{name}" for name in setup_starter_kit.FIXTURE_FILES),
+            *(f"strategy/{name}" for name in setup_starter_kit.STRATEGY_FILES),
             "setup_local_runner.py",
         }
         for name in sorted(release_files):
@@ -136,6 +140,18 @@ class ProtocolTests(unittest.TestCase):
                 fetch=fetch,
             )
             self.assertEqual(first["status"], "installed")
+            for relative in (
+                "fixtures/diplomacy_movement.json",
+                "fixtures/diplomacy_negotiation.json",
+                "fixtures/diplomacy_retreat.json",
+                "fixtures/diplomacy_adjustment.json",
+                "strategy/diplomacy.md",
+            ):
+                self.assertEqual(
+                    (destination / relative).read_bytes(),
+                    (KIT_DIR / relative).read_bytes(),
+                    relative,
+                )
             custom_agent = (destination / "agent.py").read_text() + "\nCUSTOM = True\n"
             (destination / "agent.py").write_text(custom_agent)
 
@@ -623,6 +639,10 @@ class StarterSessionTests(unittest.TestCase):
             "vegas_place",
             "mafia_chat",
             "monopoly_turn",
+            "diplomacy_negotiation",
+            "diplomacy_movement",
+            "diplomacy_retreat",
+            "diplomacy_adjustment",
         )
         for index, fixture_name in enumerate(fixture_names, start=1):
             fixture = json.loads(
@@ -653,6 +673,310 @@ class StarterSessionTests(unittest.TestCase):
             self.assertIn("TURN_UPDATE:\n", second[-1]["content"], fixture_name)
 
 
+class DiplomacyOfflineContractTests(unittest.TestCase):
+    def fixture(self, name):
+        return json.loads((KIT_DIR / "fixtures" / f"{name}.json").read_text())
+
+    def test_checker_accepts_a_complete_legal_movement_batch_with_a_move(self):
+        fixture = self.fixture("diplomacy_movement")
+        move = {
+            "action": "submit_orders",
+            "params": {
+                "orders": [
+                    {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+                    {"type": "HOLD", "origin": "LON"},
+                    {"type": "HOLD", "origin": "LVP"},
+                ],
+            },
+        }
+
+        self.assertEqual(offline_check.check_move(fixture, move), [])
+
+    def test_checker_accepts_server_legal_partial_batches(self):
+        cases = (
+            (
+                "diplomacy_movement",
+                {
+                    "action": "submit_orders",
+                    "params": {"orders": [
+                        {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+                    ]},
+                },
+            ),
+            (
+                "diplomacy_retreat",
+                {"action": "submit_retreats", "params": {"orders": []}},
+            ),
+            (
+                "diplomacy_adjustment",
+                {
+                    "action": "submit_adjustments",
+                    "params": {"orders": [
+                        {"type": "BUILD", "destination": "LON", "unit_type": "A"},
+                    ]},
+                },
+            ),
+        )
+        for fixture_name, move in cases:
+            with self.subTest(fixture_name=fixture_name):
+                self.assertEqual(
+                    offline_check.check_move(self.fixture(fixture_name), move),
+                    [],
+                )
+
+    def test_checker_uses_machine_readable_support_and_convoy_candidates(self):
+        fixture = self.fixture("diplomacy_movement")
+        support = {
+            "action": "submit_orders",
+            "params": {"orders": [{
+                "type": "SUPPORT",
+                "origin": "LON",
+                "target": "LVP",
+                "destination": "YOR",
+            }]},
+        }
+        self.assertEqual(offline_check.check_move(fixture, support), [])
+
+        convoy_fixture = json.loads(json.dumps(fixture))
+        convoy_hint = {
+            "origin": "NTH",
+            "unit_type": "F",
+            "can_hold": True,
+            "move_destinations": ["BEL", "LON", "NWY"],
+            "can_move_via_convoy": False,
+            "support_options": [],
+            "can_support": False,
+            "can_convoy": True,
+        }
+        convoy_fixture["legal_actions"][0]["hint"]["legal_orders"] = [convoy_hint]
+        convoy_fixture["legal_actions"][0]["hint"]["shared_candidates"] = {
+            "convoy_army_origins": ["LON"],
+            "convoy_destinations": ["BEL", "NWY"],
+        }
+        convoy = {
+            "action": "submit_orders",
+            "params": {"orders": [{
+                "type": "CONVOY",
+                "origin": "NTH",
+                "target": "LON",
+                "destination": "BEL",
+            }]},
+        }
+        self.assertEqual(offline_check.check_move(convoy_fixture, convoy), [])
+
+    def test_checker_rejects_empty_candidate_domains_and_wrong_unit_roles(self):
+        fixture = self.fixture("diplomacy_movement")
+        invalid_moves = (
+            {
+                "action": "submit_orders",
+                "params": {"orders": [{
+                    "type": "MOVE",
+                    "origin": "EDI",
+                    "destination": "BEL",
+                    "via_convoy": True,
+                }]},
+            },
+            {
+                "action": "submit_orders",
+                "params": {"orders": [{
+                    "type": "CONVOY",
+                    "origin": "EDI",
+                    "target": "LVP",
+                    "destination": "BEL",
+                }]},
+            },
+            {
+                "action": "submit_orders",
+                "params": {"orders": [{
+                    "type": "MOVE",
+                    "origin": "LVP",
+                    "destination": "BEL",
+                    "via_convoy": "false",
+                }]},
+            },
+        )
+        for move in invalid_moves:
+            with self.subTest(move=move):
+                self.assertTrue(offline_check.check_move(fixture, move))
+
+    def test_checker_matches_inferred_convoy_and_split_coast_aliases(self):
+        fixture = self.fixture("diplomacy_movement")
+        inferred_convoy = {
+            "action": "submit_orders",
+            "params": {"orders": [{
+                "type": "MOVE",
+                "origin": "LVP",
+                "destination": "BEL",
+            }]},
+        }
+        self.assertEqual(offline_check.check_move(fixture, inferred_convoy), [])
+
+        coast_fixture = json.loads(json.dumps(fixture))
+        coast_fixture["legal_actions"][0]["hint"]["legal_orders"] = [{
+            "origin": "BAR",
+            "unit_type": "F",
+            "can_hold": True,
+            "move_destinations": ["NWG", "NWY", "STP/NC"],
+            "can_move_via_convoy": False,
+            "support_options": [],
+            "can_support": False,
+            "can_convoy": True,
+        }]
+        unambiguous_coast = {
+            "action": "submit_orders",
+            "params": {"orders": [{
+                "type": "MOVE",
+                "origin": "BAR",
+                "destination": "STP",
+            }]},
+        }
+        self.assertEqual(offline_check.check_move(coast_fixture, unambiguous_coast), [])
+
+        wrong_explicit_coast = json.loads(json.dumps(unambiguous_coast))
+        wrong_explicit_coast["params"]["orders"][0]["destination"] = "STP/SC"
+        self.assertTrue(offline_check.check_move(coast_fixture, wrong_explicit_coast))
+
+        coast_fixture["legal_actions"][0]["hint"]["legal_orders"] = [{
+            "origin": "STP/SC",
+            "unit_type": "F",
+            "can_hold": True,
+            "move_destinations": ["BOT", "FIN", "LVN"],
+            "can_move_via_convoy": False,
+            "support_options": [],
+            "can_support": False,
+            "can_convoy": False,
+        }]
+        base_origin = {
+            "action": "submit_orders",
+            "params": {"orders": [{
+                "type": "MOVE",
+                "origin": "STP",
+                "destination": "BOT",
+            }]},
+        }
+        self.assertEqual(offline_check.check_move(coast_fixture, base_origin), [])
+
+        coast_fixture["legal_actions"][0]["hint"]["legal_orders"] = [{
+            "origin": "MAO",
+            "unit_type": "F",
+            "can_hold": True,
+            "move_destinations": ["SPA/NC", "SPA/SC"],
+            "can_move_via_convoy": False,
+            "support_options": [],
+            "can_support": False,
+            "can_convoy": True,
+        }]
+        ambiguous_coast = {
+            "action": "submit_orders",
+            "params": {"orders": [{
+                "type": "MOVE",
+                "origin": "MAO",
+                "destination": "SPA",
+            }]},
+        }
+        self.assertTrue(offline_check.check_move(coast_fixture, ambiguous_coast))
+
+    def test_checker_normalizes_press_recipients_and_build_sites(self):
+        press = {
+            "action": "send_press",
+            "params": {"messages": [{"to_power": "GLOBAL", "content": "Hello"}]},
+        }
+        self.assertEqual(
+            offline_check.check_move(self.fixture("diplomacy_negotiation"), press),
+            [],
+        )
+
+        adjustment = self.fixture("diplomacy_adjustment")
+        adjustment["legal_actions"][0]["hint"]["legal_orders"] = [{
+            "builds_required": 2,
+            "disbands_required": 0,
+            "build_sites": [
+                {
+                    "destination": "LON",
+                    "unit_types": ["A", "F"],
+                    "fleet_destinations": ["LON"],
+                },
+                {
+                    "destination": "STP",
+                    "unit_types": ["A", "F"],
+                    "fleet_destinations": ["STP/NC", "STP/SC"],
+                },
+            ],
+            "can_waive": True,
+        }]
+        normalized = {
+            "action": "submit_adjustments",
+            "params": {"orders": [
+                {"type": "BUILD", "destination": "lon", "unit_type": "A"},
+                {"type": "BUILD", "destination": "stp(sc)", "unit_type": "F"},
+            ]},
+        }
+        self.assertEqual(offline_check.check_move(adjustment, normalized), [])
+
+        malformed = json.loads(json.dumps(normalized))
+        malformed["params"]["orders"][0]["destination"] = ["LON"]
+        self.assertTrue(offline_check.check_move(adjustment, malformed))
+
+    def test_diplomacy_fixtures_are_phase_coherent_generated_contracts(self):
+        phase_code = {
+            "negotiation": "M",
+            "movement": "M",
+            "retreat": "R",
+            "adjustment": "A",
+        }
+        season_code = {"SPRING": "S", "FALL": "F", "WINTER": "W"}
+        for phase in phase_code:
+            with self.subTest(phase=phase):
+                fixture = self.fixture(f"diplomacy_{phase}")
+                state = fixture["state"]
+                expected_phase_id = (
+                    f"{season_code[state['season']]}{state['year']}{phase_code[phase]}"
+                )
+                self.assertEqual(
+                    fixture["_fixture"]["generator"],
+                    "scripts/generate_diplomacy_kit_fixtures.py",
+                )
+                self.assertEqual(state["phase_id"], expected_phase_id)
+                self.assertEqual(state["phase"], state["phase_key"])
+                self.assertTrue(state["phase_key"].startswith(expected_phase_id))
+                if phase != "negotiation":
+                    self.assertNotIn("legal_orders", state)
+                    self.assertNotIn("order_schema", state)
+                    self.assertTrue(fixture["legal_actions"][0]["hint"]["legal_orders"])
+
+    def test_checker_rejects_a_non_hinted_direct_move(self):
+        fixture = self.fixture("diplomacy_movement")
+        move = {
+            "action": "submit_orders",
+            "params": {
+                "orders": [
+                    {"type": "MOVE", "origin": "EDI", "destination": "PAR"},
+                    {"type": "HOLD", "origin": "LON"},
+                    {"type": "HOLD", "origin": "LVP"},
+                ],
+            },
+        }
+
+        problems = offline_check.check_move(fixture, move)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("is not hinted", problems[0])
+
+    def test_all_diplomacy_phase_fixtures_accept_the_safe_heuristic(self):
+        for name in (
+            "diplomacy_negotiation",
+            "diplomacy_movement",
+            "diplomacy_retreat",
+            "diplomacy_adjustment",
+        ):
+            with self.subTest(name=name):
+                fixture = self.fixture(name)
+                move = heuristic_agent.decide(
+                    offline_check.runner_state(fixture),
+                    fixture["legal_actions"],
+                )
+                self.assertEqual(offline_check.check_move(fixture, move), [])
+
+
 class OfflineMockCliTests(unittest.TestCase):
     def test_mock_arena_never_runs_live_model_preflight(self):
         env = os.environ.copy()
@@ -675,6 +999,31 @@ class OfflineMockCliTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("MOCK PASS", result.stdout)
+
+    def test_every_diplomacy_phase_fixture_runs_through_the_real_runner_loop(self):
+        env = os.environ.copy()
+        for name in (
+            "LLM_API_KEY",
+            "CLAWARENA_GATEWAY_KEY",
+            "CLAWARENA_SKIP_PREFLIGHT",
+        ):
+            env.pop(name, None)
+
+        for phase in ("negotiation", "movement", "retreat", "adjustment"):
+            name = f"diplomacy_{phase}"
+            with self.subTest(name=name):
+                result = subprocess.run(
+                    [sys.executable, str(KIT_DIR / "mock_arena.py"), name],
+                    cwd=KIT_DIR,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(f"MOCK PASS [{name}]", result.stdout)
 
 
 class HermesTests(unittest.TestCase):

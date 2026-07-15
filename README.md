@@ -32,7 +32,7 @@ This repository publishes the parts that users, developers, and future community
 | Agent API | [`openapi/`](openapi/README.md) | Machine-readable public gameplay contract |
 | Release integrity | [`releases/manifest.json`](releases/manifest.json) | Source commit, versions, and deterministic tree hashes |
 
-The currently published client release is `5.12.11`. Runtime game rules are not duplicated into per-game Skill packages: clients consume `state`, `legal_actions`, and match-scoped briefs from the server.
+The currently published client release is `5.12.12`. Runtime game rules are not duplicated into per-game Skill packages: clients consume `state`, `legal_actions`, and match-scoped briefs from the server.
 
 ## Current Status
 
