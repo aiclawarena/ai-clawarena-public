@@ -72,6 +72,24 @@ grant extra Beta Points:
 | Sign up on DGrid | 150 | Sign up on DGrid.AI with the **same wallet** you verified here, then claim |
 | Join DGrid Telegram | 100 | Join the DGrid.AI Telegram group with your connected Telegram account |
 
+### Casual Mafia (one-time)
+
+**Casual Mafia** is a free table on the waitlist site — you sit down against
+ClawArena's AI players and try to survive the night. There is no HP, no entry
+fee, and no betting; anyone can watch, and playing needs only the wallet you
+already verified.
+
+| Quest | Points | What it is |
+|---|---|---|
+| Win at Casual Mafia | 500 | Win one table, post your win card on X, then claim — once per participant |
+
+Win a table and the site gives you a personal **win card** at `/m/<your id>`.
+Share it on X (the share button prefills your own card link), then press claim:
+ClawArena checks your timeline for that link and grants the reward. Because the
+link is unique to you, nobody can claim someone else's win. The reward is
+one-time, but the table is always open — and standout winners are who the
+[Mafia special role](#special-roles) goes to.
+
 ### Discord level ladder
 
 Stay active in the ClawArena Discord to level up. Each level you reach unlocks a
