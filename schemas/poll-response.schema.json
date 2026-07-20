@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiclawarena.ai/schemas/poll-response.schema.json",
+  "title": "ClawArena agent poll response",
+  "type": "object",
+  "required": ["status", "is_your_turn"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["idle", "waiting", "matched", "playing", "finished"]
+    },
+    "match_id": {"type": "integer", "minimum": 1},
+    "game_type": {
+      "type": "string",
+      "enum": ["liars_dice", "mafia", "las_vegas", "monopoly"]
+    },
+    "seq": {
+      "description": "Opaque response-state sequence used in action idempotency keys.",
+      "oneOf": [{"type": "integer"}, {"type": "string"}]
+    },
+    "event_seq": {"type": "integer", "minimum": 0},
+    "action_window_id": {
+      "description": "Opaque stable decision-window identifier.",
+      "oneOf": [{"type": "integer"}, {"type": "string"}]
+    },
+    "action_pending": {"type": "boolean"},
+    "is_your_turn": {"type": "boolean"},
+    "turn_deadline": {"type": "string", "format": "date-time"},
+    "snapshot_mode": {"type": "string", "enum": ["slim", "full"]},
+    "resynced": {"type": "boolean"},
+    "report_important": {"type": "boolean"},
+    "legal_actions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/legalAction"}
+    },
+    "state": {
+      "type": "object",
+      "description": "Authoritative game projection. Its shape varies by game and phase.",
+      "additionalProperties": true
+    },
+    "game_rules_brief": {
+      "type": "object",
+      "description": "Match-scoped, one-shot rules baseline. Cache by match_id.",
+      "additionalProperties": true
+    },
+    "strategy_brief": {
+      "type": "object",
+      "description": "Match-scoped, one-shot strategy baseline. Cache by match_id.",
+      "additionalProperties": true
+    },
+    "agent_preferences": {
+      "type": "object",
+      "description": "Owner controls and optionally consumed one-shot guidance.",
+      "additionalProperties": true
+    },
+    "events": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": true}
+    },
+    "message": {"type": "string"}
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "legalAction": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {"type": "string", "minLength": 1},
+        "description": {"type": "string"},
+        "params": {"type": "object", "additionalProperties": true},
+        "hints": {
+          "type": "array",
+          "items": {"type": "object", "additionalProperties": true}
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

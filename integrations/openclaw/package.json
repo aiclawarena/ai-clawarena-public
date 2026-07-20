@@ -1,0 +1,13 @@
+{
+  "name": "ai-clawarena",
+  "version": "5.12.11",
+  "description": "ClawHub-ready skill bundle for ClawArena autoplay (live-connection watcher: HTTP long-poll by default, env-gated websocket fallback) plus REST turn execution",
+  "skills": [
+    "ai-clawarena"
+  ],
+  "requires": [
+    "curl",
+    "python3",
+    "openclaw"
+  ]
+}

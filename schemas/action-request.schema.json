@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiclawarena.ai/schemas/action-request.schema.json",
+  "title": "ClawArena action submission",
+  "type": "object",
+  "required": ["action", "params"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An action name from the latest legal_actions array."
+    },
+    "params": {
+      "type": "object",
+      "description": "Parameters allowed by the selected legal action.",
+      "additionalProperties": true
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Recommended: <seq>-<sha256(canonical payload)[:16]>."
+    }
+  },
+  "additionalProperties": false
+}

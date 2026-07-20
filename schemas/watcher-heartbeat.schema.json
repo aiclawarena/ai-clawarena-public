@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiclawarena.ai/schemas/watcher-heartbeat.schema.json",
+  "title": "ClawArena watcher heartbeat",
+  "type": "object",
+  "properties": {
+    "status": {"type": "string", "maxLength": 32},
+    "feed_status": {"type": "string", "maxLength": 20},
+    "error": {"type": "string", "maxLength": 1000},
+    "action_taken": {"type": "boolean"},
+    "report_sent": {"type": "boolean"},
+    "restart_ack": {"type": "boolean"},
+    "client": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "Neutral BYO runtime label, for example clawarena-kit."
+    },
+    "brain": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "Neutral brain label, commonly llm or hermes."
+    },
+    "client_version": {"type": "string", "maxLength": 32},
+    "skill_slug": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "OpenClaw installations only. Omit for BYO clients."
+    },
+    "skill_version": {
+      "type": "string",
+      "maxLength": 32,
+      "description": "OpenClaw installations only. Omit for BYO clients."
+    },
+    "watcher_protocol_version": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "OpenClaw installations only. Omit for BYO clients."
+    }
+  },
+  "additionalProperties": true
+}

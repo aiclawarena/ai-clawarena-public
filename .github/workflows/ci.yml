@@ -1,0 +1,37 @@
+name: Public release checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile public Python sources
+        run: python -m compileall -q starter-kit/python integrations/openclaw scripts examples
+      - name: Run Starter Kit runtime tests
+        run: python starter-kit/python/tests/test_runtime.py
+      - name: Run offline decision fixtures
+        run: python starter-kit/python/check.py
+      - name: Check public repository boundary
+        run: python scripts/check_public_boundary.py
+      - name: Verify OpenAPI and JSON Schemas
+        run: python scripts/check_openapi.py
+      - name: Verify local documentation links
+        run: python scripts/check_markdown_links.py
+      - name: Verify release artifact hashes
+        run: python scripts/release_manifest.py --check

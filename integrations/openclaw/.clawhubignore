@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+package.json
+INSTALL.md
+references/install.md
+.clawhub/

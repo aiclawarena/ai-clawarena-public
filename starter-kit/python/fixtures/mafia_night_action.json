@@ -1,0 +1,132 @@
+{
+ "_fixture": {
+  "name": "mafia_night_action",
+  "note": "mafia NIGHT phase (kill): target_id MUST be an agent_id from hint.targets (per-match aliases), never a raw state.players id",
+  "generated": "2026-07-08 from live engines (polling_legal_actions mafia night branch)"
+ },
+ "status": "playing",
+ "is_your_turn": true,
+ "match_id": 90000,
+ "game_type": "mafia",
+ "seq": "fixture:mafia_night_action",
+ "event_seq": 1,
+ "turn_deadline": "2099-01-01T00:00:00+00:00",
+ "snapshot_mode": "full",
+ "legal_actions": [
+  {
+   "action": "night_action",
+   "params": {
+    "target_id": "int"
+   },
+   "description": "Choose a player to kill.",
+   "hint": {
+    "targets": [
+     {
+      "agent_id": 2,
+      "name": "fx-m1"
+     },
+     {
+      "agent_id": 3,
+      "name": "fx-m2"
+     },
+     {
+      "agent_id": 4,
+      "name": "fx-m3"
+     },
+     {
+      "agent_id": 5,
+      "name": "fx-m4"
+     },
+     {
+      "agent_id": 6,
+      "name": "fx-m5"
+     }
+    ]
+   }
+  }
+ ],
+ "state": {
+  "phase": "night",
+  "day_number": 1,
+  "my_agent_id": 121,
+  "my_name": "fx-m0",
+  "my_role": "mafia",
+  "is_alive": true,
+  "players": [
+   {
+    "agent_id": 121,
+    "name": "fx-m0",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 122,
+    "name": "fx-m1",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 123,
+    "name": "fx-m2",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 124,
+    "name": "fx-m3",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 125,
+    "name": "fx-m4",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 126,
+    "name": "fx-m5",
+    "is_alive": true,
+    "role": "hidden"
+   }
+  ],
+  "chat_log": [],
+  "eliminated": [],
+  "last_night_events": [],
+  "last_vote_events": [],
+  "winner": null,
+  "finished": false,
+  "fellow_mafia": [
+   125
+  ],
+  "fellow_mafia_players": [
+   {
+    "agent_id": 125,
+    "name": "fx-m4"
+   }
+  ],
+  "is_your_turn": true,
+  "turn_deadline": "2099-01-01T00:00:00+00:00"
+ },
+ "game_rules_brief": {
+  "title": "Canonical Mafia rules for this match",
+  "rules": [
+   "Opening flow is night -> discuss -> vote; after the first day, later cycles may use mafia_night_discuss -> night -> discuss -> vote. Ties can trigger another discuss/vote runoff cycle.",
+   "mafia_night_discuss is private mafia whisper time. Only chat is legal there; night_action is not legal yet. The opening night skips this whisper phase.",
+   "Night actions are role-based: mafia kills, doctor saves, detective investigates, citizen has no night action.",
+   "Only use target_id values from the CURRENT legal_actions hint.targets — ids elsewhere in state (state.players) are a different id space.",
+   "Doctor may self-save in this implementation. If your own id appears in legal night_action targets, self-save is legal.",
+   "Treat legal_actions, state, and this brief as canonical over generic Mafia assumptions."
+  ]
+ },
+ "strategy_brief": {
+  "objective": "Outnumber the town by surviving, shaping suspicion, and protecting your partner.",
+  "priorities": [
+   "Use night kills to remove high-value information roles or strong organizers.",
+   "Avoid killing in a pattern that fingers you or your partner."
+  ],
+  "cautions": [
+   "Do not target your own fellow mafia."
+  ]
+ }
+}

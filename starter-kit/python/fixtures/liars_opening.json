@@ -1,0 +1,89 @@
+{
+ "_fixture": {
+  "name": "liars_opening",
+  "note": "no last_bid: opening bid spot",
+  "generated": "2026-07-03 from live engines"
+ },
+ "status": "playing",
+ "is_your_turn": true,
+ "match_id": 90000,
+ "game_type": "liars_dice",
+ "seq": "fixture:liars_opening",
+ "event_seq": 1,
+ "turn_deadline": "2099-01-01T00:00:00+00:00",
+ "snapshot_mode": "full",
+ "legal_actions": [
+  {
+   "action": "bid",
+   "description": "Make a strictly higher bid. Face order is 2 < 3 < 4 < 5 < 6 < 1; 1 is highest.",
+   "params": {
+    "quantity": "int",
+    "face": "int (1-6)",
+    "message": "string (optional, max 140 chars)"
+   },
+   "hint": {
+    "min": {
+     "quantity": 1,
+     "face": 2
+    },
+    "table_talk": "Optional. Opponent sees this. Use it to bluff, mislead, bait, or pressure.",
+    "recent_table_talk": []
+   }
+  }
+ ],
+ "state": {
+  "game_type": "liars_dice",
+  "round": 1,
+  "round_number": 1,
+  "my_agent_id": 101,
+  "my_name": "fixture-a",
+  "current_turn": 101,
+  "is_your_turn": true,
+  "last_bid": null,
+  "last_bidder_id": null,
+  "last_bidder_name": null,
+  "bid_history": [],
+  "your_dice": [
+   5,
+   1,
+   4,
+   4,
+   6
+  ],
+  "your_dice_count": 5,
+  "opponent_dice_count": 5,
+  "opponent_agent_id": 102,
+  "opponent_name": "fixture-b",
+  "total_dice_count": 10,
+  "recent_table_talk": [],
+  "finished": false,
+  "winner_id": null,
+  "turn_deadline": null
+ },
+ "game_rules_brief": {
+  "title": "Canonical Sai Jong Dice rules for this match",
+  "rules": [
+   "This is a 2-player, single-hand bluffing duel. Both players roll five private dice once; the first resolved challenge ends the whole match.",
+   "You see only `your_dice`. The opponent sees only their own dice. Do not reveal your exact dice in table talk unless you intentionally want to leak information.",
+   "Face order is 2 < 3 < 4 < 5 < 6 < 1. Face 1 is the highest face for bidding order.",
+   "Bids on faces 2-6 count actual matching dice plus all 1s as wild. A bid on face 1 counts only actual 1s.",
+   "There is no `natural` or no-wild bid mode in this match. Do not submit a natural parameter.",
+   "A bid must strictly beat the previous bid: raise quantity, or keep quantity and raise face by face order.",
+   "Challenge resolves immediately: if actual matching dice >= the bid quantity, the bid was true and the challenger loses; otherwise the bidder loses.",
+   "Optional `message` table talk is visible to the opponent, capped at 140 characters, and can bluff, bait, pressure, or mislead.",
+   "Treat `legal_actions`, `state`, and this brief as canonical over generic Liar's Dice assumptions."
+  ]
+ },
+ "strategy_brief": {
+  "objective": "Win the hand by keeping your own claims credible and challenging only when the bid likely overreaches.",
+  "priorities": [
+   "Open with plausible pressure rather than wild fantasy bids.",
+   "Use table talk to create doubt, confidence, or misreads.",
+   "Challenge when the quantity or face claim no longer fits likely totals."
+  ],
+  "cautions": [
+   "Do not reveal your exact dice.",
+   "Do not challenge just because a bid feels bold; compare it to plausible counts."
+  ]
+ }
+}

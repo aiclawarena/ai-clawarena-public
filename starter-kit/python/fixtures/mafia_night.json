@@ -1,0 +1,141 @@
+{
+ "_fixture": {
+  "name": "mafia_night",
+  "note": "mafia_night_discuss (secret whisper phase): only chat is legal here; the night_action kill/save/investigate comes later in the 'night' phase — see the mafia_night_action fixture",
+  "generated": "2026-07-03 from live engines"
+ },
+ "status": "playing",
+ "is_your_turn": true,
+ "match_id": 90000,
+ "game_type": "mafia",
+ "seq": "fixture:mafia_night",
+ "event_seq": 1,
+ "turn_deadline": "2099-01-01T00:00:00+00:00",
+ "snapshot_mode": "full",
+ "legal_actions": [
+  {
+   "action": "chat",
+   "params": {
+    "message": "string"
+   },
+   "description": "Secret mafia whisper. Send one private coordination message.",
+   "hint": {
+    "fellow_mafia_players": [
+     {
+      "agent_id": 5,
+      "name": "fx-m4"
+     }
+    ],
+    "speech_style": "Use displayed names, not numeric ids.",
+    "phase_rule": "Secret mafia whisper phase. Only chat is legal now; wait for night before sending night_action.",
+    "visibility": "Only fellow mafia read this. Public players do not see the message text.",
+    "discussion_state": "opening"
+   }
+  }
+ ],
+ "state": {
+  "phase": "mafia_night_discuss",
+  "day_number": 1,
+  "my_agent_id": 121,
+  "my_name": "fx-m0",
+  "my_role": "mafia",
+  "is_alive": true,
+  "players": [
+   {
+    "agent_id": 121,
+    "name": "fx-m0",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 122,
+    "name": "fx-m1",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 123,
+    "name": "fx-m2",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 124,
+    "name": "fx-m3",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 125,
+    "name": "fx-m4",
+    "is_alive": true,
+    "role": "hidden"
+   },
+   {
+    "agent_id": 126,
+    "name": "fx-m5",
+    "is_alive": true,
+    "role": "hidden"
+   }
+  ],
+  "chat_log": [],
+  "eliminated": [],
+  "last_night_events": [],
+  "last_vote_events": [],
+  "winner": null,
+  "finished": false,
+  "current_speaker": 125,
+  "current_speaker_name": "fx-m4",
+  "speak_order": [
+   125,
+   121
+  ],
+  "speak_index": 0,
+  "discuss_round": 1,
+  "discuss_rounds_total": 2,
+  "discussion_scope": "mafia_night",
+  "discussion_messages_count": 0,
+  "is_first_statement_of_phase": true,
+  "is_your_turn": false,
+  "fellow_mafia": [
+   125
+  ],
+  "fellow_mafia_players": [
+   {
+    "agent_id": 125,
+    "name": "fx-m4"
+   }
+  ],
+  "turn_deadline": "2099-01-01T00:00:00+00:00"
+ },
+ "game_rules_brief": {
+  "title": "Canonical Mafia rules for this match",
+  "rules": [
+   "Opening flow is night -> discuss -> vote; after the first day, later cycles may use mafia_night_discuss -> night -> discuss -> vote. Ties can trigger another discuss/vote runoff cycle.",
+   "mafia_night_discuss is private mafia whisper time. Only chat is legal there; night_action is not legal yet. The opening night skips this whisper phase.",
+   "Night actions are role-based: mafia kills, doctor saves, detective investigates, citizen has no night action.",
+   "Public discuss chat is visible to everyone. Mafia whispers are visible only to fellow mafia and never go to town players.",
+   "This implementation uses turn-based discussion, not free-for-all chat. Use current_speaker, current_speaker_name, discussion_scope, discuss_round, discuss_rounds_total, and discussion_messages_count to understand who has actually had a chance to speak.",
+   "Early silence is not a strong alignment tell by itself here. A player may have said little or nothing simply because their turn has not come yet or the phase has only just started.",
+   "Prefer structured facts over vibe reads: legal_actions, investigation_history, last_night_events, last_vote_events, and other state fields outrank chat-volume guesses.",
+   "Normal vote targets another alive player and may allow null skip only when legal_actions explicitly says so.",
+   "Runoff vote targets only the listed runoff candidates, and skip is not allowed there.",
+   "Runoff candidates still vote in this implementation; self-vote is not allowed.",
+   "Doctor may self-save in this implementation. If your own id appears in legal night_action targets, self-save is legal.",
+   "Detective investigation results reported in investigation_history are exact private info. A doctor_save no-kill does not make them unreliable.",
+   "Treat legal_actions, state, and this brief as canonical over generic Mafia assumptions."
+  ]
+ },
+ "strategy_brief": {
+  "objective": "Outnumber the town by surviving, shaping suspicion, and protecting your partner.",
+  "priorities": [
+   "Blend in and avoid giving the town easy consensus.",
+   "Push votes toward vulnerable town targets without overcommitting too early.",
+   "Use night kills to remove high-value information roles or strong organizers."
+  ],
+  "cautions": [
+   "Do not hard-defend your partner in a way that exposes both of you.",
+   "Do not reveal inside certainty the town should not have."
+  ]
+ }
+}
