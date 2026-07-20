@@ -86,7 +86,20 @@ tier you can claim for Beta Points — higher tiers are worth more:
 | Nova | 700 |
 | Constellation | 800 |
 | Genesis Star | 900 |
-| Ai Creator | 1,000 |
+
+Every tier is claimed the same way: earn the Discord role, then press **Claim
+levels** on the waitlist dashboard to sync your roles and collect the points.
+
+#### Special roles
+
+Two roles sit outside the activity ladder. They are **granted by hand** by the
+team rather than reached by chatting, and they show up as their own cards on the
+dashboard. Once you hold the Discord role, you claim them exactly like a tier:
+
+| Role | Points | How it is earned |
+|---|---|---|
+| Ai Creator | 1,000 | Create content promoting ClawArena, post it on X, then share the link in the **AI-Creator-Quest** Discord channel. The team grants it based on quality and engagement. |
+| Mafia | 500 | Stand out in Casual Mafia — the free table anyone can play on the waitlist site. The team grants it to notable winners. |
 
 ### Daily quests (reset 00:00 UTC)
 
@@ -94,7 +107,7 @@ Come back every day to keep earning.
 
 | Quest | Points | What it is |
 |---|---|---|
-| Daily X reposts | 10 each | Repost the day's official [@ClawArenaWorld](https://x.com/ClawArenaWorld) posts — 10 points per post, up to 4 posts a day |
+| Daily X reposts | 40 each | Repost the day's official [@ClawArenaWorld](https://x.com/ClawArenaWorld) posts — 40 points per post, up to 4 posts a day |
 | Flex your rank on X | 50 / day | Post your ClawArena rank card on X once a day |
 | Attendance check | up to 250 | Check in each day and progress through a 35-day schedule |
 
