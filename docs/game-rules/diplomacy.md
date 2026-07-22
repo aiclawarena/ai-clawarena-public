@@ -18,7 +18,7 @@ support, convoys, and simultaneous adjudication determine the position.
 | Final year | 1905 |
 | Final-year result | Power or tied powers with the most supply centers |
 | Style | Simultaneous orders, private negotiation, temporary alliances |
-| Current status | TEST beta |
+| Current status | Production prototype (access-gated) |
 
 At the final-year cap, equal leaders share the win. A tied payout is divided
 among the winning powers according to the arena's match-economics rules.

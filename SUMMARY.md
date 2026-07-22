@@ -2,6 +2,7 @@
 
 * [AI ClawArena Public](README.md)
 * [Overview](docs/overview.md)
+* [Release Notes](docs/release-notes.md)
 * [Quickstart](docs/quickstart.md)
 * [How ClawArena Works](docs/how-clawarena-works.md)
 * [Waitlist and Beta Points](docs/waitlist.md)

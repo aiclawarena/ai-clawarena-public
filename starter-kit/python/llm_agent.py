@@ -35,6 +35,9 @@ LLM_TIMEOUT_SECONDS = 45
 # your usage log is the tell; live matches still pinned 1200 occasionally).
 # Models stop when done, so headroom only costs on the turns that need it.
 LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "3000"))
+LLM_DIPLOMACY_MAX_TOKENS = int(
+    os.environ.get("LLM_DIPLOMACY_MAX_TOKENS", "6000")
+)
 LLM_PREFLIGHT_MAX_TOKENS = int(os.environ.get("LLM_PREFLIGHT_MAX_TOKENS", "1200"))
 
 
@@ -78,10 +81,11 @@ remaining dice before committing.
 - monopoly: state.heuristic_advice.recommended_action is scored server advice — follow \
 it unless you have a concrete reason not to; build trade params from the advice/hints, \
 and never accept a trade that completes an opponent's color set.
-- diplomacy: agreements are non-binding. Use the two press rounds to ask for exact \
-supports or borders, then prefer one complete atomic batch. Cross-check every origin \
-and destination against legal_actions[].hint legal_orders plus shared_candidates; do \
-not expose private press or pending orders.
+- diplomacy: agreements are non-binding. heuristic_advice is tactical decision support, \
+not a command: compare its top candidates against visible press and your own strategy. In \
+press rounds, contact only position-relevant powers with concrete proposals and stay silent \
+when there is no useful ask or reply. In order phases, choose candidate_id, patch at most two \
+origins, or submit a fully custom atomic batch. Never expose private press or pending orders.
 
 Also in the input:
 - The standard runner labels its first full decision STATE_BASELINE and later decisions
@@ -97,6 +101,9 @@ consistent with every claim in it. Later turns may carry my_memory_delta using
 the same unchanged/_appended/removed rules as state_delta.
 - user_preferences (in MATCH_CONTEXT or state): the owner's standing strategy hint and risk profile —
 follow them.
+- action_rejection is a machine-readable rejection from the authoritative server. Correct the
+named field exactly once using its allowed_values and the current legal_actions contract; never
+repeat the rejected payload. If correction still fails, the runner uses the server fallback.
 - message_language: if set (e.g. "ko", "Korean", "日本語"), write ALL
 params.message table talk in THAT language; if absent or "en"/"English", use
 English. Only the message text is translated — action names and params stay as
@@ -116,6 +123,7 @@ Decide within the turn budget — a fast good move beats a late perfect one."""
 _SESSION_LOCK = threading.RLock()
 _SESSION = {
     "match_id": None,
+    "context_epoch": None,
     "messages": [],
     "context": None,
     "state": None,
@@ -190,10 +198,13 @@ def _estimate_messages_tokens(messages: list[dict]) -> int:
     )
 
 
-def _context_compaction_threshold(context_window: int) -> int:
+def _context_compaction_threshold(
+    context_window: int,
+    completion_reserve: int = LLM_MAX_TOKENS,
+) -> int:
     if context_window <= 0:
         return 0
-    reserve = max(LLM_MAX_TOKENS, 2048)
+    reserve = max(completion_reserve, 2048)
     return max(1, int(context_window * _compact_ratio()) - reserve)
 
 
@@ -339,12 +350,16 @@ def _prepare_conversation(
     legal_actions: list[dict],
     *,
     context_window: int = 0,
+    completion_reserve: int = LLM_MAX_TOKENS,
     force_full: bool = False,
 ) -> tuple[list[dict], dict]:
     match_id = memory.current_match_id()
+    context_epoch = ""
+    if str(state.get("game_type") or "").strip().lower() == "diplomacy":
+        context_epoch = str(state.get("decision_context_epoch") or "").strip()
     context, board, match_memory = _snapshot(state)
     with _SESSION_LOCK:
-        same_match = bool(
+        same_match_identity = bool(
             match_id is not None
             and match_id == _SESSION["match_id"]
             and _SESSION["messages"]
@@ -352,6 +367,12 @@ def _prepare_conversation(
             and _SESSION["state"] is not None
             and _SESSION["memory"] is not None
         )
+        epoch_changed = bool(
+            same_match_identity
+            and context_epoch
+            and context_epoch != str(_SESSION.get("context_epoch") or "")
+        )
+        same_match = same_match_identity and not epoch_changed
         prior_turn_count = int(_SESSION["turn_count"] or 0) if same_match else 0
         active_context_window = context_window or (
             int(_SESSION.get("context_window") or 0) if same_match else 0
@@ -378,7 +399,10 @@ def _prepare_conversation(
                 + _estimate_text_tokens(content)
                 + 8,
             )
-            threshold = _context_compaction_threshold(active_context_window)
+            threshold = _context_compaction_threshold(
+                active_context_window,
+                completion_reserve,
+            )
             compacted = bool(threshold and estimated_prompt_tokens >= threshold)
         if not same_match or force_full or compacted:
             content = _full_turn_content(
@@ -397,12 +421,15 @@ def _prepare_conversation(
                 mode = "overflow_recovery"
             elif compacted:
                 mode = "compacted"
+            elif epoch_changed:
+                mode = "epoch"
             else:
                 mode = "full"
         else:
             mode = "delta"
     pending = {
         "match_id": match_id,
+        "context_epoch": context_epoch or None,
         "messages": messages,
         "context": context,
         "state": board,
@@ -425,6 +452,7 @@ def _commit_conversation(pending: dict, reply: str) -> tuple[str, int] | None:
     with _SESSION_LOCK:
         _SESSION.update(
             match_id=match_id,
+            context_epoch=pending.get("context_epoch"),
             messages=messages,
             context=copy.deepcopy(pending["context"]),
             state=copy.deepcopy(pending["state"]),
@@ -443,6 +471,7 @@ def _reset_session() -> None:
     with _SESSION_LOCK:
         _SESSION.update(
             match_id=None,
+            context_epoch=None,
             messages=[],
             context=None,
             state=None,
@@ -548,15 +577,29 @@ def _normalize_chat_result(result) -> dict:
     return {"text": str(result or ""), "prompt_tokens": 0, "finish_reason": ""}
 
 
+def _decision_max_tokens(state: dict) -> int:
+    if str(state.get("game_type") or "").strip().lower() == "diplomacy":
+        return max(1, LLM_DIPLOMACY_MAX_TOKENS)
+    return max(1, LLM_MAX_TOKENS)
+
+
 def _chat(base, key, model, state, legal_actions):
     context_window = _model_context_window(base, key, model)
+    max_tokens = _decision_max_tokens(state)
     messages, pending = _prepare_conversation(
         state,
         legal_actions,
         context_window=context_window,
+        completion_reserve=max_tokens,
     )
     try:
-        raw_result = _chat_request(base, key, model, messages)
+        raw_result = _chat_request(
+            base,
+            key,
+            model,
+            messages,
+            max_tokens=max_tokens,
+        )
     except ContextOverflowError:
         if pending["mode"] != "delta":
             raise
@@ -564,11 +607,20 @@ def _chat(base, key, model, state, legal_actions):
             state,
             legal_actions,
             context_window=context_window,
+            completion_reserve=max_tokens,
             force_full=True,
         )
-        raw_result = _chat_request(base, key, model, messages)
+        raw_result = _chat_request(
+            base,
+            key,
+            model,
+            messages,
+            max_tokens=max_tokens,
+        )
     result = _normalize_chat_result(raw_result)
     pending["prompt_tokens"] = result["prompt_tokens"]
+    pending["finish_reason"] = result["finish_reason"]
+    pending["max_completion_tokens"] = max_tokens
     return result["text"], pending
 
 
@@ -644,6 +696,103 @@ def _note_fallback(reason: str) -> None:
     )
 
 
+# Diplomacy batches are validated against the CURRENT hints before submitting.
+# A hallucinated support pair or coast-less build otherwise seals, adjudicates
+# INVALID on the server, and silently wastes the power's whole phase.
+_DIPLOMACY_BATCH_ACTIONS = {
+    "send_press",
+    "submit_orders",
+    "submit_retreats",
+    "submit_adjustments",
+}
+
+
+def _diplomacy_hint(
+    action_name: str,
+    legal_actions: list[dict],
+    state: dict | None = None,
+) -> dict:
+    for entry in legal_actions:
+        if isinstance(entry, dict) and entry.get("action") == action_name:
+            hint = entry.get("hint")
+            result = dict(hint) if isinstance(hint, dict) else {}
+            advice = (state or {}).get("heuristic_advice")
+            if isinstance(advice, dict) and advice:
+                result["heuristic_advice"] = advice
+            return result
+    return {}
+
+
+def _repair_diplomacy_move(move, reply, pending, base, key, model, state, legal_actions):
+    """Deadline-safe hint validation for diplomacy batches (mirrors agent.py).
+
+    An invalid batch earns ONE corrective LLM retry carrying the validator's
+    findings. If the retry is still invalid (or fails), only the offending
+    orders degrade — movement to HOLD, retreat to DISBAND, adjustment to
+    WAIVE, unsalvageable entries dropped — and the valid rest still submits.
+    Returns the (possibly replaced) move, reply, and pending transcript.
+    """
+    if state.get("game_type") != "diplomacy" or move["action"] not in _DIPLOMACY_BATCH_ACTIONS:
+        return move, reply, pending
+    problems = helpers.diplomacy_batch_problems(
+        move["action"],
+        move["params"],
+        _diplomacy_hint(move["action"], legal_actions, state),
+    )
+    if not problems:
+        return move, reply, pending
+    try:
+        _COUNTERS["llm_calls"] += 1
+        retry_messages = copy.deepcopy(pending["messages"])
+        retry_messages.append({"role": "assistant", "content": reply})
+        retry_messages.append({"role": "user", "content": (
+            "ORDER_VALIDATION_FAILED: your reply is not legal for the current "
+            "phase hints and the server would waste those orders: "
+            + json.dumps(problems[:5], ensure_ascii=False)
+            + "\nReply again with ONLY the corrected JSON action. Use origins, "
+            "destinations, support pairs, and build sites EXACTLY as listed in "
+            "legal_actions[].hint (legal_orders + shared_candidates)."
+        )})
+        result = _normalize_chat_result(_chat_request(
+            base,
+            key,
+            model,
+            retry_messages,
+            max_tokens=_decision_max_tokens(state),
+        ))
+        retried = _parse_action(result["text"], legal_actions, state)
+        if retried and retried["action"] in _DIPLOMACY_BATCH_ACTIONS:
+            retry_pending = dict(pending)
+            retry_pending["messages"] = retry_messages
+            retry_pending["prompt_tokens"] = result["prompt_tokens"]
+            retry_problems = helpers.diplomacy_batch_problems(
+                retried["action"],
+                retried["params"],
+                _diplomacy_hint(retried["action"], legal_actions, state),
+            )
+            if not retry_problems:
+                print("[llm_agent] diplomacy retry produced a hint-legal batch", flush=True)
+                return retried, result["text"], retry_pending
+            # Degrade the retried batch: it is the model's latest intent.
+            move, reply, pending = retried, result["text"], retry_pending
+    except Exception as exc:  # noqa: BLE001 — degrade the last parsed batch instead
+        print(f"[llm_agent] diplomacy validation retry failed ({exc})", flush=True)
+    safe_params, notes = helpers.degrade_diplomacy_batch(
+        move["action"],
+        move["params"],
+        _diplomacy_hint(move["action"], legal_actions, state),
+    )
+    if notes:
+        print(
+            "[llm_agent] diplomacy batch degraded to stay hint-legal: "
+            + "; ".join(notes),
+            flush=True,
+        )
+    move = dict(move)
+    move["params"] = safe_params
+    return move, reply, pending
+
+
 def decide(state: dict, legal_actions: list[dict]) -> dict:
     base, key, model = _llm_config()
     if base:
@@ -655,6 +804,9 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
             reply, pending = _chat(base, key, model, state, legal_actions)
             move = _parse_action(reply, legal_actions, state)
             if move:
+                move, reply, pending = _repair_diplomacy_move(
+                    move, reply, pending, base, key, model, state, legal_actions,
+                )
                 committed = _commit_conversation(pending, reply)
                 if committed and committed[0] != "delta":
                     mode, turn_count = committed
@@ -671,7 +823,13 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
                         flush=True,
                     )
                 return move
-            _note_fallback("unusable LLM reply")
+            if str(pending.get("finish_reason") or "").lower() == "length":
+                _note_fallback(
+                    "LLM completion hit the configured "
+                    f"{pending.get('max_completion_tokens')} token limit before producing valid JSON"
+                )
+            else:
+                _note_fallback("unusable LLM reply")
         except Exception as exc:  # noqa: BLE001 — never lose the turn to the model
             _note_fallback(f"LLM call failed ({exc})")
     try:

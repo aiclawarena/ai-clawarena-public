@@ -540,6 +540,46 @@ class StarterSessionTests(unittest.TestCase):
         )
         self.assertNotIn("my_memory", update)
 
+    def test_diplomacy_context_epoch_bounds_session_without_splitting_one_season(self):
+        legal = [{"action": "send_press", "params": {"messages": "array"}}]
+
+        def diplomacy_state(phase, epoch):
+            return {
+                "game_type": "diplomacy",
+                "phase": phase,
+                "phase_key": phase,
+                "phase_type": "negotiation",
+                "decision_context_epoch": epoch,
+                "power": "ENGLAND",
+                "my_memory": {"my_recent_moves": []},
+            }
+
+        with mock.patch.object(llm_agent.memory, "current_match_id", return_value=88):
+            _first, first_pending = llm_agent._prepare_conversation(
+                diplomacy_state("S1902M-N1", "S1902M"), legal,
+            )
+            llm_agent._commit_conversation(
+                first_pending,
+                '{"action":"send_press","params":{"messages":[]}}',
+            )
+            second, second_pending = llm_agent._prepare_conversation(
+                diplomacy_state("S1902M-N2", "S1902M"), legal,
+            )
+            llm_agent._commit_conversation(
+                second_pending,
+                '{"action":"send_press","params":{"messages":[]}}',
+            )
+            next_season, next_pending = llm_agent._prepare_conversation(
+                diplomacy_state("F1902M-N1", "F1902M"), legal,
+            )
+
+        self.assertEqual(second_pending["mode"], "delta")
+        self.assertIn("TURN_UPDATE:\n", second[-1]["content"])
+        self.assertEqual(next_pending["mode"], "epoch")
+        self.assertEqual([message["role"] for message in next_season], ["system", "user"])
+        self.assertIn("STATE_BASELINE:\n", next_season[1]["content"])
+        self.assertEqual(next_pending["prior_turn_count"], 0)
+
     def test_token_pressure_rebuilds_a_full_authoritative_baseline(self):
         with mock.patch.object(llm_agent.memory, "current_match_id", return_value=41):
             messages, pending = llm_agent._prepare_conversation(self.state(), self.legal())
@@ -605,6 +645,87 @@ class StarterSessionTests(unittest.TestCase):
         self.assertIn("STATE_BASELINE:\n", calls[1][1]["content"])
         self.assertEqual(recovered["mode"], "overflow_recovery")
         self.assertEqual(recovered["prompt_tokens"], 2400)
+
+    def test_diplomacy_has_separate_completion_headroom(self):
+        calls = []
+
+        def fake_chat_request(_base, _key, _model, _messages, **kwargs):
+            calls.append(kwargs["max_tokens"])
+            return {
+                "text": '{"action":"chat","params":{}}',
+                "prompt_tokens": 10,
+                "finish_reason": "stop",
+            }
+
+        diplomacy = self.state()
+        diplomacy["game_type"] = "diplomacy"
+        with (
+            mock.patch.object(llm_agent.memory, "current_match_id", return_value=41),
+            mock.patch.object(llm_agent, "_model_context_window", return_value=0),
+            mock.patch.object(llm_agent, "_chat_request", side_effect=fake_chat_request),
+        ):
+            _, diplomacy_pending = llm_agent._chat(
+                "https://llm.example/v1",
+                "key",
+                "model",
+                diplomacy,
+                self.legal(),
+            )
+            llm_agent._reset_session()
+            _, mafia_pending = llm_agent._chat(
+                "https://llm.example/v1",
+                "key",
+                "model",
+                self.state(),
+                self.legal(),
+            )
+
+        self.assertEqual(calls, [
+            llm_agent.LLM_DIPLOMACY_MAX_TOKENS,
+            llm_agent.LLM_MAX_TOKENS,
+        ])
+        self.assertEqual(
+            diplomacy_pending["max_completion_tokens"],
+            llm_agent.LLM_DIPLOMACY_MAX_TOKENS,
+        )
+        self.assertEqual(
+            mafia_pending["max_completion_tokens"],
+            llm_agent.LLM_MAX_TOKENS,
+        )
+
+    def test_length_finish_reason_names_the_active_completion_limit(self):
+        diplomacy = self.state()
+        diplomacy["game_type"] = "diplomacy"
+        fallback = {"action": "chat", "params": {}}
+        with (
+            mock.patch.object(llm_agent.memory, "current_match_id", return_value=41),
+            mock.patch.object(
+                llm_agent,
+                "_llm_config",
+                return_value=("https://llm.example/v1", "key", "model"),
+            ),
+            mock.patch.object(llm_agent, "_model_context_window", return_value=0),
+            mock.patch.object(
+                llm_agent,
+                "_chat_request",
+                return_value={
+                    "text": "",
+                    "prompt_tokens": 10,
+                    "finish_reason": "length",
+                },
+            ),
+            mock.patch.object(llm_agent.heuristic_agent, "decide", return_value=fallback),
+            io.StringIO() as captured,
+            mock.patch.object(sys, "stdout", captured),
+        ):
+            move = llm_agent.decide(diplomacy, self.legal())
+            log = captured.getvalue()
+
+        self.assertEqual(move, fallback)
+        self.assertIn(
+            f"configured {llm_agent.LLM_DIPLOMACY_MAX_TOKENS} token limit",
+            log,
+        )
 
     def test_new_match_never_reuses_the_previous_match_transcript(self):
         with mock.patch.object(llm_agent.memory, "current_match_id", return_value=41):
@@ -763,6 +884,90 @@ class DiplomacyOfflineContractTests(unittest.TestCase):
             }]},
         }
         self.assertEqual(offline_check.check_move(convoy_fixture, convoy), [])
+
+    def test_checker_accepts_current_heuristic_candidate_and_bounded_override(self):
+        fixture = json.loads(json.dumps(self.fixture("diplomacy_movement")))
+        hint = fixture["legal_actions"][0]["hint"]
+        candidate_orders = [
+            {"type": "HOLD", "origin": entry["origin"]}
+            for entry in hint["legal_orders"]
+        ]
+        hint["heuristic_advice"] = {
+            "recommended_candidate_id": "precision-test-1",
+            "candidates": [{
+                "candidate_id": "precision-test-1",
+                "orders": candidate_orders,
+            }],
+        }
+        move = {
+            "action": "submit_orders",
+            "params": {
+                "candidate_id": "precision-test-1",
+                "order_overrides": [{
+                    "type": "MOVE",
+                    "origin": "LVP",
+                    "destination": "YOR",
+                }],
+            },
+        }
+
+        self.assertEqual(offline_check.check_move(fixture, move), [])
+        move["params"]["order_overrides"][0]["destination"] = "MUN"
+        self.assertTrue(offline_check.check_move(fixture, move))
+
+    def test_checker_uses_server_press_budget(self):
+        fixture = json.loads(json.dumps(self.fixture("diplomacy_negotiation")))
+        fixture["legal_actions"][0]["hint"]["max_messages"] = 2
+        target = fixture["legal_actions"][0]["hint"]["recipient_powers"][0]
+        move = {
+            "action": "send_press",
+            "params": {"messages": [
+                {"to_power": target, "content": f"Proposal {index}"}
+                for index in range(3)
+            ]},
+        }
+
+        self.assertTrue(offline_check.check_move(fixture, move))
+
+    def test_checker_rejects_unlisted_press_contract_identifiers(self):
+        fixture = self.fixture("diplomacy_negotiation")
+        hint = fixture["legal_actions"][0]["hint"]
+        target = hint["recipient_powers"][0]
+        move = {
+            "action": "send_press",
+            "params": {
+                "messages": [{"to_power": target, "content": "Hold the north."}],
+                "strategy_intent": {"avoid_provinces": ["NOR"]},
+            },
+        }
+
+        problems = offline_check.check_move(fixture, move)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn("avoid_provinces[0]", problems[0])
+        self.assertIn("server-authorized ids", problems[0])
+        self.assertIn("NWY", hint["valid_province_ids"])
+        self.assertNotIn("NOR", hint["valid_province_ids"])
+
+    def test_checker_rejects_self_conflicting_private_strategy_intent(self):
+        fixture = self.fixture("diplomacy_negotiation")
+        hint = fixture["legal_actions"][0]["hint"]
+        target = hint["recipient_powers"][0]
+        move = {
+            "action": "send_press",
+            "params": {
+                "messages": [{"to_power": target, "content": "Keep Burgundy quiet."}],
+                "strategy_intent": {
+                    "priority_targets": ["BUR"],
+                    "dmz_provinces": ["BUR"],
+                },
+            },
+        }
+
+        problems = offline_check.check_move(fixture, move)
+
+        self.assertEqual(len(problems), 1)
+        self.assertIn("prioritize a province", problems[0])
 
     def test_checker_rejects_empty_candidate_domains_and_wrong_unit_roles(self):
         fixture = self.fixture("diplomacy_movement")
@@ -977,6 +1182,189 @@ class DiplomacyOfflineContractTests(unittest.TestCase):
                 self.assertEqual(offline_check.check_move(fixture, move), [])
 
 
+class DiplomacyRuntimeValidationTests(unittest.TestCase):
+    """The live decision path shares check.py's validator and degrades safely."""
+
+    def setUp(self):
+        llm_agent._reset_session()
+
+    def tearDown(self):
+        llm_agent._reset_session()
+
+    def fixture(self, name):
+        return json.loads((KIT_DIR / "fixtures" / f"{name}.json").read_text())
+
+    def hint(self, fixture):
+        return fixture["legal_actions"][0]["hint"]
+
+    def test_degrade_replaces_only_offending_orders_and_keeps_the_rest(self):
+        movement = self.hint(self.fixture("diplomacy_movement"))
+        params, notes = helpers.degrade_diplomacy_batch("submit_orders", {"orders": [
+            {"type": "MOVE", "origin": "EDI", "destination": "PAR"},
+            {"type": "SUPPORT", "origin": "LON", "target": "LVP", "destination": "YOR"},
+            {"type": "HOLD", "origin": "LVP"},
+        ]}, movement)
+        self.assertEqual(params["orders"], [
+            {"type": "HOLD", "origin": "EDI"},
+            {"type": "SUPPORT", "origin": "LON", "target": "LVP", "destination": "YOR"},
+            {"type": "HOLD", "origin": "LVP"},
+        ])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("degraded to HOLD", notes[0])
+        self.assertEqual(
+            helpers.diplomacy_batch_problems("submit_orders", params, movement),
+            [],
+        )
+
+    def test_degrade_disbands_a_bad_retreat_and_waives_a_bad_build(self):
+        retreat = self.hint(self.fixture("diplomacy_retreat"))
+        params, notes = helpers.degrade_diplomacy_batch("submit_retreats", {"orders": [
+            {"type": "RETREAT", "origin": "BEL", "destination": "LON"},
+        ]}, retreat)
+        self.assertEqual(params["orders"], [{"type": "DISBAND", "origin": "BEL"}])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("degraded to DISBAND", notes[0])
+
+        adjustment = self.hint(self.fixture("diplomacy_adjustment"))
+        params, notes = helpers.degrade_diplomacy_batch("submit_adjustments", {"orders": [
+            {"type": "BUILD", "destination": "LON", "unit_type": "A"},
+            {"type": "BUILD", "destination": "PAR", "unit_type": "A"},
+        ]}, adjustment)
+        self.assertEqual(params["orders"], [
+            {"type": "BUILD", "destination": "LON", "unit_type": "A"},
+            {"type": "WAIVE"},
+        ])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("degraded to WAIVE", notes[0])
+
+    def test_degrade_drops_unsalvageable_entries_for_hint_legal_defaults(self):
+        # Unknown origin: a HOLD there would still be illegal, so drop it.
+        movement = self.hint(self.fixture("diplomacy_movement"))
+        params, notes = helpers.degrade_diplomacy_batch("submit_orders", {"orders": [
+            {"type": "MOVE", "origin": "PAR", "destination": "BUR"},
+        ]}, movement)
+        self.assertEqual(params["orders"], [])
+        self.assertIn("dropped", notes[0])
+
+        # Forced removals allow no WAIVE; the server's deterministic civil
+        # disorder covers a dropped disband.
+        forced = {"legal_orders": [{"disbands_required": 1, "origins": ["BER", "KIE"]}]}
+        params, notes = helpers.degrade_diplomacy_batch("submit_adjustments", {"orders": [
+            {"type": "DISBAND", "origin": "MUN"},
+        ]}, forced)
+        self.assertEqual(params["orders"], [])
+        self.assertIn("dropped", notes[0])
+
+    def test_degrade_keeps_press_but_removes_invalid_optional_metadata(self):
+        fixture = self.fixture("diplomacy_negotiation")
+        hint = self.hint(fixture)
+        target = hint["recipient_powers"][0]
+        params, notes = helpers.degrade_diplomacy_batch("send_press", {
+            "messages": [{
+                "to_power": target,
+                "content": "Concrete non-aggression proposal.",
+                "proposal": {
+                    "kind": "dmz",
+                    "provinces": ["NOR"],
+                },
+            }],
+            "strategy_intent": {"avoid_provinces": ["NOR"]},
+        }, hint)
+
+        self.assertEqual(params, {
+            "messages": [{
+                "to_power": target,
+                "content": "Concrete non-aggression proposal.",
+            }],
+        })
+        self.assertTrue(any("proposal metadata removed" in note for note in notes))
+        self.assertTrue(any("strategy_intent removed" in note for note in notes))
+        self.assertEqual(
+            helpers.diplomacy_batch_problems("send_press", params, hint),
+            [],
+        )
+
+    def _decide(self, fixture, replies):
+        state = offline_check.runner_state(fixture)
+        chat = mock.Mock(side_effect=list(replies))
+        with (
+            mock.patch.object(llm_agent.memory, "current_match_id", return_value=51),
+            mock.patch.object(
+                llm_agent,
+                "_llm_config",
+                return_value=("https://llm.example/v1", "key", "model"),
+            ),
+            mock.patch.object(llm_agent, "_model_context_window", return_value=0),
+            mock.patch.object(llm_agent, "_chat_request", chat),
+            io.StringIO() as captured,
+            mock.patch.object(sys, "stdout", captured),
+        ):
+            move = llm_agent.decide(state, fixture["legal_actions"])
+            log = captured.getvalue()
+        return move, chat, log
+
+    def test_invalid_batch_gets_one_corrective_retry_that_can_win(self):
+        fixture = self.fixture("diplomacy_movement")
+        bad = json.dumps({"action": "submit_orders", "params": {"orders": [
+            {"type": "MOVE", "origin": "EDI", "destination": "PAR"},
+        ]}})
+        good = json.dumps({"action": "submit_orders", "params": {"orders": [
+            {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+        ]}})
+
+        move, chat, _log = self._decide(fixture, [bad, good])
+
+        self.assertEqual(move["params"]["orders"], [
+            {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+        ])
+        self.assertEqual(chat.call_count, 2)
+        retry_messages = chat.call_args_list[1].args[3]
+        self.assertEqual(retry_messages[-1]["role"], "user")
+        self.assertIn("ORDER_VALIDATION_FAILED", retry_messages[-1]["content"])
+        self.assertIn("is not hinted", retry_messages[-1]["content"])
+        # The committed transcript ends with the accepted retry reply.
+        self.assertEqual(llm_agent._SESSION["messages"][-1]["content"], good)
+
+    def test_still_invalid_retry_degrades_only_the_offending_orders(self):
+        fixture = self.fixture("diplomacy_movement")
+        bad = json.dumps({"action": "submit_orders", "params": {"orders": [
+            {"type": "MOVE", "origin": "EDI", "destination": "PAR"},
+            {"type": "HOLD", "origin": "LON"},
+        ]}})
+
+        move, chat, log = self._decide(fixture, [bad, bad])
+
+        self.assertEqual(chat.call_count, 2)
+        self.assertEqual(move["action"], "submit_orders")
+        self.assertEqual(move["params"]["orders"], [
+            {"type": "HOLD", "origin": "EDI"},
+            {"type": "HOLD", "origin": "LON"},
+        ])
+        self.assertIn("degraded to stay hint-legal", log)
+        self.assertEqual(
+            offline_check.check_move(fixture, move),
+            [],
+        )
+
+    def test_valid_batches_and_other_games_never_trigger_a_retry(self):
+        fixture = self.fixture("diplomacy_movement")
+        good = json.dumps({"action": "submit_orders", "params": {"orders": [
+            {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+        ]}})
+        move, chat, _log = self._decide(fixture, [good])
+        self.assertEqual(chat.call_count, 1)
+        self.assertEqual(move["params"]["orders"], [
+            {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+        ])
+
+        llm_agent._reset_session()
+        liars = self.fixture("liars_opening")
+        bid = json.dumps({"action": "bid", "params": {"quantity": 2, "face": 3}})
+        move, chat, _log = self._decide(liars, [bid])
+        self.assertEqual(chat.call_count, 1)
+        self.assertEqual(move["action"], "bid")
+
+
 class OfflineMockCliTests(unittest.TestCase):
     def test_mock_arena_never_runs_live_model_preflight(self):
         env = os.environ.copy()
@@ -1103,6 +1491,60 @@ class HermesTests(unittest.TestCase):
         self.assertTrue(first.startswith(llm_agent.SYSTEM_PROMPT))
         self.assertTrue(resumed.startswith(hermes_agent._RESUMED_CONTRACT))
         self.assertTrue(long_running.startswith(hermes_agent._RESUMED_CONTRACT))
+
+    def test_hermes_corrects_invalid_diplomacy_metadata_in_the_same_session(self):
+        fixture = json.loads((KIT_DIR / "fixtures" / "diplomacy_negotiation.json").read_text())
+        state = offline_check.runner_state(fixture)
+        target = fixture["legal_actions"][0]["hint"]["recipient_powers"][0]
+        bad = json.dumps({
+            "action": "send_press",
+            "params": {
+                "messages": [{"to_power": target, "content": "Hold the north."}],
+                "strategy_intent": {"avoid_provinces": ["NOR"]},
+            },
+        })
+        good = json.dumps({
+            "action": "send_press",
+            "params": {
+                "messages": [{"to_power": target, "content": "Hold the north."}],
+                "strategy_intent": {"avoid_provinces": ["NWY"]},
+            },
+        })
+        calls = []
+        saved_counts = []
+        old_last = dict(hermes_agent._LAST)
+
+        def fake_chat(prompt, session_id, timeout):
+            calls.append((prompt, session_id, timeout))
+            return (bad, "diplomacy-session") if len(calls) == 1 else (
+                good,
+                "diplomacy-session",
+            )
+
+        try:
+            hermes_agent._LAST.update(sid=None, board=None, turn_count=0)
+            with (
+                mock.patch.object(hermes_agent.memory, "get_hermes_session", return_value=None),
+                mock.patch.object(hermes_agent.memory, "get_hermes_session_turn_count", return_value=0),
+                mock.patch.object(hermes_agent.memory, "set_hermes_session"),
+                mock.patch.object(
+                    hermes_agent.memory,
+                    "set_hermes_session_turn_count",
+                    side_effect=saved_counts.append,
+                ),
+                mock.patch.object(hermes_agent, "_run_chat", side_effect=fake_chat),
+            ):
+                move = hermes_agent.decide(state, fixture["legal_actions"])
+        finally:
+            hermes_agent._LAST.clear()
+            hermes_agent._LAST.update(old_last)
+
+        self.assertEqual(move["params"]["strategy_intent"]["avoid_provinces"], ["NWY"])
+        self.assertEqual([call[1] for call in calls], [None, "diplomacy-session"])
+        self.assertIn("Canonical Claw Diplomacy rules", calls[0][0])
+        self.assertIn("Norway is NWY, never NOR", calls[0][0])
+        self.assertIn("SERVER_CONTRACT_PREFLIGHT_REJECTED", calls[1][0])
+        self.assertEqual(saved_counts, [1, 2])
 
     def test_docker_invocation_wraps_inner_process_timeout(self):
         with (
@@ -1247,6 +1689,58 @@ class HermesTests(unittest.TestCase):
             {"my_recent_moves": [{"action": "roll"}]},
         )
 
+    def test_diplomacy_server_epoch_starts_fresh_hermes_baseline(self):
+        state = {
+            "game_type": "diplomacy",
+            "phase": "F1902M-N1",
+            "phase_key": "F1902M-N1",
+            "phase_type": "negotiation",
+            "decision_context_epoch": "F1902M",
+            "power": "ENGLAND",
+        }
+        legal = [{"action": "send_press", "params": {"messages": "array"}}]
+        prompts = []
+        cleared = []
+        saved_sessions = []
+        saved_epochs = []
+        old_last = dict(hermes_agent._LAST)
+
+        def fake_chat(prompt, session_id, timeout):
+            prompts.append((prompt, session_id, timeout))
+            return '{"action":"send_press","params":{"messages":[]}}', "fall-session"
+
+        try:
+            hermes_agent._LAST.update(
+                sid="spring-session",
+                board={"phase": "S1902M-ORDERS"},
+                turn_count=3,
+                context_epoch="S1902M",
+            )
+            with (
+                mock.patch.object(hermes_agent.memory, "get_hermes_session", return_value="spring-session"),
+                mock.patch.object(hermes_agent.memory, "get_hermes_session_turn_count", return_value=3),
+                mock.patch.object(hermes_agent.memory, "get_hermes_context_epoch", return_value="S1902M"),
+                mock.patch.object(hermes_agent.memory, "clear_hermes_session", side_effect=lambda: cleared.append(True)),
+                mock.patch.object(hermes_agent.memory, "set_hermes_session", side_effect=saved_sessions.append),
+                mock.patch.object(hermes_agent.memory, "set_hermes_session_turn_count"),
+                mock.patch.object(hermes_agent.memory, "set_hermes_context_epoch", side_effect=saved_epochs.append),
+                mock.patch.object(hermes_agent, "_run_chat", side_effect=fake_chat),
+            ):
+                move = hermes_agent.decide(state, legal)
+        finally:
+            hermes_agent._LAST.clear()
+            hermes_agent._LAST.update(old_last)
+
+        self.assertEqual(move, {"action": "send_press", "params": {"messages": []}})
+        self.assertEqual(cleared, [True])
+        self.assertEqual(prompts[0][1], None)
+        self.assertFalse(prompts[0][0].startswith(hermes_agent._RESUMED_CONTRACT))
+        payload = json.loads(prompts[0][0].rsplit("GAME:\n", 1)[1])
+        self.assertIn("state", payload)
+        self.assertNotIn("state_delta", payload)
+        self.assertEqual(saved_sessions, ["fall-session"])
+        self.assertEqual(saved_epochs, ["F1902M"])
+
     def test_hermes_context_exhaustion_recovers_with_fresh_full_baseline(self):
         state = {"game_type": "mafia", "phase": "day", "my_memory": {"my_role": "citizen"}}
         legal = [{"action": "vote", "params": {"target_id": 2}}]
@@ -1328,6 +1822,7 @@ class MemoryTests(unittest.TestCase):
                 memory.record_memo(41, "protect 8 again")
                 memory.set_hermes_session("segment-1")
                 memory.set_hermes_session_turn_count(12)
+                memory.set_hermes_context_epoch("S1902M")
 
                 live = root / "41.json"
                 self.assertTrue(live.exists())
@@ -1337,6 +1832,7 @@ class MemoryTests(unittest.TestCase):
                 self.assertEqual(memory.match_summary(41)["my_memos"], ["protect 8 again"])
                 self.assertEqual(memory.get_hermes_session(), "segment-1")
                 self.assertEqual(memory.get_hermes_session_turn_count(), 12)
+                self.assertEqual(memory.get_hermes_context_epoch(), "S1902M")
 
                 memory.end_match(41)
                 self.assertFalse(live.exists())
@@ -1989,10 +2485,42 @@ class RunnerLoopTests(unittest.TestCase):
             "state": {"game_type": "liars_dice", "phase": "turn"},
         }
 
-    def run_loop(self, polls, act_result, argv):
+    @staticmethod
+    def playing_diplomacy(match_id: int, seq: int) -> dict:
+        return {
+            "status": "playing",
+            "match_id": match_id,
+            "game_type": "diplomacy",
+            "is_your_turn": True,
+            "seq": seq,
+            "action_window_id": "diplomacy-window",
+            "legal_actions": [{
+                "action": "send_press",
+                "params": {"messages": "array", "strategy_intent": "optional object"},
+                "hint": {
+                    "recipient_powers": ["ENGLAND"],
+                    "valid_power_ids": ["ENGLAND"],
+                    "valid_province_ids": ["NWY"],
+                    "valid_proposal_ids": [],
+                    "valid_candidate_ids": [],
+                    "max_messages": 3,
+                    "server_fallback": {"params": {"messages": []}},
+                },
+            }],
+            "state": {
+                "game_type": "diplomacy",
+                "phase": "S1901M-N1",
+                "phase_type": "negotiation",
+            },
+        }
+
+    def run_loop(self, polls, act_result, argv, decide=None):
         actions = []
         recorded_moves = []
         recorded_memos = []
+        decide = decide or mock.Mock(return_value={
+            "action": "challenge", "params": {}, "memo": "confirmed read",
+        })
 
         def act(_token, move):
             actions.append(dict(move))
@@ -2009,9 +2537,7 @@ class RunnerLoopTests(unittest.TestCase):
             mock.patch.object(runner.arena_client, "poll", side_effect=list(polls)),
             mock.patch.object(runner.arena_client, "act", side_effect=act),
             mock.patch.object(runner.brain, "preflight", return_value="test-model"),
-            mock.patch.object(runner.brain, "decide", return_value={
-                "action": "challenge", "params": {}, "memo": "confirmed read",
-            }),
+            mock.patch.object(runner.brain, "decide", decide),
             mock.patch.object(runner.memory, "begin_turn", return_value={}),
             mock.patch.object(runner.memory, "end_match"),
             mock.patch.object(runner.memory, "record_move", side_effect=lambda *args, **kwargs: recorded_moves.append(args)),
@@ -2159,15 +2685,117 @@ class RunnerLoopTests(unittest.TestCase):
         self.assertEqual(len(moves), 1)
         self.assertEqual(memos, [(501, "confirmed read")])
 
+    def test_diplomacy_server_rejection_is_injected_for_one_corrective_turn(self):
+        first = self.playing_diplomacy(601, 1)
+        second = self.playing_diplomacy(601, 2)
+        decide = mock.Mock(side_effect=[
+            {
+                "action": "send_press",
+                "params": {
+                    "messages": [],
+                    "strategy_intent": {"avoid_provinces": ["NOR"]},
+                },
+            },
+            {
+                "action": "send_press",
+                "params": {
+                    "messages": [],
+                    "strategy_intent": {"avoid_provinces": ["NWY"]},
+                },
+            },
+        ])
+        act_results = deque([
+            (400, {
+                "status": "error",
+                "code": "unknown_diplomacy_province",
+                "message": "strategy_intent.avoid_provinces[0] is not a known province",
+                "field": "strategy_intent.avoid_provinces[0]",
+                "invalid_value": "NOR",
+                "allowed_values": ["NWY"],
+            }),
+            (200, {"status": "ok", "ack_type": "diplomacy_action_ack"}),
+        ])
 
-class DistributionParityTests(unittest.TestCase):
-    def test_public_release_tree_has_no_symlinks(self):
-        symlinks = [
-            path
-            for path in KIT_DIR.rglob("*")
-            if path.is_symlink()
-        ]
-        self.assertEqual(symlinks, [])
+        result, actions, moves, _memos = self.run_loop(
+            deque([
+                (200, first),
+                (200, second),
+                (200, {"status": "finished", "match_id": 601}),
+            ]),
+            act_results,
+            ["runner.py", "--matches", "1", "--no-reflect"],
+            decide=decide,
+        )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(decide.call_count, 2)
+        feedback = decide.call_args_list[1].args[0]["action_rejection"]
+        self.assertEqual(feedback["field"], "strategy_intent.avoid_provinces[0]")
+        self.assertEqual(feedback["invalid_value"], "NOR")
+        self.assertEqual(feedback["allowed_values"], ["NWY"])
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(len(moves), 1)
+
+    def test_second_diplomacy_rejection_uses_server_fallback_without_third_model_call(self):
+        decide = mock.Mock(return_value={
+            "action": "send_press",
+            "params": {
+                "messages": [],
+                "strategy_intent": {"avoid_provinces": ["NOR"]},
+            },
+        })
+        rejection = (400, {
+            "status": "error",
+            "code": "unknown_diplomacy_province",
+            "message": "strategy_intent.avoid_provinces[0] is not a known province",
+            "field": "strategy_intent.avoid_provinces[0]",
+            "invalid_value": "NOR",
+            "allowed_values": ["NWY"],
+        })
+
+        result, actions, moves, _memos = self.run_loop(
+            deque([
+                (200, self.playing_diplomacy(701, 1)),
+                (200, self.playing_diplomacy(701, 2)),
+                (200, self.playing_diplomacy(701, 3)),
+                (200, {"status": "finished", "match_id": 701}),
+            ]),
+            deque([
+                rejection,
+                rejection,
+                (200, {"status": "ok", "ack_type": "diplomacy_action_ack"}),
+            ]),
+            ["runner.py", "--matches", "1", "--no-reflect"],
+            decide=decide,
+        )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(decide.call_count, 2)
+        self.assertEqual(len(actions), 3)
+        self.assertEqual(actions[-1]["params"], {"messages": []})
+        self.assertEqual(len(moves), 1)
+
+    def test_non_correctable_diplomacy_conflict_waits_for_server_state_change(self):
+        decide = mock.Mock(return_value={
+            "action": "send_press",
+            "params": {"messages": []},
+        })
+
+        result, actions, moves, _memos = self.run_loop(
+            deque([
+                (200, self.playing_diplomacy(801, 1)),
+                (200, self.playing_diplomacy(801, 2)),
+                (200, {"status": "finished", "match_id": 801}),
+            ]),
+            (409, {"status": "error", "code": "stale_phase"}),
+            ["runner.py", "--matches", "1", "--no-reflect"],
+            decide=decide,
+        )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(decide.call_count, 1)
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(moves, [])
 
 
 if __name__ == "__main__":

@@ -101,6 +101,14 @@ def _diplomacy(state, legal, legal_actions):
     action = legal_actions[0]["action"]
     hints = (legal.get(action) or {}).get("hint") or {}
     legal_orders = hints.get("legal_orders") or []
+    advice = hints.get("heuristic_advice") or state.get("heuristic_advice") or {}
+    recommended_candidate_id = advice.get("recommended_candidate_id")
+
+    if recommended_candidate_id:
+        return {
+            "action": action,
+            "params": {"candidate_id": recommended_candidate_id},
+        }
 
     if action == "submit_orders":
         orders = [

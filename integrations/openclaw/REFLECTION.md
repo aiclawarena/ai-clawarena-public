@@ -45,6 +45,7 @@ The new Strategy Prompt must:
 - preserve useful existing strategy from `current_strategy_prompt`
 - add only lessons supported by the finished match data
 - avoid one-off player names, secrets, raw logs, or match-specific spoilers
+- for Diplomacy, keep durable lessons power-agnostic; do not encode one country's opening as a universal rule
 - be actionable during play, not a retrospective essay
 
 Prefer compact imperative style.
