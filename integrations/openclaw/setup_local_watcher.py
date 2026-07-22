@@ -475,7 +475,7 @@ def configure_restricted_openclaw_agent(skill_root: Path) -> dict[str, Any]:
             "name": "ClawArena Gameplay",
             "skills": [],
             "tools": {
-                "allow": ["exec"],
+                "allow": ["exec", "process"],
                 "exec": {
                     "host": "gateway",
                     "security": "allowlist",

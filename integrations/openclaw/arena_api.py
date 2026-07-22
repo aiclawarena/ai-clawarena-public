@@ -146,6 +146,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--payload",
         help="JSON action payload string. Prefer stdin/heredoc for non-ASCII content.",
     )
+    action.add_argument(
+        "--stdin-line",
+        action="store_true",
+        help="Read one newline-terminated JSON payload from stdin for process-tool transport.",
+    )
 
     reflection = subparsers.add_parser(
         "reflection-context",
@@ -165,13 +170,44 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def load_json_payload(payload_arg: str | None, *, label: str = "payload") -> Any:
+def load_json_payload(
+    payload_arg: str | None,
+    *,
+    label: str = "payload",
+    stdin_line: bool = False,
+) -> Any:
     if payload_arg is not None:
         return json.loads(payload_arg)
-    raw = sys.stdin.read()
+    raw = _read_stdin_line() if stdin_line else sys.stdin.read()
     if not raw.strip():
         raise SystemExit(f"Missing {label}. Provide JSON on stdin or with --payload.")
     return json.loads(raw)
+
+
+def _read_stdin_line() -> str:
+    """Read one action line, putting a PTY into non-canonical mode temporarily."""
+    try:
+        fd = sys.stdin.fileno()
+    except (AttributeError, OSError):
+        return sys.stdin.readline()
+    if not os.isatty(fd):
+        return sys.stdin.readline()
+
+    try:
+        import termios
+    except ImportError:
+        return sys.stdin.readline()
+
+    original = termios.tcgetattr(fd)
+    action_mode = termios.tcgetattr(fd)
+    action_mode[3] &= ~(termios.ICANON | termios.ECHO)
+    action_mode[6][termios.VMIN] = 1
+    action_mode[6][termios.VTIME] = 0
+    termios.tcsetattr(fd, termios.TCSANOW, action_mode)
+    try:
+        return sys.stdin.readline()
+    finally:
+        termios.tcsetattr(fd, termios.TCSANOW, original)
 
 
 def main() -> int:
@@ -201,7 +237,11 @@ def main() -> int:
     elif args.command == "action":
         token = load_token(token_path)
         try:
-            payload = load_json_payload(args.payload, label="action payload")
+            payload = load_json_payload(
+                args.payload,
+                label="action payload",
+                stdin_line=args.stdin_line,
+            )
         except json.JSONDecodeError as exc:
             emit_json(
                 {

@@ -17,6 +17,10 @@ import sys
 import time
 from pathlib import Path
 
+# The diplomacy hint-contract validator is shared with the LIVE decision path
+# (llm_agent.py validates every batch against the same rules before submit).
+from helpers import diplomacy_batch_problems as _diplomacy_batch_problems
+
 # reflection_context.json is a post-match wire shape, not a turn — checked separately.
 FIXTURES = sorted(p for p in Path(__file__).parent.glob("fixtures/*.json")
                   if not p.stem.startswith("reflection"))
@@ -55,7 +59,7 @@ def check_move(fixture: dict, move: dict) -> list[str]:
     # the kit used to re-submit in a loop) — catch it here. "int or null" keys
     # accept an explicit null, so presence (not truthiness) is the test.
     schema_params = legal.get(move["action"], {}).get("params")
-    if isinstance(schema_params, dict):
+    if isinstance(schema_params, dict) and fixture.get("game_type") != "diplomacy":
         missing = [k for k in schema_params if k != "message" and k not in params]
         if missing:
             problems.append(f"action {move['action']} missing required params {missing} "
@@ -99,6 +103,9 @@ def check_move(fixture: dict, move: dict) -> list[str]:
         faces = {e.get("face") if isinstance(e, dict) else e for e in entries}
         if faces and move["params"].get("face") not in faces:
             problems.append(f"placed face {move['params'].get('face')} not in available faces {sorted(map(str, faces))}")
+    if fixture.get("game_type") == "diplomacy":
+        hint = legal.get(move["action"], {}).get("hint") or {}
+        problems.extend(_diplomacy_batch_problems(move["action"], params, hint))
     return problems
 
 

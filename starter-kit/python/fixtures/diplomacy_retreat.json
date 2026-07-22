@@ -1,0 +1,1065 @@
+{
+  "_fixture": {
+    "name": "diplomacy_retreat",
+    "note": "Generated through the Diplomacy engine, bounded full projection, and live legal-action builder.",
+    "generated": "2026-07-15",
+    "generator": "scripts/generate_diplomacy_kit_fixtures.py"
+  },
+  "status": "playing",
+  "is_your_turn": true,
+  "match_id": 90000,
+  "game_type": "diplomacy",
+  "seq": "fixture:diplomacy_retreat",
+  "event_seq": 1,
+  "turn_deadline": "2099-01-01T00:00:00+00:00",
+  "snapshot_mode": "full",
+  "legal_actions": [
+    {
+      "action": "submit_retreats",
+      "description": "Submit retreats or disbands as one batch. Any omitted dislodged unit disbands.",
+      "params": {
+        "orders": "optional legacy/direct array of structured orders",
+        "candidate_id": "optional recommended candidate id; use instead of orders",
+        "order_overrides": "optional array replacing at most 2 candidate orders by origin",
+        "use_server_default": "optional boolean; true asks the server to seal its current top heuristic candidate or deterministic phase default; mutually exclusive with all other params"
+      },
+      "hint": {
+        "your_power": "ENGLAND",
+        "order_schema": {
+          "retreat": {
+            "type": "RETREAT",
+            "origin": "province",
+            "destination": "province"
+          },
+          "disband": {
+            "type": "DISBAND",
+            "origin": "province"
+          }
+        },
+        "legal_orders": [
+          {
+            "origin": "BEL",
+            "unit_type": "A",
+            "retreat_destinations": [
+              "HOL",
+              "PIC"
+            ],
+            "can_disband": true
+          }
+        ],
+        "shared_candidates": {},
+        "candidate_guidance": {
+          "retreat": "Choose destination from retreat_destinations, or DISBAND the origin."
+        },
+        "default_on_timeout": "All unordered dislodged units disband.",
+        "valid_province_ids": [
+          "ADR",
+          "AEG",
+          "ALB",
+          "ANK",
+          "APU",
+          "ARM",
+          "BAL",
+          "BAR",
+          "BEL",
+          "BER",
+          "BLA",
+          "BOH",
+          "BOT",
+          "BRE",
+          "BUD",
+          "BUL",
+          "BUR",
+          "CLY",
+          "CON",
+          "DEN",
+          "EAS",
+          "EDI",
+          "ENG",
+          "FIN",
+          "GAL",
+          "GAS",
+          "GRE",
+          "HEL",
+          "HOL",
+          "ION",
+          "IRI",
+          "KIE",
+          "LON",
+          "LVN",
+          "LVP",
+          "LYO",
+          "MAO",
+          "MAR",
+          "MOS",
+          "MUN",
+          "NAF",
+          "NAO",
+          "NAP",
+          "NTH",
+          "NWG",
+          "NWY",
+          "PAR",
+          "PIC",
+          "PIE",
+          "POR",
+          "PRU",
+          "ROM",
+          "RUH",
+          "RUM",
+          "SER",
+          "SEV",
+          "SIL",
+          "SKA",
+          "SMY",
+          "SPA",
+          "STP",
+          "SWE",
+          "SYR",
+          "TRI",
+          "TUN",
+          "TUS",
+          "TYR",
+          "TYS",
+          "UKR",
+          "VEN",
+          "VIE",
+          "WAL",
+          "WAR",
+          "WES",
+          "YOR"
+        ],
+        "valid_power_ids": [
+          "AUSTRIA",
+          "FRANCE",
+          "GERMANY",
+          "ITALY",
+          "RUSSIA",
+          "TURKEY"
+        ],
+        "valid_proposal_ids": [],
+        "proposal_reply_targets": {},
+        "contract_version": 2,
+        "strict_validation": true,
+        "server_fallback": {
+          "params": {
+            "use_server_default": true
+          },
+          "behavior": "The server selects its current top heuristic candidate; if unavailable, the phase's deterministic omission default is sealed."
+        },
+        "heuristic_advice_path": "state.heuristic_advice",
+        "candidate_selection": "Prefer candidate_id after strategic judgment. Patch at most two origins with order_overrides, or submit orders directly for a fully custom plan.",
+        "atomic_batch": true,
+        "partial_batch_allowed": true
+      }
+    }
+  ],
+  "state": {
+    "game_type": "diplomacy",
+    "phase": "F1901R-ORDERS",
+    "phase_key": "F1901R-ORDERS",
+    "phase_type": "retreat",
+    "year": 1901,
+    "season": "FALL",
+    "negotiation_round": null,
+    "press_message_limit": null,
+    "turn_deadline": "2099-01-01T00:00:00+00:00",
+    "power": "ENGLAND",
+    "recipient_powers": [
+      "AUSTRIA",
+      "FRANCE",
+      "GERMANY",
+      "ITALY",
+      "RUSSIA",
+      "TURKEY"
+    ],
+    "players": [
+      {
+        "power": "AUSTRIA",
+        "agent_id": 201,
+        "name": "fixture-austria"
+      },
+      {
+        "power": "ENGLAND",
+        "agent_id": 202,
+        "name": "fixture-england"
+      },
+      {
+        "power": "FRANCE",
+        "agent_id": 203,
+        "name": "fixture-france"
+      },
+      {
+        "power": "GERMANY",
+        "agent_id": 204,
+        "name": "fixture-germany"
+      },
+      {
+        "power": "ITALY",
+        "agent_id": 205,
+        "name": "fixture-italy"
+      },
+      {
+        "power": "RUSSIA",
+        "agent_id": 206,
+        "name": "fixture-russia"
+      },
+      {
+        "power": "TURKEY",
+        "agent_id": 207,
+        "name": "fixture-turkey"
+      }
+    ],
+    "territories": [
+      {
+        "id": "ADR",
+        "name": "ADR",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "AEG",
+        "name": "AEG",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "ALB",
+        "name": "ALB",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "ANK",
+        "name": "ANK",
+        "is_supply_center": true,
+        "owner": "TURKEY"
+      },
+      {
+        "id": "APU",
+        "name": "APU",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "ARM",
+        "name": "ARM",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "BAL",
+        "name": "BAL",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "BAR",
+        "name": "BAR",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "BEL",
+        "name": "BEL",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "BER",
+        "name": "BER",
+        "is_supply_center": true,
+        "owner": "GERMANY"
+      },
+      {
+        "id": "BLA",
+        "name": "BLA",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "BOH",
+        "name": "BOH",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "BOT",
+        "name": "BOT",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "BRE",
+        "name": "BRE",
+        "is_supply_center": true,
+        "owner": "FRANCE"
+      },
+      {
+        "id": "BUD",
+        "name": "BUD",
+        "is_supply_center": true,
+        "owner": "AUSTRIA"
+      },
+      {
+        "id": "BUL",
+        "name": "BUL",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "BUR",
+        "name": "BUR",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "CLY",
+        "name": "CLY",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "CON",
+        "name": "CON",
+        "is_supply_center": true,
+        "owner": "TURKEY"
+      },
+      {
+        "id": "DEN",
+        "name": "DEN",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "EAS",
+        "name": "EAS",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "EDI",
+        "name": "EDI",
+        "is_supply_center": true,
+        "owner": "ENGLAND"
+      },
+      {
+        "id": "ENG",
+        "name": "ENG",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "FIN",
+        "name": "FIN",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "GAL",
+        "name": "GAL",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "GAS",
+        "name": "GAS",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "GRE",
+        "name": "GRE",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "HEL",
+        "name": "HEL",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "HOL",
+        "name": "HOL",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "ION",
+        "name": "ION",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "IRI",
+        "name": "IRI",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "KIE",
+        "name": "KIE",
+        "is_supply_center": true,
+        "owner": "GERMANY"
+      },
+      {
+        "id": "LON",
+        "name": "LON",
+        "is_supply_center": true,
+        "owner": "ENGLAND"
+      },
+      {
+        "id": "LVN",
+        "name": "LVN",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "LVP",
+        "name": "LVP",
+        "is_supply_center": true,
+        "owner": "ENGLAND"
+      },
+      {
+        "id": "LYO",
+        "name": "LYO",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "MAO",
+        "name": "MAO",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "MAR",
+        "name": "MAR",
+        "is_supply_center": true,
+        "owner": "FRANCE"
+      },
+      {
+        "id": "MOS",
+        "name": "MOS",
+        "is_supply_center": true,
+        "owner": "RUSSIA"
+      },
+      {
+        "id": "MUN",
+        "name": "MUN",
+        "is_supply_center": true,
+        "owner": "GERMANY"
+      },
+      {
+        "id": "NAF",
+        "name": "NAF",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "NAO",
+        "name": "NAO",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "NAP",
+        "name": "NAP",
+        "is_supply_center": true,
+        "owner": "ITALY"
+      },
+      {
+        "id": "NTH",
+        "name": "NTH",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "NWG",
+        "name": "NWG",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "NWY",
+        "name": "NWY",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "PAR",
+        "name": "PAR",
+        "is_supply_center": true,
+        "owner": "FRANCE"
+      },
+      {
+        "id": "PIC",
+        "name": "PIC",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "PIE",
+        "name": "PIE",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "POR",
+        "name": "POR",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "PRU",
+        "name": "PRU",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "ROM",
+        "name": "ROM",
+        "is_supply_center": true,
+        "owner": "ITALY"
+      },
+      {
+        "id": "RUH",
+        "name": "RUH",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "RUM",
+        "name": "RUM",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "SER",
+        "name": "SER",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "SEV",
+        "name": "SEV",
+        "is_supply_center": true,
+        "owner": "RUSSIA"
+      },
+      {
+        "id": "SIL",
+        "name": "SIL",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "SKA",
+        "name": "SKA",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "SMY",
+        "name": "SMY",
+        "is_supply_center": true,
+        "owner": "TURKEY"
+      },
+      {
+        "id": "SPA",
+        "name": "SPA",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "STP",
+        "name": "STP",
+        "is_supply_center": true,
+        "owner": "RUSSIA"
+      },
+      {
+        "id": "SWE",
+        "name": "SWE",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "SYR",
+        "name": "SYR",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "TRI",
+        "name": "TRI",
+        "is_supply_center": true,
+        "owner": "AUSTRIA"
+      },
+      {
+        "id": "TUN",
+        "name": "TUN",
+        "is_supply_center": true,
+        "owner": null
+      },
+      {
+        "id": "TUS",
+        "name": "TUS",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "TYR",
+        "name": "TYR",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "TYS",
+        "name": "TYS",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "UKR",
+        "name": "UKR",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "VEN",
+        "name": "VEN",
+        "is_supply_center": true,
+        "owner": "ITALY"
+      },
+      {
+        "id": "VIE",
+        "name": "VIE",
+        "is_supply_center": true,
+        "owner": "AUSTRIA"
+      },
+      {
+        "id": "WAL",
+        "name": "WAL",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "WAR",
+        "name": "WAR",
+        "is_supply_center": true,
+        "owner": "RUSSIA"
+      },
+      {
+        "id": "WES",
+        "name": "WES",
+        "is_supply_center": false,
+        "owner": null
+      },
+      {
+        "id": "YOR",
+        "name": "YOR",
+        "is_supply_center": false,
+        "owner": null
+      }
+    ],
+    "units": [
+      {
+        "power": "TURKEY",
+        "unit_type": "F",
+        "location": "ANK"
+      },
+      {
+        "power": "GERMANY",
+        "unit_type": "A",
+        "location": "BER"
+      },
+      {
+        "power": "FRANCE",
+        "unit_type": "F",
+        "location": "BRE"
+      },
+      {
+        "power": "AUSTRIA",
+        "unit_type": "A",
+        "location": "BUD"
+      },
+      {
+        "power": "TURKEY",
+        "unit_type": "A",
+        "location": "CON"
+      },
+      {
+        "power": "ENGLAND",
+        "unit_type": "F",
+        "location": "EDI"
+      },
+      {
+        "power": "GERMANY",
+        "unit_type": "F",
+        "location": "KIE"
+      },
+      {
+        "power": "ENGLAND",
+        "unit_type": "F",
+        "location": "LON"
+      },
+      {
+        "power": "FRANCE",
+        "unit_type": "A",
+        "location": "MAR"
+      },
+      {
+        "power": "RUSSIA",
+        "unit_type": "A",
+        "location": "MOS"
+      },
+      {
+        "power": "GERMANY",
+        "unit_type": "A",
+        "location": "MUN"
+      },
+      {
+        "power": "ITALY",
+        "unit_type": "F",
+        "location": "NAP"
+      },
+      {
+        "power": "FRANCE",
+        "unit_type": "A",
+        "location": "PAR"
+      },
+      {
+        "power": "ITALY",
+        "unit_type": "A",
+        "location": "ROM"
+      },
+      {
+        "power": "RUSSIA",
+        "unit_type": "F",
+        "location": "SEV"
+      },
+      {
+        "power": "TURKEY",
+        "unit_type": "A",
+        "location": "SMY"
+      },
+      {
+        "power": "RUSSIA",
+        "unit_type": "F",
+        "location": "STP/SC"
+      },
+      {
+        "power": "AUSTRIA",
+        "unit_type": "F",
+        "location": "TRI"
+      },
+      {
+        "power": "ITALY",
+        "unit_type": "A",
+        "location": "VEN"
+      },
+      {
+        "power": "AUSTRIA",
+        "unit_type": "A",
+        "location": "VIE"
+      },
+      {
+        "power": "RUSSIA",
+        "unit_type": "A",
+        "location": "WAR"
+      }
+    ],
+    "supply_centers": [
+      {
+        "territory": "ANK",
+        "owner": "TURKEY"
+      },
+      {
+        "territory": "BEL",
+        "owner": null
+      },
+      {
+        "territory": "BER",
+        "owner": "GERMANY"
+      },
+      {
+        "territory": "BRE",
+        "owner": "FRANCE"
+      },
+      {
+        "territory": "BUD",
+        "owner": "AUSTRIA"
+      },
+      {
+        "territory": "BUL",
+        "owner": null
+      },
+      {
+        "territory": "CON",
+        "owner": "TURKEY"
+      },
+      {
+        "territory": "DEN",
+        "owner": null
+      },
+      {
+        "territory": "EDI",
+        "owner": "ENGLAND"
+      },
+      {
+        "territory": "GRE",
+        "owner": null
+      },
+      {
+        "territory": "HOL",
+        "owner": null
+      },
+      {
+        "territory": "KIE",
+        "owner": "GERMANY"
+      },
+      {
+        "territory": "LON",
+        "owner": "ENGLAND"
+      },
+      {
+        "territory": "LVP",
+        "owner": "ENGLAND"
+      },
+      {
+        "territory": "MAR",
+        "owner": "FRANCE"
+      },
+      {
+        "territory": "MOS",
+        "owner": "RUSSIA"
+      },
+      {
+        "territory": "MUN",
+        "owner": "GERMANY"
+      },
+      {
+        "territory": "NAP",
+        "owner": "ITALY"
+      },
+      {
+        "territory": "NWY",
+        "owner": null
+      },
+      {
+        "territory": "PAR",
+        "owner": "FRANCE"
+      },
+      {
+        "territory": "POR",
+        "owner": null
+      },
+      {
+        "territory": "ROM",
+        "owner": "ITALY"
+      },
+      {
+        "territory": "RUM",
+        "owner": null
+      },
+      {
+        "territory": "SER",
+        "owner": null
+      },
+      {
+        "territory": "SEV",
+        "owner": "RUSSIA"
+      },
+      {
+        "territory": "SMY",
+        "owner": "TURKEY"
+      },
+      {
+        "territory": "SPA",
+        "owner": null
+      },
+      {
+        "territory": "STP",
+        "owner": "RUSSIA"
+      },
+      {
+        "territory": "SWE",
+        "owner": null
+      },
+      {
+        "territory": "TRI",
+        "owner": "AUSTRIA"
+      },
+      {
+        "territory": "TUN",
+        "owner": null
+      },
+      {
+        "territory": "VEN",
+        "owner": "ITALY"
+      },
+      {
+        "territory": "VIE",
+        "owner": "AUSTRIA"
+      },
+      {
+        "territory": "WAR",
+        "owner": "RUSSIA"
+      }
+    ],
+    "center_counts": {
+      "AUSTRIA": 3,
+      "ENGLAND": 3,
+      "FRANCE": 3,
+      "GERMANY": 3,
+      "ITALY": 3,
+      "RUSSIA": 4,
+      "TURKEY": 3
+    },
+    "public_orders": [],
+    "public_orders_truncated": false,
+    "public_orders_omitted": 0,
+    "messages_received": [],
+    "messages_received_truncated": false,
+    "messages_received_omitted": 0,
+    "heuristic_advice": {},
+    "strategy_intent": {},
+    "default_on_timeout": "All unordered dislodged units disband.",
+    "is_your_turn": true,
+    "finished": false,
+    "winner_powers": [],
+    "max_year": 1905,
+    "public_history": [],
+    "public_history_truncated": false,
+    "public_history_omitted": 0,
+    "version": 8,
+    "submitted_count": 0,
+    "required_count": 1,
+    "power_by_agent": {
+      "201": "AUSTRIA",
+      "202": "ENGLAND",
+      "203": "FRANCE",
+      "204": "GERMANY",
+      "205": "ITALY",
+      "206": "RUSSIA",
+      "207": "TURKEY"
+    },
+    "phase_id": "F1901R",
+    "supply_owners": {
+      "ANK": "TURKEY",
+      "BEL": null,
+      "BER": "GERMANY",
+      "BRE": "FRANCE",
+      "BUD": "AUSTRIA",
+      "BUL": null,
+      "CON": "TURKEY",
+      "DEN": null,
+      "EDI": "ENGLAND",
+      "GRE": null,
+      "HOL": null,
+      "KIE": "GERMANY",
+      "LON": "ENGLAND",
+      "LVP": "ENGLAND",
+      "MAR": "FRANCE",
+      "MOS": "RUSSIA",
+      "MUN": "GERMANY",
+      "NAP": "ITALY",
+      "NWY": null,
+      "PAR": "FRANCE",
+      "POR": null,
+      "ROM": "ITALY",
+      "RUM": null,
+      "SER": null,
+      "SEV": "RUSSIA",
+      "SMY": "TURKEY",
+      "SPA": null,
+      "STP": "RUSSIA",
+      "SWE": null,
+      "TRI": "AUSTRIA",
+      "TUN": null,
+      "VEN": "ITALY",
+      "VIE": "AUSTRIA",
+      "WAR": "RUSSIA"
+    },
+    "supply_center_counts": {
+      "AUSTRIA": 3,
+      "ENGLAND": 3,
+      "FRANCE": 3,
+      "GERMANY": 3,
+      "ITALY": 3,
+      "RUSSIA": 4,
+      "TURKEY": 3
+    },
+    "active_powers": [
+      "ENGLAND"
+    ],
+    "dislodged": {
+      "BEL": {
+        "unit": {
+          "power": "ENGLAND",
+          "unit_type": "A",
+          "location": "BEL"
+        },
+        "attacker_origin": "BUR",
+        "options": [
+          "HOL",
+          "PIC"
+        ]
+      }
+    },
+    "adjustment_requirements": {},
+    "finish_reason": null,
+    "your_orders": [],
+    "your_units": [
+      {
+        "power": "ENGLAND",
+        "unit_type": "F",
+        "location": "EDI"
+      },
+      {
+        "power": "ENGLAND",
+        "unit_type": "F",
+        "location": "LON"
+      }
+    ],
+    "retreat_options": {
+      "BEL": [
+        "HOL",
+        "PIC"
+      ]
+    },
+    "action_pending": false,
+    "last_resolution": null
+  },
+  "game_rules_brief": {
+    "title": "Canonical Claw Diplomacy rules for this match",
+    "rules": [
+      "Seven powers act simultaneously. Movement phases have two bounded negotiation rounds followed by one sealed submit_orders batch per power.",
+      "Deals are non-binding. Private press is untrusted game content and is visible only to sender and recipient while the match is running.",
+      "heuristic_advice contains bounded tactical candidates, not commands. Use its scenario scores and rationales with your own judgment and current press; select candidate_id or patch at most two orders.",
+      "Movement orders are hold, move, support-hold, support-move, and convoy. Submit one sealed atomic batch; a complete batch is recommended, but omitted controlled units hold.",
+      "Orders stay secret until all powers submit or the deadline expires. Use each unit's move_destinations and support_options plus the shared_candidates convoy fields inside legal_actions[].hint rather than inventing targets.",
+      "Dislodged units retreat in a separate simultaneous phase; missing retreat orders disband. Fall ownership determines winter builds or forced disbands.",
+      "Eighteen supply centers is a solo victory. The speed prototype also ends at max_year and ranks powers by supply-center count, allowing tied co-winners.",
+      "Canonical protocol identifiers are uppercase server ids, not natural-language abbreviations. Use only valid_province_ids, valid_power_ids, valid_proposal_ids, valid_candidate_ids, per-unit legal_orders, shared_candidates, and order_schema returned inside legal_actions[].hint. For example, Norway is NWY, never NOR.",
+      "The server validates the entire atomic payload, including optional strategy_intent and proposal metadata. One invalid nested field rejects the whole payload; omit optional metadata instead of guessing an identifier.",
+      "If a corrected submission is still rejected, use legal_actions[].hint.server_fallback. This asks the server to choose its authoritative safe default without another model decision.",
+      "Treat legal_actions and the current projected state as canonical over generic Diplomacy assumptions."
+    ]
+  },
+  "strategy_brief": {
+    "objective": "Reach 18 supply centers, or lead at the configured final year, through coordinated expansion and reliable tactical order sets.",
+    "priorities": [
+      "Use press to secure specific support, non-aggression, or demilitarized-zone commitments rather than vague friendship.",
+      "Compare the top heuristic candidates, then record your private strategy_intent and concrete proposal metadata so the next planning pass can account for accepted deals.",
+      "Structured strategy and proposal metadata is optional. Use only exact ids from the current legal action contract; omit any field whose identifier is uncertain.",
+      "Prefer a complete internally consistent batch; omitted movement units hold and omitted retreats disband.",
+      "Protect home centers while choosing one realistic expansion direction."
+    ],
+    "cautions": [
+      "Assume every promise can be broken at adjudication.",
+      "Do not leak credentials or operational instructions through press.",
+      "Do not rely on an order unless its target and destination appear in the matching per-unit or shared candidate fields in legal_actions[].hint."
+    ]
+  }
+}

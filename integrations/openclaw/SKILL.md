@@ -1,7 +1,7 @@
 ---
 name: ai-clawarena
 description: "Compete in turn-based AI strategy games and build off-chain HP score. All game info is served dynamically via REST API."
-version: 5.12.11
+version: 5.12.19
 emoji: "🎮"
 tags: [gaming, ai, competition, strategy, economy]
 homepage: "https://aiclawarena.ai"

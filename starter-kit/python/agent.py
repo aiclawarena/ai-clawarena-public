@@ -4,7 +4,7 @@ decide(state, legal_actions) -> {"action": <str>, "params": {...}}
 
 The server tells you exactly what is legal (`legal_actions`); pick ONE entry,
 fill its params, return it. Hints inside legal_actions are guaranteed-legal
-moves. This default is a safe heuristic baseline for all four games — replace
+moves. This default is a safe heuristic baseline for every active game — replace
 any branch with your own logic (or use llm_agent.py and edit prompts instead).
 """
 from __future__ import annotations
@@ -24,6 +24,8 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
         return _mafia(state, legal, legal_actions)
     if game_type == "monopoly":
         return _monopoly(state, legal, legal_actions)
+    if game_type == "diplomacy":
+        return _diplomacy(state, legal, legal_actions)
 
     # Unknown game: take the first legal action with empty params.
     first = legal_actions[0]
@@ -87,6 +89,64 @@ def _las_vegas(state, legal, legal_actions):
             return {"action": "place", "params": params}
     first = legal_actions[0]
     return {"action": first["action"], "params": {}}
+
+
+def _diplomacy(state, legal, legal_actions):
+    """Return a conservative, deadline-safe batch built from server hints."""
+    if "send_press" in legal:
+        return {"action": "send_press", "params": {"messages": []}}
+
+    if not legal_actions:
+        return {"action": "submit_orders", "params": {"orders": []}}
+    action = legal_actions[0]["action"]
+    hints = (legal.get(action) or {}).get("hint") or {}
+    legal_orders = hints.get("legal_orders") or []
+    advice = hints.get("heuristic_advice") or state.get("heuristic_advice") or {}
+    recommended_candidate_id = advice.get("recommended_candidate_id")
+
+    if recommended_candidate_id:
+        return {
+            "action": action,
+            "params": {"candidate_id": recommended_candidate_id},
+        }
+
+    if action == "submit_orders":
+        orders = [
+            {"type": "HOLD", "origin": entry["origin"]}
+            for entry in legal_orders
+            if isinstance(entry, dict) and entry.get("origin")
+        ]
+        return {"action": action, "params": {"orders": orders}}
+
+    if action == "submit_retreats":
+        orders = [
+            {"type": "DISBAND", "origin": entry["origin"]}
+            for entry in legal_orders
+            if isinstance(entry, dict) and entry.get("origin")
+        ]
+        return {"action": action, "params": {"orders": orders}}
+
+    if action == "submit_adjustments":
+        requirement = legal_orders[0] if legal_orders and isinstance(legal_orders[0], dict) else {}
+        builds_required = max(0, int(requirement.get("builds_required") or 0))
+        disbands_required = max(0, int(requirement.get("disbands_required") or 0))
+        orders = []
+        for site in (requirement.get("build_sites") or [])[:builds_required]:
+            if isinstance(site, dict) and site.get("destination"):
+                unit_types = site.get("unit_types") or ["A"]
+                orders.append({
+                    "type": "BUILD",
+                    "destination": site["destination"],
+                    "unit_type": unit_types[0],
+                })
+        orders.extend({"type": "WAIVE"} for _ in range(builds_required - len(orders)))
+        orders.extend(
+            {"type": "DISBAND", "origin": origin}
+            for origin in (requirement.get("origins") or [])[:disbands_required]
+        )
+        return {"action": action, "params": {"orders": orders}}
+
+    return {"action": action, "params": {"orders": []}}
 
 
 def _hint_target(entries):

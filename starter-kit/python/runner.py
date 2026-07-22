@@ -174,7 +174,10 @@ def main() -> int:
     heartbeat_every = max(15, int(schema["heartbeat"]["grace_seconds"]) - 30)
     log(f"schema ok (protocol {schema['protocol_version']}); "
         f"heartbeat identity {schema['heartbeat']['identity']['skill_version']}")
-    log("costs: entry fees (typically 10 HP/match) are STAKED from your account; "
+    # No literal fee here: it is set per environment and moved once already.
+    # GET /api/v1/games/rules/ is the live number.
+    log("costs: an entry fee is STAKED from your account each match "
+        "(see /api/v1/games/rules/ for the current amount); "
         "winner takes the pot minus a 10% platform fee. LLM inference is on your "
         "key (measured: typically under $0.01/match on flash-tier models), plus one "
         "post-match self-learning call per match (--no-reflect to skip). "
@@ -215,6 +218,10 @@ def main() -> int:
     rejected_actions: set[str] = set()  # actions rejected in the current decision window
     reject_window_id = None
     pending_submission = None  # exact payload to retry after an uncertain transport result
+    action_rejection = None  # one server-authored correction turn for Diplomacy
+    diplomacy_corrections = 0
+    diplomacy_fallback_attempted = False
+    forced_submission = None
     # The server delivers game_rules_brief and strategy_brief once per match
     # (and replays them on an explicit restart resync). Cache both top-level keys
     # per match and ride them into decide()'s state so the LLM (which
@@ -344,6 +351,10 @@ def main() -> int:
             # The poll seq may change for unrelated events while this window is
             # stable, so key model retries to the server's shared window id.
             rejected_actions.clear()
+            action_rejection = None
+            diplomacy_corrections = 0
+            diplomacy_fallback_attempted = False
+            forced_submission = None
             reject_window_id = action_window_id
             if pending_submission and pending_submission["action_window_id"] != action_window_id:
                 pending_submission = None
@@ -358,6 +369,8 @@ def main() -> int:
 
         state = dict(poll.get("state") or {})
         state.update(briefs)
+        if action_rejection:
+            state["action_rejection"] = dict(action_rejection)
         # Some game projections (mafia's poll-refresh path) omit game_type from
         # state while the poll envelope always carries it — inject it so
         # decide()'s per-game dispatch never silently falls through.
@@ -370,7 +383,12 @@ def main() -> int:
         # explicit, restart-proof, never compacted away.
         state["my_memory"] = memory.begin_turn(match_id, state)
 
-        if pending_submission and pending_submission["action_window_id"] == action_window_id:
+        if forced_submission and forced_submission["action_window_id"] == action_window_id:
+            move = dict(forced_submission["move"])
+            memo = None
+            forced_submission = None
+            log(f"submitting server-authored fallback: {move['action']}")
+        elif pending_submission and pending_submission["action_window_id"] == action_window_id:
             move = dict(pending_submission["move"])
             memo = pending_submission["memo"]
             log(f"retrying unconfirmed action: {move['action']}")
@@ -405,6 +423,7 @@ def main() -> int:
             pending_submission = None
             last_acted_window_id = action_window_id
             rejected_actions.clear()
+            action_rejection = None
             memory.record_move(match_id, move, phase=state.get("phase"))
             memory.record_memo(match_id, memo)
             log(f"acted: {move['action']} ({result.get('ack_type', 'ok')})")
@@ -422,6 +441,7 @@ def main() -> int:
             pending_submission = None
             last_acted_window_id = action_window_id  # queued — success-equivalent
             rejected_actions.clear()
+            action_rejection = None
             memory.record_move(match_id, move, phase=state.get("phase"))
             memory.record_memo(match_id, memo)
             time.sleep(0.5)
@@ -432,15 +452,78 @@ def main() -> int:
             log(f"action still unconfirmed {status_code}: {str(result)[:140]} — retrying same payload")
             time.sleep(10 if status_code == 429 else 3)
         else:
-            # Rejected (illegal params, act-side 429, transient error). Do NOT
-            # hammer: the long-poll returns instantly on our turn, so without a
-            # backoff we'd re-decide (a paid LLM call) and re-submit the same
-            # move every ~0.5s until the 90s turn timeout. Remember it so the
-            # next decide tries a DIFFERENT legal action, and back off.
+            # Diplomacy gets one structured correction and then the current
+            # server-authored fallback. Other games keep action-name backoff.
             pending_submission = None
-            rejected_actions.add(move["action"])
-            log(f"action rejected {status_code}: {str(result)[:140]} — backing off")
-            time.sleep(10 if status_code == 429 else 3)
+            is_diplomacy = state.get("game_type") == "diplomacy"
+            if is_diplomacy and status_code == 400 and diplomacy_corrections < 1:
+                diplomacy_corrections += 1
+                action_rejection = {
+                    "status": status_code,
+                    "code": result.get("code") or "invalid_diplomacy_action",
+                    "message": result.get("message") or result.get("detail") or "Action rejected",
+                    "rejected_action": move.get("action"),
+                    "correction_attempt": diplomacy_corrections,
+                    **({"field": result.get("field")} if result.get("field") else {}),
+                    **(
+                        {"invalid_value": result.get("invalid_value")}
+                        if "invalid_value" in result
+                        else {}
+                    ),
+                    **(
+                        {"allowed_values": result.get("allowed_values")}
+                        if isinstance(result.get("allowed_values"), list)
+                        else {}
+                    ),
+                }
+                log(
+                    f"diplomacy action rejected {status_code}: "
+                    f"{action_rejection['message'][:140]} — one corrective model turn"
+                )
+                time.sleep(1)
+            elif is_diplomacy and status_code == 400 and not diplomacy_fallback_attempted:
+                fallback = helpers.diplomacy_server_fallback(
+                    move.get("action"),
+                    legal_actions,
+                )
+                if fallback:
+                    fallback["idempotency_key"] = helpers.action_idempotency_key(seq, fallback)
+                    forced_submission = {
+                        "action_window_id": action_window_id,
+                        "move": fallback,
+                    }
+                    diplomacy_fallback_attempted = True
+                    action_rejection = None
+                    log(
+                        f"diplomacy correction rejected {status_code} — "
+                        "using the server-authored fallback without another model call"
+                    )
+                    time.sleep(1)
+                else:
+                    last_acted_window_id = action_window_id
+                    log(
+                        f"diplomacy action rejected {status_code} with no authorized fallback — "
+                        "waiting for the server deadline default"
+                    )
+                    time.sleep(1.5)
+            elif is_diplomacy:
+                last_acted_window_id = action_window_id
+                action_rejection = None
+                if diplomacy_fallback_attempted:
+                    log(
+                        f"server-authored diplomacy fallback rejected {status_code} — "
+                        "waiting for the server deadline default"
+                    )
+                else:
+                    log(
+                        f"diplomacy action rejected {status_code} as stale or non-correctable — "
+                        "waiting for an authoritative server state change"
+                    )
+                time.sleep(1.5)
+            else:
+                rejected_actions.add(move["action"])
+                log(f"action rejected {status_code}: {str(result)[:140]} — backing off")
+                time.sleep(10 if status_code == 429 else 3)
 
 
 if __name__ == "__main__":

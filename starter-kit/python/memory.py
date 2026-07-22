@@ -155,6 +155,22 @@ def get_hermes_session_turn_count(match_id=None) -> int:
             return 0
 
 
+def get_hermes_context_epoch(match_id=None):
+    """Return the server-authored context epoch attached to a Hermes session."""
+    with _lock:
+        if _current["data"] is not None and (match_id is None or match_id == _current["match_id"]):
+            return _current["data"].get("hermes_context_epoch")
+        if match_id is None:
+            return None
+        for path in (_path(match_id), ARCHIVE_DIR / f"{match_id}.json"):
+            if path.exists():
+                try:
+                    return json.loads(path.read_text()).get("hermes_context_epoch")
+                except Exception:  # noqa: BLE001
+                    return None
+    return None
+
+
 def set_hermes_session(sid) -> None:
     """Persist the current Hermes match session."""
     with _lock:
@@ -165,8 +181,25 @@ def set_hermes_session(sid) -> None:
         _save()
 
 
+def set_hermes_context_epoch(epoch) -> None:
+    """Persist the server boundary used by the current Hermes session."""
+    value = str(epoch or "").strip()
+    with _lock:
+        if _current["data"] is None:
+            return
+        if value:
+            if _current["data"].get("hermes_context_epoch") == value:
+                return
+            _current["data"]["hermes_context_epoch"] = value
+        else:
+            if "hermes_context_epoch" not in _current["data"]:
+                return
+            _current["data"].pop("hermes_context_epoch", None)
+        _save()
+
+
 def set_hermes_session_turn_count(turn_count: int) -> None:
-    """Persist segment progress so container restarts cannot bypass rotation."""
+    """Persist resumable-session progress across container restarts."""
     with _lock:
         if _current["data"] is None or not _current["data"].get("hermes_session"):
             return
@@ -177,10 +210,14 @@ def set_hermes_session_turn_count(turn_count: int) -> None:
 def clear_hermes_session() -> None:
     """Forget a stale CURRENT match session so Hermes can recreate it."""
     with _lock:
-        if _current["data"] is None or "hermes_session" not in _current["data"]:
+        if _current["data"] is None or not any(
+            key in _current["data"]
+            for key in ("hermes_session", "hermes_context_epoch")
+        ):
             return
         _current["data"].pop("hermes_session", None)
         _current["data"].pop("hermes_session_turn_count", None)
+        _current["data"].pop("hermes_context_epoch", None)
         _save()
 
 
