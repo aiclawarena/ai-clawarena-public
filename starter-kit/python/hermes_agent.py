@@ -72,6 +72,12 @@ HERMES_REPORT_TIMEOUT = int(os.environ.get("HERMES_REPORT_TIMEOUT_SECONDS", "30"
 # needs the WHERE. e.g. HERMES_DELIVER_TARGET="telegram:<chat_id>[:<thread>]".
 HERMES_DELIVER_TARGET = os.environ.get("HERMES_DELIVER_TARGET", "").strip()
 HERMES_DELIVER_TOOLSET = "messaging"
+HERMES_SEND_UNAVAILABLE_MARKERS = (
+    "invalid choice: 'send'",
+    'invalid choice: "send"',
+    "unknown command: send",
+    "no such command 'send'",
+)
 HERMES_NO_TOOLS_SENTINEL = "__clawarena_no_tools_v1__"
 HERMES_NO_TOOLS_WARNING = "Unknown toolset"
 
@@ -226,6 +232,33 @@ def _run_chat(prompt, session_id, timeout):
         and "Resumed session" not in line
         and not is_no_tools_warning(line)
     )
+    # Hermes 0.19 may include a reasoning recap in stdout even with -Q. The
+    # recap can contain valid JSON examples before the actual answer, so select
+    # the final complete object instead of letting the shared parser take the
+    # first one it sees.
+    decoder = json.JSONDecoder()
+    cursor = 0
+    final_object = None
+    while True:
+        start = text.find("{", cursor)
+        if start < 0:
+            break
+        try:
+            candidate, end = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            cursor = start + 1
+            continue
+        if isinstance(candidate, dict):
+            final_object = candidate
+        cursor = max(end, start + 1)
+    if final_object is not None:
+        text = json.dumps(final_object, ensure_ascii=False, separators=(",", ":"))
+    elif any("Reasoning" in line for line in output_lines):
+        # Preflight is intentionally plain text rather than JSON.
+        text = next(
+            (line.strip() for line in reversed(output_lines) if line.strip()),
+            "",
+        )
     match = _SESSION_RE.search(proc.stderr or "")
     return text, (match.group(1) if match else session_id)
 
@@ -483,37 +516,86 @@ def reflect_chat(messages: list[dict], match_id) -> str:
     return text
 
 
-def report(state: dict, move: dict) -> None:
-    """Best-effort per-turn report to the owner's chat via Hermes' send_message
-    tool (which works inside a CLI `-z` turn). The runner already decided this
-    turn is report-worthy (dashboard report_level). Needs HERMES_DELIVER_TARGET
-    like 'telegram:<chat_id>[:<thread_id>]' — run
-    `hermes -z "call send_message with action='list'" --yolo` to see targets. No
-    target => no-op (like OpenClaw with no delivery config). Fire-and-forget so a
-    report never delays the next poll/turn."""
-    if not HERMES_DELIVER_TARGET:
-        return
-    game = state.get("game_type") or "ClawArena"
-    snapshot = json.dumps(
-        {k: v for k, v in state.items()
-         if k not in ("my_memory", "legal_actions") and not isinstance(v, (dict, list))},
-        ensure_ascii=False,
-    )[:600]
-    prompt = (
-        f"You are playing ClawArena {game} and JUST submitted this move: "
-        f"{json.dumps(move, ensure_ascii=False)}. Match snapshot: {snapshot}. "
-        "In ONE or two short first-person sentences (a little personality is fine, "
-        "plain text, no markdown), tell your human how the match is going, then send "
-        f"that message to {HERMES_DELIVER_TARGET} using the send_message tool. "
-        "Do not ask questions — just send it."
+def _report_message(state: dict, move: dict) -> str:
+    game = str(state.get("game_type") or "ClawArena").replace("_", " ").title()
+    action = str(move.get("action") or "move")
+    params = move.get("params") if isinstance(move.get("params"), dict) else {}
+    phase = str(state.get("phase") or "").strip()
+    details = (
+        f" {json.dumps(params, ensure_ascii=False, separators=(',', ':'))}"
+        if params
+        else ""
     )
-    cmd = _invoke(HERMES_REPORT_TIMEOUT) + [
-        "-z", prompt, "-t", HERMES_DELIVER_TOOLSET, "--yolo",
+    phase_text = f" during {phase}" if phase else ""
+    return f"[ClawArena · {game}] Submitted {action}{details}{phase_text}."[:1500]
+
+
+def _report_process(command: list[str]) -> subprocess.CompletedProcess:
+    outer_timeout = HERMES_REPORT_TIMEOUT + 15 if HERMES_CONTAINER else HERMES_REPORT_TIMEOUT
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        timeout=outer_timeout,
+        check=False,
+    )
+
+
+def _direct_send_unavailable(proc: subprocess.CompletedProcess) -> bool:
+    output = "\n".join(part for part in (proc.stderr, proc.stdout) if part).lower()
+    return any(marker in output for marker in HERMES_SEND_UNAVAILABLE_MARKERS)
+
+
+def _deliver_report(message: str) -> tuple[bool, str]:
+    direct = _invoke(HERMES_REPORT_TIMEOUT) + [
+        "send",
+        "--to",
+        HERMES_DELIVER_TARGET,
+        message,
+    ]
+    proc = _report_process(direct)
+    if proc.returncode == 0:
+        return True, "hermes send"
+    if not _direct_send_unavailable(proc):
+        detail = "\n".join(part for part in (proc.stderr, proc.stdout) if part).strip()
+        return False, f"hermes send rc={proc.returncode}: {detail[-400:]}"
+
+    # Hermes <=0.12 has no direct `send` command. Keep a bounded compatibility
+    # path for existing self-hosted agents while latest Hermes stays LLM-free.
+    prompt = (
+        f"Send this exact message to {HERMES_DELIVER_TARGET} using send_message. "
+        f"Do not alter it and do not send anything else: {message}"
+    )
+    legacy = _invoke(HERMES_REPORT_TIMEOUT) + [
+        "-z",
+        prompt,
+        "-t",
+        HERMES_DELIVER_TOOLSET,
+        "--yolo",
     ]
     if HERMES_MODEL:
-        cmd += ["-m", HERMES_MODEL]
+        legacy += ["-m", HERMES_MODEL]
     if HERMES_PROVIDER:
-        cmd += ["--provider", HERMES_PROVIDER]
+        legacy += ["--provider", HERMES_PROVIDER]
+    fallback = _report_process(legacy)
+    if fallback.returncode == 0:
+        return True, "legacy messaging toolset"
+    detail = "\n".join(
+        part for part in (fallback.stderr, fallback.stdout) if part
+    ).strip()
+    return False, f"legacy report rc={fallback.returncode}: {detail[-400:]}"
+
+
+def report(state: dict, move: dict) -> None:
+    """Queue one bounded owner report without delaying the gameplay poll loop.
+
+    Hermes >=0.19 uses the direct, LLM-free `hermes send` command. Older Hermes
+    releases fall back only when the CLI explicitly reports that `send` does not
+    exist. Delivery success is logged only after the subprocess exits zero.
+    """
+    if not HERMES_DELIVER_TARGET:
+        return
+    message = _report_message(state, move)
     # Fire-and-forget, but bounded: one stuck report must not accumulate a new
     # Hermes/docker process on every turn.
     if not _REPORT_LOCK.acquire(blocking=False):
@@ -522,22 +604,23 @@ def report(state: dict, move: dict) -> None:
 
     def deliver() -> None:
         try:
-            outer_timeout = HERMES_REPORT_TIMEOUT + 15 if HERMES_CONTAINER else HERMES_REPORT_TIMEOUT
-            subprocess.run(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=outer_timeout,
-                check=False,
-            )
-        except (OSError, subprocess.SubprocessError):
-            pass
+            delivered, detail = _deliver_report(message)
+            if delivered:
+                print(
+                    f"[hermes] report delivered via {detail} -> {HERMES_DELIVER_TARGET}",
+                    flush=True,
+                )
+            else:
+                print(f"[hermes] report failed ({detail})", flush=True)
+        except (OSError, subprocess.SubprocessError) as exc:
+            print(f"[hermes] report failed ({exc})", flush=True)
         finally:
             _REPORT_LOCK.release()
 
+    print(f"[hermes] report queued -> {HERMES_DELIVER_TARGET}", flush=True)
     try:
         threading.Thread(target=deliver, name="clawarena-hermes-report", daemon=True).start()
-    except RuntimeError:
+    except RuntimeError as exc:
         _REPORT_LOCK.release()
+        print(f"[hermes] report failed to start ({exc})", flush=True)
         return
-    print(f"[hermes] report dispatched -> {HERMES_DELIVER_TARGET}", flush=True)

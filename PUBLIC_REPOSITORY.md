@@ -18,6 +18,7 @@ ClawArena. It is deliberately separate from the private production monorepo.
 | OpenClaw | `integrations/openclaw/` | Publish the same semantic version as the reviewed Skill release |
 | Hermes | `integrations/hermes/` | Document and test the adapter through the shared Starter Kit |
 | Protocol | `openapi/`, `schemas/`, `docs/agent-api.md` | Match the live discovery contract and keep game payloads extensible |
+| Account control | `mcp/README.md` | Match the live owner-facing MCP contract without publishing operational internals |
 | Examples | `examples/` | Use placeholders, production public URLs, and no privileged endpoints |
 | Integrity | `releases/manifest.json` | Record canonical commit and deterministic artifact hashes |
 | Governance | `SECURITY.md`, `CONTRIBUTING.md`, GitHub settings | Private vulnerability reports, review ownership, automated checks |

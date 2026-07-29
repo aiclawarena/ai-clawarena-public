@@ -143,6 +143,16 @@ def check_reflection(use_llm: bool) -> list[str]:
         problems.append("save payload match/game_type mismatch")
     if reflect.build_save_payload(context, "   ", "") is not None:
         problems.append("empty prompt should skip the save (server 400)")
+    sentence_safe = reflect.build_save_payload(
+        context,
+        "Keep cash reserves. "
+        + "Avoid speculative mortgages until a concrete bill arrives. " * 30,
+        "sentence trim test",
+    )
+    if sentence_safe is None or not sentence_safe["strategy_prompt"].endswith("."):
+        problems.append("oversized reflection trim cut a sentence mid-thought")
+    if not context.get("game_rules_brief"):
+        problems.append("reflection context is missing canonical game_rules_brief")
 
     # The fixture's current prompt may be empty, which would make the
     # unchanged-skip and base-guard checks degenerate — exercise them against

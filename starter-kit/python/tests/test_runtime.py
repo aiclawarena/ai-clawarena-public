@@ -439,6 +439,26 @@ class ProtocolTests(unittest.TestCase):
             {"strategy_prompt": "keep", "reason": "solid"},
         )
 
+    def test_reflection_payload_trims_only_at_a_complete_thought(self):
+        context = {
+            "match": {"id": 7, "game_type": "monopoly"},
+            "limits": {"strategy_prompt_max_chars": 40},
+            "current_strategy_prompt": "",
+        }
+
+        payload = reflect.build_save_payload(
+            context,
+            "Keep cash reserves. This trailing lesson is deliberately too long.",
+            "durable lesson",
+        )
+
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["strategy_prompt"], "Keep cash reserves.")
+        self.assertEqual(
+            reflect._truncate_strategy_prompt("alpha beta gamma delta", 12),
+            "alpha beta…",
+        )
+
     def test_action_parser_returns_memo_without_writing_memory(self):
         with mock.patch.object(memory, "record_memo") as record_memo:
             move = llm_agent._parse_action(
@@ -726,6 +746,7 @@ class StarterSessionTests(unittest.TestCase):
             f"configured {llm_agent.LLM_DIPLOMACY_MAX_TOKENS} token limit",
             log,
         )
+        self.assertIn("raise LLM_MAX_TOKENS", log)
 
     def test_new_match_never_reuses_the_previous_match_transcript(self):
         with mock.patch.object(llm_agent.memory, "current_match_id", return_value=41):
@@ -1588,6 +1609,43 @@ class HermesTests(unittest.TestCase):
         self.assertEqual(text, '{"action":"challenge","params":{}}')
         self.assertEqual(sid, "session-new")
 
+    def test_gameplay_chat_prefers_final_json_after_latest_hermes_reasoning_recap(self):
+        proc = mock.Mock(
+            returncode=0,
+            stdout=(
+                f"Warning: Unknown toolsets: {hermes_agent.HERMES_NO_TOOLS_SENTINEL}\n"
+                "┌─ Reasoning ─────────────────────────┐\n"
+                'A candidate looked like {\"quantity\":4,\"face\":3}.\n'
+                '{"action":"bid","params":{"quantity":4,"face":3}}\n'
+            ),
+            stderr="session_id: latest-hermes\n",
+        )
+        with mock.patch.object(hermes_agent.subprocess, "run", return_value=proc):
+            text, sid = hermes_agent._run_chat("prompt", None, 60)
+
+        self.assertEqual(
+            text,
+            '{"action":"bid","params":{"quantity":4,"face":3}}',
+        )
+        self.assertEqual(sid, "latest-hermes")
+
+    def test_gameplay_chat_keeps_plain_preflight_after_reasoning_recap(self):
+        proc = mock.Mock(
+            returncode=0,
+            stdout=(
+                f"Warning: Unknown toolsets: {hermes_agent.HERMES_NO_TOOLS_SENTINEL}\n"
+                "┌─ Reasoning ─────────────────────────┐\n"
+                "The requested readiness token is straightforward.\n"
+                "CLAWARENA_READY\n"
+            ),
+            stderr="session_id: latest-hermes-preflight\n",
+        )
+        with mock.patch.object(hermes_agent.subprocess, "run", return_value=proc):
+            text, sid = hermes_agent._run_chat("prompt", None, 60)
+
+        self.assertEqual(text, "CLAWARENA_READY")
+        self.assertEqual(sid, "latest-hermes-preflight")
+
     def test_gameplay_chat_fails_closed_when_hermes_does_not_confirm_zero_tools(self):
         proc = mock.Mock(returncode=0, stdout="MODEL_REPLY\n", stderr="session_id: unsafe\n")
         with mock.patch.object(hermes_agent.subprocess, "run", return_value=proc):
@@ -1783,7 +1841,7 @@ class HermesTests(unittest.TestCase):
         def fake_run(command, **kwargs):
             calls.append((command, kwargs))
             called.set()
-            return mock.Mock(returncode=0)
+            return mock.Mock(returncode=0, stdout="", stderr="")
 
         with (
             mock.patch.object(hermes_agent, "HERMES_CONTAINER", "hermes-test"),
@@ -1798,6 +1856,9 @@ class HermesTests(unittest.TestCase):
             hermes_agent.report({"game_type": "mafia"}, {"action": "vote", "params": {}})
             elapsed = time.monotonic() - before
             self.assertTrue(called.wait(1))
+            deadline = time.monotonic() + 1
+            while hermes_agent._REPORT_LOCK.locked() and time.monotonic() < deadline:
+                time.sleep(0.01)
 
         self.assertLess(elapsed, 0.2)
         self.assertEqual(calls[0][0][:7], [
@@ -1805,7 +1866,49 @@ class HermesTests(unittest.TestCase):
         ])
         self.assertEqual(calls[0][1]["timeout"], 18)
         report_command = calls[0][0]
-        self.assertEqual(report_command[report_command.index("-t") + 1], "messaging")
+        self.assertIn("send", report_command)
+        self.assertEqual(report_command[report_command.index("--to") + 1], "telegram:1")
+        self.assertTrue(any("Submitted vote" in part for part in report_command))
+        self.assertNotIn("-t", report_command)
+
+    def test_report_delivery_falls_back_only_when_direct_send_is_unavailable(self):
+        calls = []
+        finished = threading.Event()
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            if len(calls) == 1:
+                return mock.Mock(
+                    returncode=2,
+                    stdout="",
+                    stderr="hermes: error: argument command: invalid choice: 'send'",
+                )
+            finished.set()
+            return mock.Mock(returncode=0, stdout="", stderr="")
+
+        with (
+            mock.patch.object(hermes_agent, "HERMES_CONTAINER", ""),
+            mock.patch.object(hermes_agent, "HERMES_BIN", "hermes"),
+            mock.patch.object(hermes_agent, "HERMES_DELIVER_TARGET", "telegram:1"),
+            mock.patch.object(hermes_agent, "HERMES_REPORT_TIMEOUT", 3),
+            mock.patch.object(hermes_agent, "HERMES_MODEL", ""),
+            mock.patch.object(hermes_agent, "HERMES_PROVIDER", ""),
+            mock.patch.object(hermes_agent.subprocess, "run", side_effect=fake_run),
+        ):
+            hermes_agent.report(
+                {"game_type": "mafia", "phase": "day"},
+                {"action": "vote", "params": {"target_id": 2}},
+            )
+            self.assertTrue(finished.wait(1))
+            deadline = time.monotonic() + 1
+            while hermes_agent._REPORT_LOCK.locked() and time.monotonic() < deadline:
+                time.sleep(0.01)
+
+        self.assertEqual(len(calls), 2)
+        self.assertIn("send", calls[0][0])
+        legacy = calls[1][0]
+        self.assertEqual(legacy[legacy.index("-t") + 1], "messaging")
+        self.assertIn("--yolo", legacy)
 
 
 class MemoryTests(unittest.TestCase):
@@ -2547,6 +2650,54 @@ class RunnerLoopTests(unittest.TestCase):
             result = runner.main()
 
         return result, actions, recorded_moves, recorded_memos
+
+    def test_poll_retry_delay_uses_bounded_equal_jitter(self):
+        self.assertEqual(
+            runner._poll_retry_delay(1, 502, rng=lambda: 0.0),
+            3.0,
+        )
+        self.assertEqual(
+            runner._poll_retry_delay(1, 502, rng=lambda: 1.0),
+            6.0,
+        )
+        self.assertEqual(
+            runner._poll_retry_delay(20, 502, rng=lambda: 0.0),
+            15.0,
+        )
+        self.assertEqual(
+            runner._poll_retry_delay(20, 502, rng=lambda: 1.0),
+            30.0,
+        )
+        self.assertEqual(
+            runner._poll_retry_delay(1, 429, rng=lambda: 0.0),
+            10.0,
+        )
+
+    def test_poll_retry_backoff_resets_after_success(self):
+        retry_attempts = []
+
+        def retry_delay(failure_count, status_code):
+            retry_attempts.append((failure_count, status_code))
+            return 0.01
+
+        with mock.patch.object(runner, "_poll_retry_delay", side_effect=retry_delay):
+            result, actions, moves, memos = self.run_loop(
+                [
+                    (502, {"detail": "deploying"}),
+                    (404, {"detail": "router replacing service"}),
+                    (200, {"status": "idle", "message": "Waiting"}),
+                    (503, {"detail": "warming"}),
+                    (401, {"detail": "stop"}),
+                ],
+                (200, {"status": "ok"}),
+                ["runner.py", "--no-reflect"],
+            )
+
+        self.assertEqual(result, 1)
+        self.assertEqual(retry_attempts, [(1, 502), (2, 404), (1, 503)])
+        self.assertEqual(actions, [])
+        self.assertEqual(moves, [])
+        self.assertEqual(memos, [])
 
     def test_model_preflight_failure_stops_before_arena_connection(self):
         connection_token = mock.Mock(return_value="token")

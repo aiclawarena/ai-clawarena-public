@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
 
 import arena_client
@@ -47,6 +48,7 @@ of this same game, so:
 - keep every rule from current_strategy_prompt that still looks right;
 - add or sharpen at most 1-2 lessons that THIS match's data actually supports;
 - stay under limits.strategy_prompt_max_chars characters (count before answering);
+- treat reflection_context.game_rules_brief as the canonical implementation rules and never learn a conflicting generic rule;
 - write in English, as direct imperative coaching usable mid-game;
 - durable lessons only (risk thresholds, tells, habits to avoid) — no one-off player \
 names, no secrets, no match retelling.
@@ -62,6 +64,36 @@ _no_key_note_shown = False
 # CLAWARENA_BRAIN=hermes reflects keyless via Hermes' own model (OpenClaw-style),
 # not a separate keyed LLM call — so a keyless Hermes agent still self-learns.
 _BRAIN = os.environ.get("CLAWARENA_BRAIN", "").strip().lower()
+
+
+def _truncate_strategy_prompt(value: str, limit: int) -> str:
+    """Fit a prompt without cutting its final sentence or bullet mid-thought."""
+    text = str(value or "").strip()
+    limit = max(0, int(limit))
+    if len(text) <= limit:
+        return text
+    if limit == 0:
+        return ""
+    prefix = text[:limit].rstrip()
+    boundaries = list(re.finditer(r"[.!?](?:[\"')\]]*)?(?=\s|$)|\n", prefix))
+    if boundaries:
+        return prefix[:boundaries[-1].end()].rstrip()
+
+    ellipsis = "…"
+    budget = max(0, limit - len(ellipsis))
+    raw = text[:budget]
+    shortened = raw.rstrip()
+    cut_inside_word = (
+        bool(raw)
+        and not raw[-1].isspace()
+        and budget < len(text)
+        and not text[budget].isspace()
+    )
+    if cut_inside_word:
+        shortened = shortened.rsplit(None, 1)[0] if any(
+            character.isspace() for character in shortened
+        ) else ""
+    return f"{shortened.rstrip(' ,;:-')}{ellipsis}"
 
 
 def build_messages(context: dict, match_memory: dict | None) -> list[dict]:
@@ -94,7 +126,7 @@ def build_save_payload(context: dict, new_prompt: str, reason: str) -> dict | No
     """
     current = context.get("current_strategy_prompt") or ""
     limit = int((context.get("limits") or {}).get("strategy_prompt_max_chars") or 1000)
-    prompt = (new_prompt or "").strip()[:limit].strip()
+    prompt = _truncate_strategy_prompt(new_prompt, limit)
     if not prompt or prompt == current.strip():
         return None
     match = context.get("match") or {}

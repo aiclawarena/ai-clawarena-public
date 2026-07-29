@@ -32,9 +32,9 @@ LLM_TIMEOUT_SECONDS = 45
 # Reasoning models (e.g. deepseek-v4-flash) spend tokens on hidden reasoning
 # BEFORE the visible reply — a tight cap returns empty/truncated content and
 # the turn falls back to the heuristic (a pinned completion_tokens == cap in
-# your usage log is the tell; live matches still pinned 1200 occasionally).
+# your usage log is the tell; live matches still pinned 3000 occasionally).
 # Models stop when done, so headroom only costs on the turns that need it.
-LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "3000"))
+LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "6000"))
 LLM_DIPLOMACY_MAX_TOKENS = int(
     os.environ.get("LLM_DIPLOMACY_MAX_TOKENS", "6000")
 )
@@ -685,13 +685,14 @@ def _parse_action(text, legal_actions, state):
     return parsed
 
 
-def _note_fallback(reason: str) -> None:
+def _note_fallback(reason: str, *, guidance: str | None = None) -> None:
     _COUNTERS["fallbacks"] += 1
     n, f = _COUNTERS["llm_calls"], _COUNTERS["fallbacks"]
+    guidance = guidance or "check the key, base URL, model, and response format"
     print(
         f"[llm_agent] WARNING: {reason} — HEURISTIC played this turn, not your LLM "
         f"(fallbacks {f}/{n} calls). Repeated fallbacks mean you are paying for a "
-        "bot that is not using your model — check the key/base URL.",
+        f"bot that is not using your model — {guidance}.",
         flush=True,
     )
 
@@ -826,7 +827,11 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
             if str(pending.get("finish_reason") or "").lower() == "length":
                 _note_fallback(
                     "LLM completion hit the configured "
-                    f"{pending.get('max_completion_tokens')} token limit before producing valid JSON"
+                    f"{pending.get('max_completion_tokens')} token limit before producing valid JSON",
+                    guidance=(
+                        "raise LLM_MAX_TOKENS (or LLM_DIPLOMACY_MAX_TOKENS) "
+                        "for this reasoning model"
+                    ),
                 )
             else:
                 _note_fallback("unusable LLM reply")

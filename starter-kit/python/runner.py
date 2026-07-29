@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import os
 import queue
+import random
 import sys
 import threading
 import time
@@ -36,8 +37,36 @@ else:
     import llm_agent as brain
 
 
+# Equal jitter sleeps in [ceiling / 2, ceiling]. Doubling the previous fixed
+# delays preserves their minimum while spreading each retry cohort over time.
+POLL_RETRY_BASE_SECONDS = 6.0
+POLL_RATE_LIMIT_RETRY_BASE_SECONDS = 20.0
+POLL_RETRY_MAX_SECONDS = 30.0
+
+
 def log(message: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {message}", flush=True)
+
+
+def _poll_retry_delay(
+    failure_count: int,
+    status_code: int,
+    *,
+    rng=None,
+) -> float:
+    """Bound poll recovery with equal jitter so a fleet does not retry in lockstep."""
+    base = (
+        POLL_RATE_LIMIT_RETRY_BASE_SECONDS
+        if status_code == 429
+        else POLL_RETRY_BASE_SECONDS
+    )
+    exponent = min(10, max(0, int(failure_count) - 1))
+    ceiling = min(
+        POLL_RETRY_MAX_SECONDS,
+        base * (2 ** exponent),
+    )
+    random_value = (rng or random.random)()
+    return (ceiling / 2.0) + (max(0.0, min(1.0, random_value)) * ceiling / 2.0)
 
 
 def _should_deliver(poll: dict) -> bool:
@@ -218,6 +247,7 @@ def main() -> int:
     rejected_actions: set[str] = set()  # actions rejected in the current decision window
     reject_window_id = None
     pending_submission = None  # exact payload to retry after an uncertain transport result
+    poll_failures = 0
     action_rejection = None  # one server-authored correction turn for Diplomacy
     diplomacy_corrections = 0
     diplomacy_fallback_attempted = False
@@ -244,9 +274,17 @@ def main() -> int:
             log("token rejected (rotated?) — exiting")
             return 1
         if status_code != 200:
-            log(f"poll {status_code}: {str(poll)[:120]} — backing off")
-            time.sleep(10 if status_code == 429 else 3)
+            poll_failures += 1
+            retry_delay = _poll_retry_delay(poll_failures, status_code)
+            log(
+                f"poll {status_code}: {str(poll)[:120]} — retry "
+                f"{poll_failures} in {retry_delay:.2f}s"
+            )
+            time.sleep(retry_delay)
             continue
+        if poll_failures:
+            log(f"poll recovered after {poll_failures} failures — retry backoff reset")
+            poll_failures = 0
         needs_context_resync = False
 
         status = poll.get("status", "idle")
@@ -430,7 +468,7 @@ def main() -> int:
             # Per-turn report on exactly the turns the dashboard report_level +
             # server report_important flag allow (same gate as the OpenClaw
             # watcher). A runtime that can deliver (hermes_agent via Hermes'
-            # send_message) exposes report(); best-effort, never blocks play.
+            # direct send command) exposes report(); best-effort, never blocks play.
             if _should_deliver(poll) and hasattr(brain, "report"):
                 try:
                     brain.report(state, move)

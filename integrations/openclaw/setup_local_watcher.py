@@ -9,6 +9,7 @@ import os
 import secrets
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -68,6 +69,30 @@ def stable_subprocess_cwd() -> str:
         if candidate.exists() and candidate.is_dir():
             return str(candidate)
     return "/"
+
+
+def trusted_openclaw_binary() -> str:
+    """Resolve OpenClaw once so setup cannot be redirected by a later PATH change."""
+    candidate = shutil.which("openclaw")
+    if not candidate:
+        raise RuntimeError("openclaw CLI was not found on PATH")
+    resolved = Path(candidate).resolve(strict=True)
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise RuntimeError(f"openclaw CLI is not an executable file: {resolved}")
+    return str(resolved)
+
+
+def owned_regular_config_path(raw_path: str) -> Path:
+    """Accept only the current user's regular OpenClaw config file."""
+    path = Path(raw_path.strip()).expanduser()
+    if not path.is_absolute():
+        raise RuntimeError("OpenClaw returned a non-absolute config path")
+    metadata = path.lstat()
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError("OpenClaw config path is not a regular file")
+    if metadata.st_uid != os.geteuid():
+        raise RuntimeError("OpenClaw config file is not owned by the current user")
+    return path
 
 
 def atomic_write(path: Path, content: str, mode: int | None = None) -> None:
@@ -421,6 +446,7 @@ def configure_restricted_openclaw_agent(skill_root: Path) -> dict[str, Any]:
     workspace = (CLAW_DIR / "openclaw-workspace").resolve()
     agent_id = SELF_HOSTED_OPENCLAW_AGENT_ID
     created = False
+    openclaw_bin = ""
 
     def run(command: list[str], *, timeout: int = 30) -> subprocess.CompletedProcess:
         return subprocess.run(  # noqa: S603
@@ -433,8 +459,9 @@ def configure_restricted_openclaw_agent(skill_root: Path) -> dict[str, Any]:
         )
 
     try:
+        openclaw_bin = trusted_openclaw_binary()
         arena_api_path.chmod(0o700)
-        listed = run(["openclaw", "agents", "list", "--json"])
+        listed = run([openclaw_bin, "agents", "list", "--json"])
         if listed.returncode != 0:
             raise RuntimeError((listed.stderr or listed.stdout or "agents list failed").strip())
         agents = json.loads(listed.stdout or "[]")
@@ -442,7 +469,7 @@ def configure_restricted_openclaw_agent(skill_root: Path) -> dict[str, Any]:
             raise RuntimeError("OpenClaw agents list returned an unexpected payload")
         if not any(str(entry.get("id") or "") == agent_id for entry in agents if isinstance(entry, dict)):
             added = run([
-                "openclaw", "agents", "add", agent_id,
+                openclaw_bin, "agents", "add", agent_id,
                 "--workspace", str(workspace),
                 "--non-interactive", "--json",
             ])
@@ -450,19 +477,36 @@ def configure_restricted_openclaw_agent(skill_root: Path) -> dict[str, Any]:
                 raise RuntimeError((added.stderr or added.stdout or "agents add failed").strip())
             created = True
 
-        config_file = run(["openclaw", "config", "file"])
+        config_file = run([openclaw_bin, "config", "file"])
         if config_file.returncode != 0:
             raise RuntimeError((config_file.stderr or config_file.stdout or "config file failed").strip())
-        config_path = Path((config_file.stdout or "").strip()).expanduser()
+        config_path = owned_regular_config_path(config_file.stdout or "")
         config = json.loads(config_path.read_text())
-        entries = ((config.get("agents") or {}).get("list") or [])
-        index = next(
-            (i for i, entry in enumerate(entries) if str(entry.get("id") or "") == agent_id),
-            None,
-        )
-        if index is None:
-            raise RuntimeError("OpenClaw created the agent but did not persist its config entry")
-        entry = dict(entries[index])
+        agents_config = config.get("agents") or {}
+        mapped_entries = agents_config.get("entries")
+        listed_entries = agents_config.get("list")
+        if isinstance(mapped_entries, dict):
+            persisted = mapped_entries.get(agent_id)
+            if not isinstance(persisted, dict):
+                raise RuntimeError("OpenClaw created the agent but did not persist its config entry")
+            entry = dict(persisted)
+            config_key = f"agents.entries.{agent_id}"
+        elif isinstance(listed_entries, list):
+            index = next(
+                (
+                    i
+                    for i, candidate in enumerate(listed_entries)
+                    if isinstance(candidate, dict)
+                    and str(candidate.get("id") or "") == agent_id
+                ),
+                None,
+            )
+            if index is None:
+                raise RuntimeError("OpenClaw created the agent but did not persist its config entry")
+            entry = dict(listed_entries[index])
+            config_key = f"agents.list[{index}]"
+        else:
+            raise RuntimeError("OpenClaw returned an unsupported agents config schema")
         configured_workspace = Path(str(entry.get("workspace") or "")).expanduser().resolve()
         if not created and configured_workspace != workspace:
             legacy_workspace = (LEGACY_CLAW_DIR / "openclaw-workspace").resolve()
@@ -481,23 +525,22 @@ def configure_restricted_openclaw_agent(skill_root: Path) -> dict[str, Any]:
                     "security": "allowlist",
                     "ask": "off",
                     "strictInlineEval": True,
-                    "timeoutSec": 45,
                 },
             },
         })
         updated = run([
-            "openclaw", "config", "set", f"agents.list[{index}]",
+            openclaw_bin, "config", "set", config_key,
             json.dumps(entry, separators=(",", ":")), "--strict-json",
         ])
         if updated.returncode != 0:
             raise RuntimeError((updated.stderr or updated.stdout or "config update failed").strip())
         approved = run([
-            "openclaw", "approvals", "allowlist", "add",
+            openclaw_bin, "approvals", "allowlist", "add",
             "--agent", agent_id, str(arena_api_path),
         ])
         if approved.returncode != 0:
             raise RuntimeError((approved.stderr or approved.stdout or "allowlist update failed").strip())
-        validated = run(["openclaw", "config", "validate"])
+        validated = run([openclaw_bin, "config", "validate"])
         if validated.returncode != 0:
             raise RuntimeError((validated.stderr or validated.stdout or "config validation failed").strip())
         workspace.mkdir(parents=True, exist_ok=True)
@@ -528,7 +571,7 @@ def verify_delivery(
     openclaw_agent_id: str | None = None,
 ) -> dict[str, Any]:
     cmd = [
-        "openclaw",
+        trusted_openclaw_binary(),
         "agent",
     ]
     if openclaw_agent_id is None:
@@ -602,6 +645,7 @@ def preflight_watcher(
         env.update(
             CLAWARENA_HOME=str(temp_home),
             CLAWARENA_READY_FILE=str(ready_path),
+            CLAWARENA_OPENCLAW_BIN=trusted_openclaw_binary(),
         )
         if openclaw_agent_id:
             env["CLAWARENA_OPENCLAW_AGENT_ID"] = openclaw_agent_id
@@ -632,6 +676,7 @@ def start_watcher(skill_root: Path, *, openclaw_agent_id: str = "") -> subproces
     env.update(
         CLAWARENA_HOME=str(CLAW_DIR),
         CLAWARENA_READY_FILE=str(WATCHER_READY_PATH),
+        CLAWARENA_OPENCLAW_BIN=trusted_openclaw_binary(),
     )
     if openclaw_agent_id:
         env["CLAWARENA_OPENCLAW_AGENT_ID"] = openclaw_agent_id
@@ -682,6 +727,14 @@ def parse_args() -> argparse.Namespace:
         help="Provision once, or reuse the saved token and refresh its pending claim link.",
     )
     parser.add_argument(
+        "--accept-persistent-setup",
+        action="store_true",
+        help=(
+            "Confirm first-time setup may store a scoped token, create a restricted "
+            "OpenClaw agent approval, and start a background watcher."
+        ),
+    )
+    parser.add_argument(
         "--recovery-key",
         help="One-use recovery key from Command Center. Redeems it, saves fresh credentials, and restarts the watcher.",
     )
@@ -720,6 +773,12 @@ def main() -> int:
         stop_existing_watcher(skill_root)
         print(json.dumps({"watcher_stopped": True, "home": str(CLAW_DIR)}))
         return 0
+    if args.provision and not TOKEN_PATH.exists() and not args.accept_persistent_setup:
+        raise SystemExit(
+            "First-time ClawArena setup requires --accept-persistent-setup after the "
+            "user reviews its scoped credential storage, restricted exec approval, "
+            "and background watcher."
+        )
     recovery_applied = False
     claim_state: dict[str, Any] = {
         "claim_url": None,

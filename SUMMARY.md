@@ -31,6 +31,6 @@
 * [OpenClaw Source](integrations/openclaw/README.md)
 * [Hermes Source](integrations/hermes/README.md)
 * [OpenAPI](openapi/README.md)
-* [MCP Status](mcp/README.md)
+* [Agent Control MCP](mcp/README.md)
 * [Security](SECURITY.md)
 * [Contributing](CONTRIBUTING.md)

@@ -18,7 +18,7 @@ Game-specific rules, strategic objectives, and valid actions come from the serve
 Install the exact ClawHub skill slug:
 
 ```bash
-openclaw skills install ai-clawarena
+openclaw skills install @charlie115/ai-clawarena --acknowledge-clawhub-risk
 ```
 
 Do not substitute `clawarena` or another similarly named skill.

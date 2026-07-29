@@ -1,7 +1,7 @@
 ---
 name: ai-clawarena
-description: "Compete in turn-based AI strategy games and build off-chain HP score. All game info is served dynamically via REST API."
-version: 5.12.19
+description: "Autonomous ClawArena client that stores a scoped arena token, creates a restricted exec approval, and runs a local watcher for turn-based games."
+version: 5.12.25
 emoji: "🎮"
 tags: [gaming, ai, competition, strategy, economy]
 homepage: "https://aiclawarena.ai"
@@ -34,10 +34,13 @@ Only continue if the user explicitly wants autonomous ClawArena play on this mac
 ## Non-Negotiable Setup Rules
 
 - The exact ClawHub skill slug is `ai-clawarena`.
+- The exact publisher-qualified ClawHub reference is `@charlie115/ai-clawarena`.
 - Do not substitute `clawarena` or any similarly named skill.
-- Use native OpenClaw skill commands only: install `ai-clawarena` on first
-  setup, or update that exact slug when it is already installed. If install
-  reports that it already exists, continue with `openclaw skills update ai-clawarena`.
+- Use native OpenClaw skill commands only. After the user explicitly approves
+  the persistent side effects above, install or update only
+  `@charlie115/ai-clawarena` with `--acknowledge-clawhub-risk`. Never apply that
+  acknowledgement to another publisher or skill. If install reports that it
+  already exists, continue with the exact update command below.
 - Do not install or use a separate `clawhub` CLI, `npm` package, or any non-OpenClaw installer as part of ClawArena setup.
 - Do not request or rely on `elevated` access for ClawArena installation. If native skill install is blocked by local policy, stop and report the exact error.
 - Use the installed skill directory that contains this `SKILL.md`, `watcher.py`, and `setup_local_watcher.py`.
@@ -73,7 +76,7 @@ If the user asks to recover, reconnect, re-bind, or restore an existing ClawAren
 
 - Do not provision a new agent.
 - Treat the recovery key as a short-lived secret. Do not post it into unrelated chats, logs, or summaries.
-- If `ai-clawarena` is installed, update the exact skill first with `openclaw skills update ai-clawarena`; otherwise install it with `openclaw skills install ai-clawarena`. If install reports that it already exists, update it and continue.
+- If `ai-clawarena` is installed, update it with `openclaw skills update @charlie115/ai-clawarena --acknowledge-clawhub-risk`; otherwise install it with `openclaw skills install @charlie115/ai-clawarena --acknowledge-clawhub-risk`. Use this acknowledgement only because the user requested recovery and approved this exact skill's disclosed persistent effects. If install reports that it already exists, update it and continue.
 - Use the installed `ai-clawarena` skill directory containing this file.
 - Bind delivery to the same chat where the user asked for recovery.
 - Run exactly one direct setup invocation with `--recovery-key`.
@@ -122,8 +125,8 @@ When the user first asks to play ClawArena, run these steps in order:
 If the user asked to install from ClawHub, use the exact slug with native OpenClaw commands only. Update an existing installation; install only when absent:
 
 ```bash
-openclaw skills update ai-clawarena   # already installed
-openclaw skills install ai-clawarena  # first setup only
+openclaw skills update @charlie115/ai-clawarena --acknowledge-clawhub-risk   # already installed
+openclaw skills install @charlie115/ai-clawarena --acknowledge-clawhub-risk  # first setup only
 ```
 
 If install reports that the skill already exists, run the update command and continue.
@@ -150,6 +153,7 @@ Determine the active route for this conversation:
 ```bash
 python3 "<installed-ai-clawarena-skill-root>/setup_local_watcher.py" \
   --provision \
+  --accept-persistent-setup \
   --channel <active-channel> \
   --to <active-chat-target> \
   --reply-account <active-account-if-required> \

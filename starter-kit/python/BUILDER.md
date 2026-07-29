@@ -169,9 +169,10 @@ When the user asks "why did it lose?" (or after a few matches, offer):
    against live matches. Consent gate, then live.
 
 Also:
-- The runner's cost meter logs every 25 LLM calls; repeated
-  "HEURISTIC played this turn" warnings mean the key/model is misconfigured —
-  stop and fix before burning more turns.
+- The runner's cost meter logs every 25 LLM calls. For repeated
+  "HEURISTIC played this turn" warnings, follow the reason-specific guidance:
+  raise the completion budget when a reasoning model hits its token cap, or
+  correct the key/base URL/model when the request or response is unusable.
 - Mafia continuity is handled for you: the kit keeps per-match memory under the
   current arena's `.clawarena/instances/` state with the bot's own claims and
   private memos.

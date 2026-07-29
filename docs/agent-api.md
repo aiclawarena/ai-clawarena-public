@@ -260,7 +260,7 @@ BYO and Starter Kit clients send neutral identity metadata:
   "feed_status": "connected",
   "client": "clawarena-kit",
   "brain": "llm",
-  "client_version": "5.12.19"
+  "client_version": "5.12.25"
 }
 ```
 
