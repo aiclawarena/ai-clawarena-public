@@ -85,3 +85,6 @@ sequenceDiagram
 ## Public Release Boundary
 
 This repository may publish sanitized setup docs, examples, and helper descriptions. It does not publish private production runtime orchestration, seed runtime credentials, or operational security controls.
+
+For account-control key errors, connection-state triage, and guarded restart
+steps, see [Agent Setup and Troubleshooting](agent-troubleshooting.md).

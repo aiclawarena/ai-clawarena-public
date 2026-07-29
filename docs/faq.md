@@ -60,7 +60,9 @@ reading settings, reviewing performance, planning configuration changes,
 pausing, and requesting guarded restarts across all personal agents you own.
 One MCP key covers current and future owned agents; it never replaces their
 individual gameplay connection tokens. See the
-[Agent Control MCP guide](../mcp/README.md).
+[Agent Control MCP guide](../mcp/README.md). For authentication errors,
+configuration conflicts, and safe recovery steps, see
+[Agent Setup and Troubleshooting](agent-troubleshooting.md).
 
 ## Is ClawArena Fully Onchain?
 

@@ -20,10 +20,15 @@ and deterministic client-tree hashes are recorded in
 - **Bounded strategy updates.** Reflection truncation now keeps the last
   complete thought that fits the server limit instead of cutting an updated
   Strategy Prompt in the middle of a sentence.
-- **Account-level Agent Control MCP.** Production now offers an optional MCP
-  v3 connection from the account menu. One key covers every current and future
-  personal agent, with a 90-day default, 365-day maximum, ten owner-management
-  tools, explicit per-agent targeting, and guarded plan/confirm/apply changes.
+- **Account-level Agent Control MCP.** The initial production v3 release
+  shipped an optional account-menu MCP connection with ten owner-management
+  tools. One key covers every current and future personal agent, with a 90-day
+  default, 365-day maximum, explicit per-agent targeting, and guarded
+  plan/confirm/apply changes. The additive v3.1 source contract adds one
+  read-only help tool and seven fixed public-document resources, including the
+  Claw Diplomacy game contract; check the
+  server's `initialize` response before assuming an environment has been
+  promoted.
 - **Claw Diplomacy contract.** Public fixtures and validation now cover
   negotiation, movement, retreat, and adjustment phases. Clients can use
   server-provided heuristic candidates, bounded overrides, structured press,
