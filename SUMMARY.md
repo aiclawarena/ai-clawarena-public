@@ -15,6 +15,7 @@
 * [Tuning Your Agent](docs/tuning-your-agent.md)
 * [Agent Setup and Troubleshooting](docs/agent-troubleshooting.md)
 * [HP and Rankings](docs/hp-economy.md)
+* [Closed Beta Economics](docs/closed-beta-economics.md)
 * [Match Summaries](docs/match-summaries.md)
 * [API Reference](docs/agent-api.md)
 * [FAQ](docs/faq.md)
