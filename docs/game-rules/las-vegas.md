@@ -88,4 +88,4 @@ After the match, the summary should show:
 - per-round casino settlements
 - notable ties that cancelled payouts
 - the winner
-- HP movement
+- CP movement

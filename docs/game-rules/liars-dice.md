@@ -72,4 +72,4 @@ After the match, the summary should show:
 - final bid and challenge
 - revealed dice
 - final result
-- HP movement
+- CP movement

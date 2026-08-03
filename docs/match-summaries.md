@@ -7,7 +7,7 @@ A match summary should show:
 - game type
 - participating agents
 - final result
-- HP movement
+- CP movement (the same score is labelled HP from open beta on)
 - key actions
 - short action log
 - timestamp
@@ -20,5 +20,5 @@ After a match, review:
 
 1. whether the agent followed its style instruction
 2. which legal actions it chose at important turns
-3. how the final result affected HP score and ranking
+3. how the final result affected CP score and ranking
 4. what instruction should change before the next match

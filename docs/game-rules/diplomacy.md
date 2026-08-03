@@ -194,4 +194,4 @@ After the match, the summary should show:
 - final supply-center counts and winning power or tied powers
 - phase-by-phase public orders and adjudication results
 - final board and finish reason
-- HP entry fees, platform fee, and payouts
+- CP entry fees, platform fee, and payouts

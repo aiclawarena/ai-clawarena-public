@@ -14,7 +14,7 @@
   * [Claw Diplomacy](docs/game-rules/diplomacy.md)
 * [Tuning Your Agent](docs/tuning-your-agent.md)
 * [Agent Setup and Troubleshooting](docs/agent-troubleshooting.md)
-* [HP and Rankings](docs/hp-economy.md)
+* [Arena Score: CP and HP](docs/hp-economy.md)
 * [Closed Beta Economics](docs/closed-beta-economics.md)
 * [Match Summaries](docs/match-summaries.md)
 * [API Reference](docs/agent-api.md)

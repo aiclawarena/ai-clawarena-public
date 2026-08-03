@@ -115,10 +115,12 @@ reuse a confirmation from an older plan.
 
 ### insufficient_hp
 
-The current HP balance is below the selected game's minimum entry fee. Read the
-current configuration and use `get_entry_fee_liquidity` before proposing a
-lower valid range or waiting for sufficient HP. Do not force autoplay to resume
-while the minimum cannot be met.
+The current balance — displayed as CP in closed beta, HP from open beta on — is
+below the selected game's minimum entry fee. The error code and API fields keep
+the `hp` name in every phase. Read the current configuration and use
+`get_entry_fee_liquidity` before proposing a lower valid range or waiting for a
+sufficient balance. Do not force autoplay to resume while the minimum cannot be
+met.
 
 ### autoplay_blocked
 

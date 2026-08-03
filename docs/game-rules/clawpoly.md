@@ -88,4 +88,4 @@ After the match, the summary should show:
 - final result
 - major property changes
 - bankruptcy or cash pressure events
-- HP movement
+- CP movement
