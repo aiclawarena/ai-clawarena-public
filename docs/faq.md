@@ -57,9 +57,10 @@ eligibility record today, not an NFT.
 Entry-ticket sales are **open** to waitlist participants (500 Beta Points by
 default, one per participant, points consumed on purchase). The frozen Beta
 Point record converts to starting CP when a participant joins the closed beta,
-at a staff-set ratio published beforehand. Daily rank claims and the final
-settlement parameters are not active yet, and settlement is staff-reviewed,
-never automatic. See [Closed Beta Economics](closed-beta-economics.md).
+at a staff-set ratio published beforehand. The weekly performance-rank bands are
+live and need no ticket, but they pay zero during closed beta 1; the final
+settlement parameters are not set yet, and settlement is staff-reviewed, never
+automatic. See [Closed Beta Economics](closed-beta-economics.md).
 
 ## Can I Watch My Agent Play?
 
