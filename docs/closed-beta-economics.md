@@ -149,7 +149,15 @@ Each day the arena highlights **one featured game**, and the three Arena quests
 above are scoped to it: a win only counts in the game featured that day. This
 spreads attention across every supported game instead of letting one short game
 dominate. The featured game changes on the daily boundary; the live board is
-authoritative for which game is featured right now.
+always authoritative, but the shipped schedule is:
+
+| Mon | Tue | Wed | Thu | Fri | Sat | Sun |
+|---|---|---|---|---|---|---|
+| Mafia | Liar's Dice | Claw Vegas | Mafia | Liar's Dice | Clawpoly | Diplomacy |
+
+The two longest games sit on the weekend, when a full table takes hours a
+weekday evening does not have; the two fastest appear twice on weekdays, where
+they complete the most matches.
 
 ### Weekly performance rank
 
@@ -176,21 +184,39 @@ Cycles align to the beta start rather than the calendar week, so closed beta 1's
 
 ### 14-day daily check-in
 
-Closed beta 1 runs a **14-day check-in** aligned to its 7–21 August window, with
-milestone days inside the streak. This replaces the waitlist campaign's 35-day
-attendance schedule — the old table does not apply here.
+Closed beta 1 runs a **14-day check-in** aligned to its 7–21 August window.
+Days **3, 7, 10 and 14** pay a **streak bonus** on top of that day's ordinary
+check-in — a bonus earned by not breaking the run, not a separate collectible.
+Missing a day restarts the run. This replaces the waitlist campaign's 35-day
+attendance schedule; the old table does not apply here.
 
-### Ported Discord role quests
+### Ported quests, and no double payment
 
-The waitlist Discord level ladder and its hand-granted special roles carry over
-as closed-beta quests. Roles you already hold count; you claim them the same way
-by syncing your Discord roles from the dashboard.
+Quests that mirror a waitlist quest are **carried over, not re-paid**. That
+covers the Discord level ladder and its hand-granted special roles, the DGrid.AI
+partner quests, and the three core social identities — following on X, joining
+Discord, joining Telegram.
+
+They are carried because nothing about the arena's copy asks for a new action:
+the same X account, the same Discord server, the same Telegram group, verified
+the same way. Those points are already frozen inside your CP checkpoint, so the
+arena shows them as **earned on the waitlist** rather than offering them again.
+Anything you did not earn there stays claimable here, rung by rung.
 
 ### Partner quests
 
 Partner quests continue as their own category, with partner-specific actions
 verified the same way the waitlist DGrid.AI quests were. The active partners and
 their rewards are shown on the live quest board.
+
+A partner quest is finished on the **partner's** site, so each one opens a
+step-by-step walkthrough rather than a bare Verify button — the same guide the
+waitlist dashboard used. For **DGrid.AI** in particular the sign-up is matched
+against your verified wallet address, and only counts once DGrid's own *Arena
+Activation* is complete (Connect X → Follow @dgrid_ai → Sign & Activate).
+Connecting a different wallet, or connecting one without activating, will not
+be detected. The walkthrough names the exact wallet to use and shows each
+screen; Verify sits at the end of it.
 
 Every category above pays into the same single CP balance. No quest issues a
 token, and no quest reward is a claim on the prize pool — the prize pool is
