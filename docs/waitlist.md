@@ -11,16 +11,16 @@ open beta onward. See [Arena Score: CP and HP](hp-economy.md).
 
 This page is now two things at once:
 
-- a **live** description of what waitlist participants can still do — buy a
-  prize-pool entry ticket and carry their frozen Beta Point record into closed
-  beta 1;
+- a **live** description of where waitlist participants now stand — whether
+  they were entered into the prize pool, and how their frozen Beta Point record
+  carries into closed beta 1;
 - a **historical record** of the waitlist quest catalogue, kept so participants
   can audit how their Beta Points were earned. The quest sections below are no
   longer claimable.
 
 > Beta Points were the waitlist campaign's engagement score. They ranked
 > participants against each other, helped secure early access as beta seats
-> opened, and are spent by the prize-pool entry flow. They are **not** a token
+> opened, and decide prize-pool entry. They are **not** a token
 > or cryptocurrency, have no monetary value on their own, and are **not**
 > automatically converted into CP/HP or any other asset. Any conversion requires
 > a separately published ratio and window. See [Legal Status](legal.md).
@@ -33,7 +33,7 @@ flowchart LR
     Wallet --> Quests["Quests completed"]
     Quests --> Points["Beta Points earned"]
     Points --> Freeze["Beta Point record frozen<br/>(checkpoint 1)"]
-    Freeze --> Ticket["Buy one prize-pool ticket<br/>(500 Beta Points, live)"]
+    Freeze --> Ticket["Prize-pool entry granted<br/>(1,000+ Beta Points, nothing spent)"]
     Freeze --> Start["Convert to starting CP on join<br/>(staff-set ratio)"]
     Ticket --> Beta["Closed beta 1<br/>7-21 Aug 2026"]
     Start --> Beta
@@ -54,32 +54,32 @@ The advertised prize pool is **$10,000**, made up of **5,000 USDT** plus
 final payout share. The closed-beta structure is:
 
 1. The waitlist closed and the campaign froze the eligible Beta Point record.
-2. **The prize-pool entry sale opens to waitlist participants** in the window
-   between the waitlist closing and closed beta 1 starting. Your waitlist
-   dashboard shows whether the sale is open right now — that live state, not
-   this page, is authoritative.
-3. Ticket holders enter the same balance and Game Performance leaderboards as
-   every other closed-beta participant.
-4. The final prize-pool share is proportional to each eligible ticket holder's
-   final CP, not their waitlist rank.
+2. **Every participant at or above the point threshold is entered automatically**
+   in the window between the waitlist closing and closed beta 1 starting. There
+   is nothing to buy and nothing to click. Your waitlist dashboard shows your
+   entry status — that live state, not this page, is authoritative.
+3. Entrants join the same balance and Game Performance leaderboards as every
+   other closed-beta participant.
+4. The final prize-pool share is proportional to each entrant's final CP, not
+   their waitlist rank.
 
-### Entry tickets — on sale now
+### Entry — automatic
 
 | Rule | Value |
 |---|---|
-| Price | **500 Beta Points** (default; the live campaign response is authoritative) |
-| Limit | **One ticket per participant** — there is no second ticket to buy |
-| Payment | Beta Points are **consumed** on purchase and are not refunded |
+| How you qualify | Hold **1,000 Beta Points** or more (default; the live campaign response is authoritative) |
+| Cost | **None.** Your Beta Points are not deducted, spent, or locked |
+| Limit | **One entry per participant** |
 | Form | An off-chain eligibility record. It is not an NFT and not transferable |
-| Effect | Prize and rank-reward **eligibility** only — it never adds CP or moves your rank |
+| Effect | Prize **eligibility** only — it never adds CP or moves your rank |
 
-Buying a ticket permanently spends those Beta Points. Decide before you buy:
-Beta Points also feed the starting-CP conversion, so the same points cannot be
-counted twice.
+Qualifying costs nothing, so the same points that entered you also convert into
+your starting CP in full. (An earlier version of this program charged Beta
+Points for a ticket; it does not any more.)
 
-The claim window, the Beta Point-to-CP conversion ratio, and final settlement
-timing are set by the team and published in the live campaign response before
-they take effect. Settlement is **staff-reviewed, never automatic**. See
+The conversion window, the Beta Point-to-CP ratio, and final settlement timing
+are set by the team and published in the live campaign response before they take
+effect. Settlement is **staff-reviewed, never automatic**. See
 [Closed Beta Economics](closed-beta-economics.md) for the full model.
 
 Prize announcements and updates are also posted on the official
@@ -269,21 +269,22 @@ play in the arena is a separate flow — see the [Quickstart](quickstart.md).
 **Can I change my wallet later?**
 No. Your wallet is permanently locked to your account once verified.
 
-**Can I still buy a prize-pool ticket?**
-The entry sale runs between the waitlist closing and closed beta 1 starting:
-500 Beta Points by default, one ticket per participant, points consumed on
-purchase. Open your waitlist dashboard to see whether the sale is open and what
-the current price is — that live state is authoritative, not this page.
+**How do I get a prize-pool entry?**
+You do not have to do anything. Every participant holding at least 1,000 Beta
+Points is entered automatically, one entry each, and **no points are deducted**.
+Open your waitlist dashboard to see your entry status and the current threshold
+— that live state is authoritative, not this page.
 
 **Do Beta Points expire or convert to CP?**
 Beta Points do not expire, and they are not auto-converted. Your frozen record
 converts into starting CP only when you join closed beta 1, at a ratio the team
-publishes first. Points spent on a ticket are consumed and do not come back.
+publishes first. Prize-pool entry does not deduct anything, so it never reduces
+what you convert.
 
 **How is the prize pool split?**
 Only eligible entry-ticket holders participate in the final split, and each
 holder's share is proportional to final CP. Beta Points supported waitlist
-standing and access review, and pay for the entry ticket; they do not directly
+standing and access review, and decide prize-pool entry; they do not directly
 set the payout share. Settlement is reviewed by staff before anything is paid.
 
 **Where are the prize details announced?**

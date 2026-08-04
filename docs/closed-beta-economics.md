@@ -16,9 +16,9 @@ the API always exposes under its `hp` field names. See
 | Waitlist quests and Beta Points | **Closed.** The `closed-beta-1` waitlist campaign ended at **00:00 UTC on 1 August 2026** and the eligible Beta Point record is frozen |
 | Closed beta 1 | Scheduled **7 August 2026 → 21 August 2026** (14 days) |
 | Score label | **CP** during closed beta 1 and 2; **HP** from open beta on. One score, one balance, `hp` field names unchanged |
-| Off-chain prize-pool entry ticket | **On sale** to waitlist participants — 500 Beta Points by default, one per participant, points consumed |
+| Off-chain prize-pool entry | **Granted automatically** to waitlist participants holding 1,000+ Beta Points (staff-set), one per participant, nothing deducted |
 | Beta Point-to-CP conversion | Frozen record captured as **checkpoint 1**; it converts to starting CP when a participant joins the closed beta, at a staff-set ratio published before the conversion opens |
-| CP and Game Performance leaderboards | Implemented; both include ticket and non-ticket participants in one ranking |
+| CP and Game Performance leaderboards | Implemented; both include entrants and non-entrants in one ranking |
 | Public game-weight formula and live weight disclosure | Implemented |
 | Closed-beta quest set | Setup, Arena, daily featured game, weekly performance rank, 14-day check-in, ported Discord roles, Partner quests; reward values not final |
 | Weekly Game Performance rank bands | **Live.** Standings freeze every 7 days; Top 10 / 30 / 50 claimable, no entry requirement |
@@ -36,8 +36,8 @@ split in proportion to their final CP:
 holder payout = total prize pool × holder final CP / sum of all eligible holders' final CP
 ```
 
-Ticket and non-ticket participants still share the same public rankings. A
-ticket affects prize eligibility and rank-reward claim eligibility only; it does
+Entrants and non-entrants still share the same public rankings. An entry
+affects prize eligibility only; it does
 not increase CP, Game Performance score, or rank.
 
 The formula describes how a share is **calculated**, not how it is paid. Before
@@ -48,7 +48,7 @@ and other abuse. No settlement executes automatically from the formula alone.
 flowchart LR
     WL["Waitlist quests<br/>(closed 1 Aug 2026)"] --> BP["Frozen Beta Points<br/>(checkpoint 1)"]
     BP --> Review["Beta access review"]
-    BP --> Ticket["One off-chain entry ticket<br/>(500 BP, points consumed)"]
+    BP --> Ticket["One off-chain entry<br/>(1,000+ BP, nothing spent)"]
     BP --> Start["Starting CP on join<br/>(staff-set ratio)"]
     Review --> Beta["Closed-beta participation"]
     Start --> Beta
@@ -220,7 +220,7 @@ screen; Verify sits at the end of it.
 
 Every category above pays into the same single CP balance. No quest issues a
 token, and no quest reward is a claim on the prize pool — the prize pool is
-settled only from the final CP snapshot of eligible ticket holders, after staff
+settled only from the final CP snapshot of eligible entrants, after staff
 review.
 
 ## Recommended Daily Rank Calibration
@@ -243,7 +243,7 @@ Recommended launch rules:
 - require at least one settled ranked match during the reward day;
 - freeze the result at 00:00 UTC using the exact published weight profile;
 - allow **72 hours** to claim, after which the reward expires;
-- rank ticket and non-ticket users together, with no roll-down when an
+- rank entrants and non-entrants together, with no roll-down when an
   ineligible user occupies a rewarded position.
 
 These rules are a **proposal**. The current implementation freezes the
@@ -277,7 +277,7 @@ They remain a **proposal** until the live quest board shows them.
 | Early waitlist contributor | Starting work is diluted immediately | Preserve the frozen checkpoint with a simple 1:1 starting-CP proposal |
 | Active game player | Social/check-in claims pay more than playing | Reserve most new CP for Arena quests and daily performance |
 | New closed-beta entrant | Old balances make competition feel impossible | Use recurring, skill-based rank claims and an explicit emission envelope |
-| Prize-pool participant | Buying a ticket becomes an automatic advantage | Keep one mixed leaderboard; ticket changes eligibility, never rank |
+| Prize-pool entrant | Entry becomes an automatic advantage | Keep one mixed leaderboard; entry changes eligibility, never rank |
 
 ## Claim and Settlement Flow
 
@@ -292,7 +292,7 @@ sequenceDiagram
     C->>C: Freeze eligible Beta Point checkpoint
     C-->>U: Publish ratio and claim window
     U->>C: Join closed beta and receive starting CP
-    U->>C: Buy one entry ticket if eligible (Beta Points consumed)
+    U->>C: Entry granted automatically at the point threshold (nothing spent)
     U->>L: Play settled ranked matches
     L->>L: Freeze Game Performance at 00:00 UTC
     U->>Q: Claim eligible daily CP before expiry
@@ -302,6 +302,6 @@ sequenceDiagram
 ```
 
 Before activation, the public announcement and live campaign response should
-publish the exact conversion snapshot, ticket sale window and cost, rank reward
+publish the exact conversion snapshot, prize-pool entry window and threshold, rank reward
 table, claim expiry, final CP cutoff, and settlement schedule. Until then,
 pre-launch UI values are test parameters rather than an entitlement.
