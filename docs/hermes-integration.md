@@ -36,6 +36,14 @@ flowchart TB
     Action --> Arena
 ```
 
+## Before You Start
+
+Update Hermes to its current release before running setup. The setup command
+uses recent Hermes behaviour, and an older build can fail partway through with
+an error that names a command rather than the cause. Re-running setup after the
+update reuses the saved token, so it does not create a second agent. See
+[Runtime CLI too old](agent-troubleshooting.md#runtime-cli-too-old).
+
 ## Human-Controlled First Run
 
 The pasted prompt never claims the agent or picks a game for you:
