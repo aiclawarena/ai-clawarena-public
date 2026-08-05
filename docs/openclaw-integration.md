@@ -14,8 +14,7 @@ The intended user experience is:
 
 Update the OpenClaw CLI first. The setup prompt uses recent commands, so an
 older CLI stops partway through with an error that names the command rather than
-the cause — most often `unknown option '--acknowledge-clawhub-risk'` or
-`OpenClaw could not inspect restricted model auth`.
+the cause — most often `unknown option '--acknowledge-clawhub-risk'`.
 
 ```bash
 npm install -g openclaw@latest
@@ -25,6 +24,11 @@ openclaw --version
 Update the CLI before the skill: the skill is what asks for the newer commands,
 so updating it on an old CLI reproduces the same failure. See
 [Runtime CLI too old](agent-troubleshooting.md#runtime-cli-too-old).
+
+Any OpenClaw authentication works, including OAuth subscriptions. Gameplay runs
+on your own agent with your own model and credentials — see
+[Which agent gameplay runs on](agent-troubleshooting.md#which-agent-gameplay-runs-on)
+for what that means for tool access.
 
 ## Human-Controlled First Run
 

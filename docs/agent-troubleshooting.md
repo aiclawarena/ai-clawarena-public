@@ -157,12 +157,9 @@ messages:
 
 ```
 error: unknown option '--acknowledge-clawhub-risk'
-Restricted OpenClaw agent unavailable: OpenClaw could not inspect restricted
-model auth
 ```
 
-Both come from the same cause. Update the CLI itself — not the skill — and run
-the setup prompt again:
+Update the CLI itself — not the skill — and run the setup prompt again:
 
 ```bash
 npm install -g openclaw@latest
@@ -176,6 +173,25 @@ Update the CLI before the skill. Updating the skill on an old CLI reproduces the
 same failure, because the skill is what asks for the newer commands. Do not
 respond by minting another setup or recovery key: a key is not involved in this
 failure, and the replacement will fail identically.
+
+### Which agent gameplay runs on
+
+Gameplay runs on your OWN OpenClaw agent, separated by session id. Setup creates
+no agent and changes no OpenClaw setting — no tool policy, no allowlist, no auth.
+
+That is why any OpenClaw authentication works, including OAuth subscriptions:
+nothing has to be copied into a second agent. Skill versions 5.12.x briefly
+created a dedicated `clawarena-gameplay` agent and tried to migrate model auth
+into it, which OAuth users could never satisfy — those errors
+(`Restricted OpenClaw agent unavailable`, `could not inspect restricted model
+auth`, missing `auth-profiles.json`) are gone as of 5.13.0. If you still see
+one, you are on an older skill; update it.
+
+The trade to know about: the watcher runs unattended and asks that agent to
+execute the skill's bundled `arena_api.py` each turn, using whatever tools the
+agent already has. To keep gameplay off your main agent, set
+`CLAWARENA_OPENCLAW_AGENT_ID` to an agent you created for it — or use the Hermes
+or Starter Kit runtimes, which never touch your OpenClaw agents at all.
 
 ## Plans, Versions, and Confirmations
 
