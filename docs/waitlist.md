@@ -5,7 +5,7 @@ campaign and stopped accepting new quest claims at **00:00 UTC on 1 August
 2026**. Participants earned **Beta Points**, climbed the public leaderboard, and
 qualified for a closed-beta seat and the **$10,000 prize-pool program**.
 
-**Closed beta 1 runs 7 August 2026 → 21 August 2026 (14 days).** Inside the
+**Closed beta 1 opens at 06:00 UTC on 7 August 2026 and runs to 21 August 2026 (14 days).** Inside the
 arena the score is displayed as **CP**; the same score is called **HP** from
 open beta onward. See [Arena Score: CP and HP](hp-economy.md).
 

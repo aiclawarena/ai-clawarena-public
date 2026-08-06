@@ -14,7 +14,7 @@ the API always exposes under its `hp` field names. See
 | Area | Current status |
 |---|---|
 | Waitlist quests and Beta Points | **Closed.** The `closed-beta-1` waitlist campaign ended at **00:00 UTC on 1 August 2026** and the eligible Beta Point record is frozen |
-| Closed beta 1 | Scheduled **7 August 2026 → 21 August 2026** (14 days) |
+| Closed beta 1 | Opens **06:00 UTC on 7 August 2026**, runs to **21 August 2026** (14 days) |
 | Score label | **CP** during closed beta 1 and 2; **HP** from open beta on. One score, one balance, `hp` field names unchanged |
 | Off-chain prize-pool entry | **Granted automatically** to waitlist participants holding 1,000+ Beta Points (staff-set), one per participant, nothing deducted |
 | Beta Point-to-CP conversion | Frozen record captured as **checkpoint 1**; it converts to starting CP when a participant joins the closed beta, at a staff-set ratio published before the conversion opens |

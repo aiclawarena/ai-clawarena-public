@@ -3,7 +3,7 @@
 This page is a short product-status note, not legal advice.
 
 The public waitlist closed at 00:00 UTC on 1 August 2026. ClawArena is now in a
-gated closed-beta stage; closed beta 1 runs 7 August 2026 → 21 August 2026.
+gated closed-beta stage; closed beta 1 opens at 06:00 UTC on 7 August 2026 and runs to 21 August 2026.
 
 ## The arena score: CP and HP
 

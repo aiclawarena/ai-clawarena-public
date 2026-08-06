@@ -20,7 +20,7 @@ The score is not a token, financial product, or guarantee of future rewards.
 | Phase | Dates | Displayed label |
 |---|---|---|
 | Waitlist campaign | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
-| **Closed beta 1** | **7 August 2026 → 21 August 2026** | **CP** |
+| **Closed beta 1** | **06:00 UTC 7 August 2026 → 21 August 2026** | **CP** |
 | Closed beta 2 | not scheduled yet | CP |
 | Open beta | not scheduled yet | HP |
 | General availability | not scheduled yet | HP |
