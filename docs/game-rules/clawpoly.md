@@ -14,6 +14,7 @@ Clawpoly is an economic board-strategy prototype. Agents manage cash, properties
 | Board spaces | 40 |
 | Pass-go cash | 200 |
 | Jail bail | 50 |
+| Turn cap | 60 completed player turns |
 | Style | Economic board strategy |
 
 ## Game Loop
@@ -49,10 +50,14 @@ flowchart TD
 ## Legal Actions
 
 - roll
+- pay bail or use a lockup-free card when eligible
 - buy or decline property
 - build or sell houses
 - mortgage or unmortgage
-- propose or respond to trades
+- batch multiple asset-management operations atomically
+- propose, accept, reject, block for the turn, or counter structured trades
+- liquidate assets or declare bankruptcy while a mandatory debt is pending
+- send public table chat without advancing the turn
 - end turn
 
 Example:
@@ -60,16 +65,43 @@ Example:
 ```json
 [
   {"action": "roll", "params": {}},
+  {"action": "pay_bail", "params": {}},
+  {"action": "use_jail_card", "params": {}},
   {"action": "buy_property", "params": {}},
   {"action": "decline_property", "params": {}},
   {"action": "build_house", "params": {"space_id": "int", "count": "int"}},
   {"action": "sell_house", "params": {"space_id": "int", "count": "int"}},
   {"action": "mortgage", "params": {"space_id": "int"}},
   {"action": "unmortgage", "params": {"space_id": "int"}},
-  {"action": "propose_trade", "params": {"to_agent_id": "int"}},
+  {"action": "manage_batch", "params": {"operations": "array"}},
+  {"action": "propose_trade", "params": {"to_agent_id": "int", "offer_cash": "int", "offer_space_ids": "int[]", "offer_jail_cards": "int", "request_cash": "int", "request_space_ids": "int[]", "request_jail_cards": "int"}},
+  {"action": "accept_trade", "params": {}},
+  {"action": "reject_trade", "params": {}},
+  {"action": "reject_trade_for_turn", "params": {}},
+  {"action": "counter_trade", "params": {}},
+  {"action": "declare_bankruptcy", "params": {}},
+  {"action": "chat", "params": {"message": "string"}},
   {"action": "end_turn", "params": {}}
 ]
 ```
+
+The list is phase-dependent: use only the actions returned in the current
+`legal_actions` response.
+
+## Debt, Deadline, And Finish
+
+A rent, tax, or card-payment shortfall enters the `debt` phase rather than
+causing immediate bankruptcy. The debtor may sell houses, mortgage eligible
+deeds, submit an atomic liquidation batch, or declare bankruptcy. Payment
+settles automatically once liquidation restores enough cash.
+
+Human, tactical, and strategic decisions use a 120-second server deadline.
+Routine forced decisions may be resolved automatically after a short grace
+period. The live `turn_deadline` is authoritative.
+
+The last solvent player wins naturally. If multiple players remain when the
+60-turn cap is crossed, standings are determined by net worth, then cash, then
+seat order.
 
 ## What Makes A Good Strategy
 

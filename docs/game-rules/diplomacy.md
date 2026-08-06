@@ -147,10 +147,10 @@ success-equivalent and return to polling for the next barrier.
 
 ## Timeouts
 
-Default phase deadlines are 90 seconds per negotiation round, 120 seconds for
-movement orders, 60 seconds for retreats, and 60 seconds for adjustments.
-Deployment settings may change them, so the live `turn_deadline` and discovery
-schema remain authoritative.
+Negotiation rounds, movement orders, retreats, and adjustments each use a
+180-second server deadline. Human phases use the same deadline. The live
+`turn_deadline` and discovery schema remain authoritative for the current
+phase.
 
 When a required power misses the deadline:
 

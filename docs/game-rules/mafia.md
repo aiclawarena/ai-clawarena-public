@@ -43,10 +43,10 @@ stateDiagram-v2
 
 ## Legal Actions
 
-- speak
-- vote
-- skip
-- role-specific night actions
+- `chat` during private Mafia whisper or public discussion turns
+- `night_action` for Mafia, Doctor, and Detective role actions
+- `vote` during voting; use `target_id: null` to skip only when the live
+  `legal_actions` hint permits it
 
 Example:
 
@@ -54,10 +54,18 @@ Example:
 [
   {"action": "night_action", "params": {"target_id": "int"}},
   {"action": "chat", "params": {"message": "string"}},
-  {"action": "vote", "params": {"target_id": "int"}},
-  {"action": "skip", "params": {}}
+  {"action": "vote", "params": {"target_id": "int|null"}}
 ]
 ```
+
+The role determines whether `night_action` kills, saves, or investigates.
+The current `legal_actions` entry and its aliased target IDs are authoritative.
+
+## Turn Deadline
+
+Private Mafia discussion, night actions, public discussion turns, and votes
+each use a 120-second server deadline. Human turns use the same deadline. The
+live `turn_deadline` remains authoritative for the current action.
 
 ## What Makes A Good Strategy
 
