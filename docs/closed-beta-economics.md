@@ -9,19 +9,19 @@ off-chain score that is called **HP** from open beta onward, and the same score
 the API always exposes under its `hp` field names. See
 [Arena Score: CP and HP](hp-economy.md).
 
-## Status at 3 August 2026
+## Status at 6 August 2026
 
 | Area | Current status |
 |---|---|
 | Waitlist quests and Beta Points | **Closed.** The `closed-beta-1` waitlist campaign ended at **00:00 UTC on 1 August 2026** and the eligible Beta Point record is frozen |
-| Closed beta 1 | Opens **06:00 UTC on 7 August 2026**, runs to **21 August 2026** (14 days) |
+| Closed beta 1 | Opens **06:00 UTC on 10 August 2026**, runs to **00:00 UTC on 24 August 2026** |
 | Score label | **CP** during closed beta 1 and 2; **HP** from open beta on. One score, one balance, `hp` field names unchanged |
-| Off-chain prize-pool entry | **Granted automatically** to waitlist participants holding 1,000+ Beta Points (staff-set), one per participant, nothing deducted |
+| Off-chain prize-pool entry | **Granted automatically by the server** to eligible waitlist participants with 1,000+ Beta Points in the sealed checkpoint (staff-set), one per participant, nothing deducted, no dashboard visit required |
 | Beta Point-to-CP conversion | Frozen record captured as **checkpoint 1**; it converts to starting CP when a participant joins the closed beta, at a staff-set ratio published before the conversion opens |
 | CP and Game Performance leaderboards | Implemented; both include entrants and non-entrants in one ranking |
 | Public game-weight formula and live weight disclosure | Implemented |
 | Closed-beta quest set | Setup, Arena, daily featured game, weekly performance rank, 14-day check-in, ported Discord roles, Partner quests; reward values not final |
-| Weekly Game Performance rank bands | **Live.** Standings freeze every 7 days; Top 10 / 30 / 50 claimable, no entry requirement |
+| Weekly Game Performance rank bands | **Live.** Standings freeze every 7 days; Top 10 / 30 / 50 receive 12,000 / 6,000 / 2,500 CP automatically, with no entry requirement |
 | Final real-value prize settlement | **Staff-reviewed, never automatic.** Parameters and settlement schedule are not active |
 
 CP and Beta Points remain off-chain campaign scores. The entry ticket is also an
@@ -180,11 +180,15 @@ is a weighted, evidence-smoothed placement rating rather than a raw win count.
 See [Game Performance](hp-economy.md) for how it is calculated.
 
 Cycles align to the beta start rather than the calendar week, so closed beta 1's
-7–21 August window is exactly two full scored weeks.
+cycle boundaries are **00:00 UTC on 17 August** and **00:00 UTC on 24 August**.
+Because the beta itself opens at 06:00 UTC on 10 August, the first playable
+window is six hours shorter than seven full days; the live cycle payload is
+authoritative at every boundary.
 
 ### 14-day daily check-in
 
-Closed beta 1 runs a **14-day check-in** aligned to its 7–21 August window.
+Closed beta 1 runs a **14-day check-in** across the fourteen UTC dates from
+10–23 August.
 Days **3, 7, 10 and 14** pay a **streak bonus** on top of that day's ordinary
 check-in — a bonus earned by not breaking the run, not a separate collectible.
 Missing a day restarts the run. This replaces the waitlist campaign's 35-day
@@ -223,32 +227,26 @@ token, and no quest reward is a claim on the prize pool — the prize pool is
 settled only from the final CP snapshot of eligible entrants, after staff
 review.
 
-## Recommended Daily Rank Calibration
+## Live Weekly Rank Calibration
 
-The pre-launch engineering placeholders are 2,000 / 1,500 / 1,000 for
-Top 10 / Top 30 / Top 50. Under a 1:1 migration, those values would let a short
-sequence of claims overwhelm a large part of the waitlist history. The
-recommended launch values are therefore:
+Each cycle's overall Game Performance standings are frozen once and the live
+production tiers are granted automatically:
 
-| Frozen overall Game Performance rank | Recommended daily claim |
+| Frozen overall Game Performance rank | Automatic weekly grant |
 |---|---:|
-| 1–10 | 400 CP |
-| 11–30 | 200 CP |
-| 31–50 | 100 CP |
+| 1–10 | 12,000 CP |
+| 11–30 | 6,000 CP |
+| 31–50 | 2,500 CP |
 
-Recommended launch rules:
+Live rules:
 
-- use a rolling **7-day** performance window rather than cumulative all-time
+- use a bounded **7-day** performance cycle rather than cumulative all-time
   results;
-- require at least one settled ranked match during the reward day;
-- freeze the result at 00:00 UTC using the exact published weight profile;
-- allow **72 hours** to claim, after which the reward expires;
-- rank entrants and non-entrants together, with no roll-down when an
-  ineligible user occupies a rewarded position.
-
-These rules are a **proposal**. The current implementation freezes the
-cumulative performance standings and must be updated before this calibration is
-activated.
+- require at least one settled, AI-only ranked match inside that cycle;
+- freeze the result after the UTC boundary's settlement grace using the exact
+  published weight profile;
+- grant each qualifying owner automatically and idempotently; and
+- rank entrants and non-entrants together, with no prize-pool ticket required.
 
 ## Recommended Arena Quest Calibration
 

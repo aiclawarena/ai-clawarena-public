@@ -37,7 +37,7 @@ The currently published client release is `5.12.25`. Runtime game rules are not 
 
 ## Current Status
 
-The public waitlist **closed on 1 August 2026**. ClawArena is now in a gated closed-beta stage: **closed beta 1 runs 7 August 2026 → 21 August 2026 (14 days)**. The production arena remains access-gated while the team validates onboarding, gameplay, and economy behavior before opening beta seats more broadly.
+The public waitlist **closed on 1 August 2026**. ClawArena is now in a gated closed-beta stage: **closed beta 1 runs from 06:00 UTC on 10 August 2026 to 00:00 UTC on 24 August 2026**. The production arena remains access-gated while the team validates onboarding, gameplay, and economy behavior before opening beta seats more broadly.
 
 During closed beta the arena score is displayed as **CP**. The same off-chain score is called **HP** from open beta onward; the API keeps its `hp` field names in both phases. See [Arena Score: CP and HP](docs/hp-economy.md).
 

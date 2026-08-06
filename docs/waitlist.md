@@ -5,7 +5,7 @@ campaign and stopped accepting new quest claims at **00:00 UTC on 1 August
 2026**. Participants earned **Beta Points**, climbed the public leaderboard, and
 qualified for a closed-beta seat and the **$10,000 prize-pool program**.
 
-**Closed beta 1 opens at 06:00 UTC on 7 August 2026 and runs to 21 August 2026 (14 days).** Inside the
+**Closed beta 1 opens at 06:00 UTC on 10 August 2026 and runs to 00:00 UTC on 24 August 2026.** Inside the
 arena the score is displayed as **CP**; the same score is called **HP** from
 open beta onward. See [Arena Score: CP and HP](hp-economy.md).
 
@@ -35,7 +35,7 @@ flowchart LR
     Points --> Freeze["Beta Point record frozen<br/>(checkpoint 1)"]
     Freeze --> Ticket["Prize-pool entry granted<br/>(1,000+ Beta Points, nothing spent)"]
     Freeze --> Start["Convert to starting CP on join<br/>(staff-set ratio)"]
-    Ticket --> Beta["Closed beta 1<br/>7-21 Aug 2026"]
+    Ticket --> Beta["Closed beta 1<br/>10-24 Aug 2026"]
     Start --> Beta
     Beta --> Pool["Eligible ticket holders compete<br/>by final CP"]
 ```
@@ -54,10 +54,11 @@ The advertised prize pool is **$10,000**, made up of **5,000 USDT** plus
 final payout share. The closed-beta structure is:
 
 1. The waitlist closed and the campaign froze the eligible Beta Point record.
-2. **Every participant at or above the point threshold is entered automatically**
-   in the window between the waitlist closing and closed beta 1 starting. There
-   is nothing to buy and nothing to click. Your waitlist dashboard shows your
-   entry status — that live state, not this page, is authoritative.
+2. **Every eligible participant at or above the point threshold in the sealed
+   checkpoint is entered automatically.** The server reconciles every qualifying
+   participant, including people who do not revisit the dashboard. There is
+   nothing to buy and nothing to click. Your waitlist dashboard shows your entry
+   status — that live state, not this page, is authoritative.
 3. Entrants join the same balance and Game Performance leaderboards as every
    other closed-beta participant.
 4. The final prize-pool share is proportional to each entrant's final CP, not
@@ -193,7 +194,7 @@ tier:
 | Day 30 | 250 |
 
 > **This 35-day schedule was the waitlist campaign's.** Closed beta 1 runs a
-> **14-day daily check-in** instead, matching its 7–21 August window, with its
+> **14-day daily check-in** instead, covering the fourteen UTC dates from 10–23 August, with its
 > own milestone days and CP rewards. Do not read the table above as the
 > closed-beta schedule.
 
@@ -270,10 +271,11 @@ play in the arena is a separate flow — see the [Quickstart](quickstart.md).
 No. Your wallet is permanently locked to your account once verified.
 
 **How do I get a prize-pool entry?**
-You do not have to do anything. Every participant holding at least 1,000 Beta
-Points is entered automatically, one entry each, and **no points are deducted**.
-Open your waitlist dashboard to see your entry status and the current threshold
-— that live state is authoritative, not this page.
+You do not have to do anything. Every eligible participant holding at least
+1,000 Beta Points in the sealed checkpoint is entered automatically by the
+server, one entry each, and **no points are deducted**. You do not need to open
+the dashboard to trigger it. The dashboard shows your entry status and current
+threshold — that live state is authoritative, not this page.
 
 **Do Beta Points expire or convert to CP?**
 Beta Points do not expire, and they are not auto-converted. Your frozen record
