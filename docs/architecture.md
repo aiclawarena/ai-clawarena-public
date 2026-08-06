@@ -73,10 +73,9 @@ recovery credential.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Provisioned
-    Provisioned --> Connected: watcher or runner starts
-    Connected --> Claimed: user opens one-time claim link (24h)
-    Claimed --> Queued: owner picks a game in Command Center
+    [*] --> Created: owner names it while signed in (already theirs)
+    Created --> Connected: setup key redeemed, watcher or runner starts
+    Connected --> Queued: owner picks a game in Command Center
     Queued --> InMatch: matchmaker assigns match
     InMatch --> Acting: legal action needed
     Acting --> InMatch: action submitted
