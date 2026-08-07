@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -22,7 +23,14 @@ from pathlib import Path
 from unittest import mock
 
 KIT_DIR = Path(__file__).resolve().parents[1]
-REPO_DIR = KIT_DIR.parents[1]
+PRIVATE_REPO_DIR = KIT_DIR.parent
+PUBLIC_REPO_DIR = KIT_DIR.parents[1]
+if (PRIVATE_REPO_DIR / "skill" / "SKILL.md").is_file():
+    REPO_DIR = PRIVATE_REPO_DIR
+    SKILL_DIR = REPO_DIR / "skill"
+else:
+    REPO_DIR = PUBLIC_REPO_DIR
+    SKILL_DIR = REPO_DIR / "integrations" / "openclaw"
 sys.path.insert(0, str(KIT_DIR))
 
 import helpers  # noqa: E402
@@ -40,6 +48,342 @@ import setup_starter_kit  # noqa: E402
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_vegas_invalid_model_face_is_normalized_to_best_current_legal_face(self):
+        state = {
+            "game_type": "las_vegas",
+            "_action_window_id": "6b117efc81045514",
+        }
+        legal_actions = [{
+            "action": "place",
+            "hint": {
+                "faces_available": [
+                    {
+                        "face": 2,
+                        "dice_you_would_place": 1,
+                        "your_dice_already_there": 0,
+                        "casino_dice_by_player": {"other": 2},
+                        "casino_bills": [30000],
+                    },
+                    {
+                        "face": 6,
+                        "dice_you_would_place": 2,
+                        "your_dice_already_there": 0,
+                        "casino_dice_by_player": {"other": 1},
+                        "casino_bills": [80000, 20000],
+                    },
+                ],
+            },
+        }]
+        reply = json.dumps({
+            "action": "place",
+            "params": {"face": 5, "message": "Taking the best live option."},
+        })
+
+        parsed = llm_agent._parse_action(reply, legal_actions, state)
+        provenance = llm_agent._reply_provenance(
+            reply, legal_actions, state, finish_reason="stop",
+        )
+
+        self.assertEqual(parsed, {
+            "action": "place",
+            "params": {"face": 6, "message": "Taking the best live option."},
+        })
+        self.assertEqual(provenance["outcome"], "accepted")
+        self.assertEqual(provenance["normalization"], "las_vegas_legal_face")
+        self.assertEqual(provenance["contract_problems"], [])
+
+    def test_vegas_string_face_is_canonicalized_without_reselection(self):
+        state = {"game_type": "las_vegas"}
+        legal_actions = [{
+            "action": "place",
+            "hint": {"faces_available": [{"face": 3}]},
+        }]
+
+        parsed = llm_agent._parse_action(
+            '{"action":"place","params":{"face":"3"}}',
+            legal_actions,
+            state,
+        )
+
+        self.assertEqual(parsed, {"action": "place", "params": {"face": 3}})
+
+    def test_monopoly_trade_reply_is_bound_to_current_server_opening(self):
+        state = {
+            "game_type": "monopoly",
+            "_action_window_id": "trade-window-1",
+        }
+        legal_actions = [
+            {
+                "action": "propose_trade",
+                "hint": {
+                    "server_trade_openings": [
+                        {
+                            "suggested_action": {
+                                "action": "propose_trade",
+                                "to_agent_id": 22,
+                                "offer_cash": 100,
+                                "request_cash": 0,
+                                "offer_space_ids": [],
+                                "request_space_ids": [17],
+                            }
+                        },
+                        {
+                            "suggested_action": {
+                                "action": "propose_trade",
+                                "to_agent_id": 33,
+                                "offer_cash": 140,
+                                "request_cash": 0,
+                                "offer_space_ids": [6],
+                                "request_space_ids": [19],
+                            }
+                        },
+                    ]
+                },
+            },
+            {"action": "end_turn", "hint": {}},
+        ]
+        reply = json.dumps(
+            {
+                "action": "propose_trade",
+                "params": {
+                    "to_agent_id": 33,
+                    "offer_cash": 120,
+                    "request_cash": 0,
+                    "offer_space_ids": [6],
+                    "request_space_ids": [19],
+                    "message": "A balanced exchange that preserves liquidity.",
+                },
+            }
+        )
+
+        parsed = llm_agent._parse_action(reply, legal_actions, state)
+        provenance = llm_agent._reply_provenance(
+            reply, legal_actions, state, finish_reason="stop",
+        )
+
+        self.assertEqual(parsed["action"], "propose_trade")
+        self.assertEqual(parsed["params"]["to_agent_id"], 33)
+        self.assertEqual(parsed["params"]["offer_cash"], 140)
+        self.assertEqual(parsed["params"]["request_space_ids"], [19])
+        self.assertEqual(
+            parsed["params"]["message"],
+            "A balanced exchange that preserves liquidity.",
+        )
+        self.assertEqual(provenance["outcome"], "accepted")
+        self.assertEqual(provenance["normalization"], "server_trade_opening")
+        self.assertEqual(provenance["finish_reason"], "stop")
+        self.assertNotIn("A balanced exchange", json.dumps(provenance))
+
+    def test_monopoly_34_missing_opening_replies_become_one_shot_non_trade(self):
+        """Reproduce the complete match-1187 exact-opening fallback category."""
+        state = {"game_type": "monopoly", "_action_window_id": "trade-window-empty"}
+        legal_actions = [
+            {"action": "roll", "hint": {}},
+            {"action": "propose_trade", "hint": {"server_trade_openings": []}},
+        ]
+
+        for index in range(34):
+            reply = json.dumps({
+                "action": "propose_trade",
+                "params": {
+                    "to_agent_id": 200 + index,
+                    "offer_cash": index,
+                    "offer_space_ids": [],
+                    "request_cash": 0,
+                    "request_space_ids": [1 + index],
+                },
+            })
+            parsed = llm_agent._parse_action(reply, legal_actions, state)
+            provenance = llm_agent._reply_provenance(
+                reply, legal_actions, state, finish_reason="stop",
+            )
+
+            self.assertEqual(parsed, {"action": "roll", "params": {}})
+            self.assertEqual(provenance["outcome"], "accepted")
+            self.assertEqual(provenance["normalized_action"], "roll")
+            self.assertEqual(
+                provenance["normalization"],
+                "server_trade_opening_unavailable_nontrade",
+            )
+            self.assertEqual(provenance["contract_problems"], [])
+
+    def test_monopoly_trade_opening_canonicalizes_string_ids_and_stale_terms(self):
+        state = {"game_type": "monopoly"}
+        legal_actions = [{
+            "action": "propose_trade",
+            "hint": {"server_trade_openings": [{
+                "suggested_action": {
+                    "action": "propose_trade",
+                    "to_agent_id": "22",
+                    "offer_cash": "75",
+                    "offer_space_ids": ["6"],
+                    "offer_jail_cards": "0",
+                    "request_cash": "0",
+                    "request_space_ids": ["19"],
+                    "request_jail_cards": "0",
+                },
+            }]},
+        }, {"action": "end_turn", "hint": {}}]
+
+        parsed = llm_agent._parse_action(json.dumps({
+            "action": "propose_trade",
+            "params": {
+                "to_agent_id": 99,
+                "offer_cash": 1,
+                "offer_space_ids": [39],
+                "request_cash": 500,
+                "request_space_ids": [1],
+            },
+        }), legal_actions, state)
+
+        self.assertEqual(parsed, {
+            "action": "propose_trade",
+            "params": {
+                "to_agent_id": 22,
+                "offer_cash": 75,
+                "request_cash": 0,
+                "offer_jail_cards": 0,
+                "request_jail_cards": 0,
+                "offer_space_ids": [6],
+                "request_space_ids": [19],
+            },
+        })
+
+    def test_monopoly_invalid_one_sided_server_opening_uses_non_trade(self):
+        state = {"game_type": "monopoly"}
+        legal_actions = [{
+            "action": "propose_trade",
+            "hint": {"server_trade_openings": [{
+                "suggested_action": {
+                    "action": "propose_trade",
+                    "to_agent_id": 22,
+                    "offer_cash": 0,
+                    "offer_space_ids": [],
+                    "request_cash": 0,
+                    "request_space_ids": [19],
+                },
+            }]},
+        }, {"action": "end_turn", "hint": {}}]
+
+        parsed = llm_agent._parse_action(
+            '{"action":"propose_trade","params":{"to_agent_id":22}}',
+            legal_actions,
+            state,
+        )
+
+        self.assertEqual(parsed, {"action": "end_turn", "params": {}})
+
+    def test_monopoly_manage_batch_binds_to_current_server_plan_without_reinference(self):
+        """Reproduce match-1188 window c571b3bde3214abb deterministically."""
+        state = {
+            "game_type": "monopoly",
+            "_action_window_id": "c571b3bde3214abb",
+        }
+        legal_actions = [
+            {
+                "action": "manage_batch",
+                "hint": {
+                    "server_manage_batch": {
+                        "params": {
+                            "operations": [
+                                {"action": "build_house", "space_id": "11", "count": "1"},
+                                {"action": "build_house", "space_id": 13},
+                            ],
+                        },
+                    },
+                },
+            },
+            {"action": "end_turn", "hint": {}},
+        ]
+        stale_reply = json.dumps({
+            "action": "manage_batch",
+            "params": {
+                "operations": [
+                    {"action": "build_house", "space_id": 14, "count": 8},
+                    {"action": "mortgage", "space_id": 99},
+                ],
+                "message": "One current atomic plan.",
+            },
+        })
+
+        parsed = llm_agent._parse_action(stale_reply, legal_actions, state)
+        provenance = llm_agent._reply_provenance(
+            stale_reply,
+            legal_actions,
+            state,
+            finish_reason="stop",
+        )
+
+        self.assertEqual(parsed, {
+            "action": "manage_batch",
+            "params": {
+                "operations": [
+                    {"action": "build_house", "space_id": 11, "count": 1},
+                    {"action": "build_house", "space_id": 13, "count": 1},
+                ],
+                "message": "One current atomic plan.",
+            },
+        })
+        self.assertEqual(provenance["outcome"], "accepted")
+        self.assertEqual(provenance["normalization"], "server_manage_batch")
+        self.assertEqual(provenance["contract_problems"], [])
+
+    def test_monopoly_manage_batch_without_current_plan_uses_non_batch_action(self):
+        state = {"game_type": "monopoly", "_action_window_id": "empty-batch"}
+        legal_actions = [
+            {"action": "manage_batch", "hint": {"server_manage_batch": {"params": {"operations": []}}}},
+            {"action": "roll", "hint": {}},
+        ]
+        reply = '{"action":"manage_batch","params":{"operations":[]}}'
+
+        parsed = llm_agent._parse_action(reply, legal_actions, state)
+        provenance = llm_agent._reply_provenance(
+            reply,
+            legal_actions,
+            state,
+            finish_reason="stop",
+        )
+
+        self.assertEqual(parsed, {"action": "roll", "params": {}})
+        self.assertEqual(provenance["outcome"], "accepted")
+        self.assertEqual(
+            provenance["normalization"],
+            "server_manage_batch_unavailable_nonbatch",
+        )
+
+    def test_monopoly_server_manage_batch_rejects_non_management_binding(self):
+        hint = {
+            "server_manage_batch": {
+                "params": {
+                    "operations": [{"action": "propose_trade", "space_id": 11}],
+                },
+            },
+        }
+
+        self.assertIsNone(helpers.server_manage_batch_params(hint))
+
+    def test_monopoly_heuristic_path_never_uses_uncurated_trade_advice(self):
+        state = {
+            "game_type": "monopoly",
+            "heuristic_advice": {
+                "recommended_action": {
+                    "action": "propose_trade",
+                    "to_agent_id": 22,
+                    "offer_cash": 1,
+                    "request_space_ids": [19],
+                },
+            },
+        }
+        legal_actions = [
+            {"action": "roll", "hint": {}},
+            {"action": "propose_trade", "hint": {"server_trade_openings": []}},
+        ]
+
+        self.assertEqual(
+            heuristic_agent.decide(state, legal_actions),
+            {"action": "roll", "params": {}},
+        )
+
     def test_low_level_client_never_reads_the_legacy_global_token_implicitly(self):
         with (
             mock.patch.dict(os.environ, {"CLAWARENA_CONNECTION_TOKEN": ""}),
@@ -48,8 +392,11 @@ class ProtocolTests(unittest.TestCase):
         ):
             arena_client.connection_token()
 
-    def test_public_release_files_and_versions_stay_in_sync(self):
-        release_files = {
+    def test_distributed_kit_manifest_and_release_versions_stay_in_sync(self):
+        # Every file the installers will try to download must exist in the one
+        # directory Django serves. A name in the manifest with no file behind it
+        # used to arrive as an HTML 404 page written to disk under a .py name.
+        distributed_files = {
             *setup_local_runner.KIT_FILES,
             *setup_starter_kit.CORE_FILES,
             *setup_starter_kit.USER_FILES,
@@ -57,26 +404,66 @@ class ProtocolTests(unittest.TestCase):
             *(f"strategy/{name}" for name in setup_starter_kit.STRATEGY_FILES),
             "setup_local_runner.py",
         }
-        for name in sorted(release_files):
+        for name in sorted(distributed_files):
             self.assertTrue((KIT_DIR / name).is_file(), name)
 
-        openclaw_dir = REPO_DIR / "integrations" / "openclaw"
-        skill_md = (openclaw_dir / "SKILL.md").read_text()
+        skill_md = (SKILL_DIR / "SKILL.md").read_text()
         skill_version = re.search(r"^version:\s*([^\s]+)", skill_md, re.MULTILINE)
         self.assertIsNotNone(skill_version)
         self.assertEqual(skill_version.group(1), arena_client.CLIENT_VERSION)
         self.assertEqual(
-            json.loads((openclaw_dir / "package.json").read_text())["version"],
+            json.loads((SKILL_DIR / "package.json").read_text())["version"],
             arena_client.CLIENT_VERSION,
         )
+        # The backend test lane mounts backend/ AS the repo root, so the tree
+        # above kit/ is not always the checkout layout. Look in both places
+        # rather than fail on a path shape that says nothing about the code.
+        schema_path = next(
+            (
+                path
+                for path in (
+                    REPO_DIR / "backend" / "apps" / "agents" / "agent_schema.py",
+                    REPO_DIR / "apps" / "agents" / "agent_schema.py",
+                )
+                if path.is_file()
+            ),
+            None,
+        )
+        if schema_path is not None:
+            agent_schema = schema_path.read_text()
+            schema_version = re.search(
+                r'^STARTER_KIT_VERSION\s*=\s*"([^"]+)"',
+                agent_schema,
+                re.MULTILINE,
+            )
+            self.assertIsNotNone(schema_version)
+            self.assertEqual(schema_version.group(1), arena_client.CLIENT_VERSION)
+        else:
+            manifest = json.loads((REPO_DIR / "releases" / "manifest.json").read_text())
+            self.assertEqual(
+                set(manifest["versions"].values()),
+                {arena_client.CLIENT_VERSION},
+            )
+            openapi = json.loads((REPO_DIR / "openapi" / "agent-api-v1.json").read_text())
+            self.assertEqual(openapi["info"]["version"], arena_client.CLIENT_VERSION)
 
+    @unittest.skipUnless(
+        shutil.which("curl"),
+        "curl transport integration runs in the host test lane; runtime images use clawarena-runtime-smoke",
+    )
     def test_documented_multi_file_curl_globs_are_shell_safe(self):
-        documented_files = [
-            KIT_DIR / "BUILDER.md",
-            KIT_DIR / "README.md",
-            REPO_DIR / "docs" / "quickstart.md",
-            REPO_DIR / "integrations" / "openclaw" / "INSTALL.md",
-        ]
+        documented_files = sorted(
+            path
+            for root in (
+                KIT_DIR,
+                REPO_DIR / "frontend",
+                REPO_DIR / "docs",
+                REPO_DIR / "integrations",
+            )
+            if root.exists()
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix in {".md", ".tsx"}
+        )
         for path in documented_files:
             for line_number, line in enumerate(path.read_text().splitlines(), start=1):
                 if "curl -fsSLO" not in line or "{" not in line:
@@ -322,6 +709,74 @@ class ProtocolTests(unittest.TestCase):
         self.assertNotIn("skill_version", payload)
         self.assertNotIn("watcher_protocol_version", payload)
 
+    def test_heartbeat_with_response_can_ack_restart_without_losing_identity(self):
+        schema = {
+            "heartbeat": {
+                "body_template": {
+                    "status": "idle",
+                    "feed_status": "connected",
+                    "skill_slug": "ai-clawarena",
+                    "skill_version": "old",
+                },
+            },
+        }
+        response = {"agent_preferences": {"watcher_restart_ack_at": "2026-08-01T10:00:01Z"}}
+        with (
+            mock.patch.dict(os.environ, {"CLAWARENA_BRAIN": "hermes"}),
+            mock.patch.object(arena_client, "request", return_value=(200, response)) as request_call,
+        ):
+            self.assertEqual(
+                arena_client.heartbeat_with_response("token", schema, restart_ack=True),
+                (200, response),
+            )
+
+        payload = request_call.call_args.kwargs["payload"]
+        self.assertTrue(payload["restart_ack"])
+        self.assertEqual(payload["client"], "clawarena-kit")
+        self.assertEqual(payload["brain"], "hermes")
+        self.assertNotIn("skill_slug", payload)
+
+    def test_runner_acknowledges_pending_restart_before_exec(self):
+        requested = "2026-08-01T10:00:00+00:00"
+        with (
+            mock.patch.object(
+                runner.arena_client,
+                "heartbeat_with_response",
+                return_value=(200, {
+                    "agent_preferences": {
+                        "watcher_restart_requested_at": requested,
+                        "watcher_restart_ack_at": "2026-08-01T10:00:01+00:00",
+                    },
+                }),
+            ) as heartbeat,
+            mock.patch.object(runner.os, "execv") as execv,
+            mock.patch.object(sys, "argv", ["runner.py", "--no-reflect"]),
+        ):
+            runner._ack_and_restart("token", {}, {
+                "agent_preferences": {"watcher_restart_requested_at": requested},
+            })
+
+        heartbeat.assert_called_once_with("token", {}, restart_ack=True)
+        execv.assert_called_once()
+        self.assertEqual(execv.call_args.args[1][-1], "--no-reflect")
+
+    def test_runner_does_not_exec_when_restart_ack_is_not_persisted(self):
+        requested = "2026-08-01T10:00:00+00:00"
+        with (
+            mock.patch.object(
+                runner.arena_client,
+                "heartbeat_with_response",
+                return_value=(200, {
+                    "agent_preferences": {"watcher_restart_requested_at": requested},
+                }),
+            ),
+            mock.patch.object(runner.os, "execv") as execv,
+        ):
+            self.assertFalse(runner._ack_and_restart("token", {}, {
+                "agent_preferences": {"watcher_restart_requested_at": requested},
+            }))
+        execv.assert_not_called()
+
     def test_first_poll_can_request_an_automatic_context_resync(self):
         with mock.patch.object(arena_client, "request", return_value=(200, {})) as request_call:
             arena_client.poll("token", wait=30, resync=True, context_id="runner-1")
@@ -351,6 +806,7 @@ class ProtocolTests(unittest.TestCase):
             )
 
         self.assertEqual(chat.call_args.kwargs["max_tokens"], llm_agent.LLM_PREFLIGHT_MAX_TOKENS)
+        self.assertFalse(chat.call_args.kwargs["structured_json"])
 
         with (
             mock.patch.object(
@@ -469,6 +925,18 @@ class ProtocolTests(unittest.TestCase):
 
         self.assertEqual(move["memo"], "private read")
         record_memo.assert_not_called()
+
+    def test_hermes_programmatic_parser_keeps_only_final_json(self):
+        stdout = "\n".join([
+            f"Unknown toolset: {hermes_agent.HERMES_NO_TOOLS_SENTINEL}",
+            'Reasoning candidate: {"action":"bid","params":{"quantity":99}}',
+            '{"action":"challenge","params":{}}',
+        ])
+
+        cleaned = hermes_agent._extract_programmatic_reply(stdout)
+
+        self.assertEqual(cleaned, '{"action":"challenge","params":{}}')
+        self.assertNotIn("Reasoning", cleaned)
 
 
 class StarterSessionTests(unittest.TestCase):
@@ -712,6 +1180,46 @@ class StarterSessionTests(unittest.TestCase):
             mafia_pending["max_completion_tokens"],
             llm_agent.LLM_MAX_TOKENS,
         )
+
+    def test_gateway_deepseek_uses_one_bounded_state_projection(self):
+        captured = {}
+
+        def fake_chat_request(_base, _key, _model, messages, **kwargs):
+            captured["messages"] = messages
+            captured["kwargs"] = kwargs
+            return {
+                "text": '{"action":"chat","params":{"message":"evidence"}}',
+                "prompt_tokens": 300,
+                "completion_tokens": 12,
+                "reasoning_chars": 0,
+                "finish_reason": "stop",
+            }
+
+        state = self.state()
+        state.update({
+            "game_type": "mafia",
+            "chat_log": [{"speaker": "A", "message": "current claim"}],
+            "unrelated_large_blob": "do-not-send" * 100,
+        })
+        with (
+            mock.patch.object(llm_agent.memory, "current_match_id", return_value=41),
+            mock.patch.object(llm_agent, "_model_context_window", return_value=0),
+            mock.patch.object(llm_agent, "_chat_request", side_effect=fake_chat_request),
+        ):
+            _reply, pending = llm_agent._chat(
+                "https://arena.example/api/llm/v1",
+                "key",
+                "deepseek/deepseek-v4-flash",
+                state,
+                self.legal(),
+            )
+
+        self.assertEqual(pending["mode"], "bounded_structured")
+        self.assertEqual([row["role"] for row in captured["messages"]], ["system", "user"])
+        self.assertIn("Return one legal JSON object now", captured["messages"][0]["content"])
+        self.assertIn("current claim", captured["messages"][1]["content"])
+        self.assertNotIn("do-not-send", captured["messages"][1]["content"])
+        self.assertEqual(captured["kwargs"]["max_tokens"], llm_agent.LLM_MAX_TOKENS)
 
     def test_length_finish_reason_names_the_active_completion_limit(self):
         diplomacy = self.state()
@@ -1324,50 +1832,42 @@ class DiplomacyRuntimeValidationTests(unittest.TestCase):
             log = captured.getvalue()
         return move, chat, log
 
-    def test_invalid_batch_gets_one_corrective_retry_that_can_win(self):
+    def test_invalid_batch_degrades_without_corrective_provider_retry(self):
         fixture = self.fixture("diplomacy_movement")
         bad = json.dumps({"action": "submit_orders", "params": {"orders": [
             {"type": "MOVE", "origin": "EDI", "destination": "PAR"},
         ]}})
-        good = json.dumps({"action": "submit_orders", "params": {"orders": [
-            {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
-        ]}})
-
-        move, chat, _log = self._decide(fixture, [bad, good])
+        move, chat, log = self._decide(fixture, [bad])
 
         self.assertEqual(move["params"]["orders"], [
-            {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
+            {"type": "HOLD", "origin": "EDI"},
         ])
-        self.assertEqual(chat.call_count, 2)
-        retry_messages = chat.call_args_list[1].args[3]
-        self.assertEqual(retry_messages[-1]["role"], "user")
-        self.assertIn("ORDER_VALIDATION_FAILED", retry_messages[-1]["content"])
-        self.assertIn("is not hinted", retry_messages[-1]["content"])
-        # The committed transcript ends with the accepted retry reply.
-        self.assertEqual(llm_agent._SESSION["messages"][-1]["content"], good)
+        self.assertEqual(chat.call_count, 1)
+        self.assertIn("without reinference", log)
+        self.assertEqual(llm_agent._SESSION["messages"][-1]["content"], bad)
 
-    def test_still_invalid_retry_degrades_only_the_offending_orders(self):
+    def test_invalid_batch_degrades_only_the_offending_orders(self):
         fixture = self.fixture("diplomacy_movement")
         bad = json.dumps({"action": "submit_orders", "params": {"orders": [
             {"type": "MOVE", "origin": "EDI", "destination": "PAR"},
             {"type": "HOLD", "origin": "LON"},
         ]}})
 
-        move, chat, log = self._decide(fixture, [bad, bad])
+        move, chat, log = self._decide(fixture, [bad])
 
-        self.assertEqual(chat.call_count, 2)
+        self.assertEqual(chat.call_count, 1)
         self.assertEqual(move["action"], "submit_orders")
         self.assertEqual(move["params"]["orders"], [
             {"type": "HOLD", "origin": "EDI"},
             {"type": "HOLD", "origin": "LON"},
         ])
-        self.assertIn("degraded to stay hint-legal", log)
+        self.assertIn("degraded without reinference", log)
         self.assertEqual(
             offline_check.check_move(fixture, move),
             [],
         )
 
-    def test_valid_batches_and_other_games_never_trigger_a_retry(self):
+    def test_valid_batches_and_other_games_use_one_provider_call(self):
         fixture = self.fixture("diplomacy_movement")
         good = json.dumps({"action": "submit_orders", "params": {"orders": [
             {"type": "MOVE", "origin": "EDI", "destination": "NTH"},
@@ -1436,6 +1936,27 @@ class OfflineMockCliTests(unittest.TestCase):
 
 
 class HermesTests(unittest.TestCase):
+    def setUp(self):
+        # The historical session tests remain coverage for opt-in compatibility;
+        # new live gameplay defaults to the bounded stateless path.
+        self._session_mode = mock.patch.object(
+            hermes_agent,
+            "HERMES_STATELESS_GAMEPLAY",
+            False,
+        )
+        self._session_mode.start()
+
+    def tearDown(self):
+        self._session_mode.stop()
+
+    def test_gameplay_max_tokens_is_bounded(self):
+        with mock.patch.dict(os.environ, {"CLAWARENA_HERMES_MAX_TOKENS": "512"}):
+            self.assertEqual(hermes_agent._gameplay_max_tokens(), 512)
+        with mock.patch.dict(os.environ, {"CLAWARENA_HERMES_MAX_TOKENS": "9999"}):
+            self.assertEqual(hermes_agent._gameplay_max_tokens(), 768)
+        with mock.patch.dict(os.environ, {"CLAWARENA_HERMES_MAX_TOKENS": "bad"}):
+            self.assertEqual(hermes_agent._gameplay_max_tokens(), 768)
+
     def test_preflight_requires_a_real_model_reply(self):
         with mock.patch.object(
             hermes_agent,
@@ -1582,6 +2103,32 @@ class HermesTests(unittest.TestCase):
             ],
         )
 
+    def test_docker_invocation_preserves_fractional_gameplay_timeout(self):
+        with (
+            mock.patch.object(hermes_agent, "HERMES_CONTAINER", "hermes-test"),
+            mock.patch.object(hermes_agent, "HERMES_BIN", "/opt/hermes/bin/hermes"),
+        ):
+            command = hermes_agent._invoke(43.9, gameplay=True)
+
+        self.assertEqual(command[command.index("--kill-after=5s") + 1], "43.9s")
+
+    def test_docker_gameplay_invocation_uses_isolated_hermes_home(self):
+        with (
+            mock.patch.object(hermes_agent, "HERMES_CONTAINER", "hermes-test"),
+            mock.patch.object(hermes_agent, "HERMES_BIN", "/opt/hermes/bin/hermes"),
+            mock.patch.object(
+                hermes_agent, "HERMES_GAMEPLAY_HOME", "/opt/data/.clawarena/gameplay",
+            ),
+        ):
+            command = hermes_agent._invoke(40, gameplay=True)
+
+        self.assertEqual(command[:8], [
+            "docker", "exec", "-e", "HERMES_MAX_TOKENS=768", "-e",
+            "HERMES_HOME=/opt/data/.clawarena/gameplay", "hermes-test", "timeout",
+        ])
+        self.assertEqual(command.count("HERMES_HOME=/opt/data/.clawarena/gameplay"), 1)
+        self.assertEqual(command.count("HERMES_MAX_TOKENS=768"), 1)
+
     def test_gameplay_chat_uses_zero_tool_sentinel_without_yolo(self):
         calls = []
 
@@ -1597,6 +2144,7 @@ class HermesTests(unittest.TestCase):
             )
 
         with (
+            mock.patch.object(hermes_agent, "HERMES_STATELESS_GAMEPLAY", False),
             mock.patch.object(hermes_agent, "HERMES_CONTAINER", ""),
             mock.patch.object(hermes_agent, "HERMES_BIN", "hermes"),
             mock.patch.object(hermes_agent.subprocess, "run", side_effect=fake_run),
@@ -1606,8 +2154,193 @@ class HermesTests(unittest.TestCase):
         command = calls[0][0]
         self.assertEqual(command[command.index("-t") + 1], hermes_agent.HERMES_NO_TOOLS_SENTINEL)
         self.assertNotIn("--yolo", command)
+        self.assertEqual(command[command.index("--max-turns") + 1], "1")
         self.assertEqual(text, '{"action":"challenge","params":{}}')
         self.assertEqual(sid, "session-new")
+        self.assertGreater(hermes_agent._LAST_CHAT_DIAGNOSTICS["stdout_chars"], 0)
+        self.assertTrue(hermes_agent._LAST_CHAT_DIAGNOSTICS["zero_tool_warning"])
+        self.assertTrue(hermes_agent._LAST_CHAT_DIAGNOSTICS["session_marker"])
+        self.assertEqual(
+            hermes_agent._LAST_CHAT_DIAGNOSTICS["extracted_chars"],
+            len(text),
+        )
+
+    def test_bounded_gameplay_uses_native_zero_tool_one_shot(self):
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            return mock.Mock(
+                returncode=0,
+                stdout=(
+                    f"Warning: Unknown toolsets: {hermes_agent.HERMES_NO_TOOLS_SENTINEL}\n"
+                    '{"action":"place","params":{"face":4}}\n'
+                ),
+                stderr="",
+            )
+
+        with (
+            mock.patch.object(hermes_agent, "HERMES_STATELESS_GAMEPLAY", True),
+            mock.patch.object(hermes_agent, "HERMES_CONTAINER", ""),
+            mock.patch.object(hermes_agent, "HERMES_BIN", "hermes"),
+            mock.patch.object(hermes_agent, "HERMES_GAMEPLAY_HOME", "/private/gameplay"),
+            mock.patch.object(hermes_agent.subprocess, "run", side_effect=fake_run),
+        ):
+            text, sid = hermes_agent._run_chat("prompt", None, 40)
+
+        command = calls[0][0]
+        self.assertEqual(command[command.index("-z") + 1], "prompt")
+        self.assertNotIn("chat", command)
+        self.assertNotIn("-t", command)
+        self.assertEqual(text, '{"action":"place","params":{"face":4}}')
+        self.assertIsNone(sid)
+        self.assertEqual(calls[0][1]["env"]["HERMES_HOME"], "/private/gameplay")
+        self.assertEqual(calls[0][1]["env"]["HERMES_MAX_TOKENS"], "768")
+        self.assertEqual(
+            hermes_agent._LAST_CHAT_DIAGNOSTICS["mode"],
+            "native_zero_tool",
+        )
+
+    def test_gameplay_route_override_does_not_change_general_hermes_calls(self):
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            return mock.Mock(
+                returncode=0,
+                stdout=(
+                    f"Warning: Unknown toolsets: {hermes_agent.HERMES_NO_TOOLS_SENTINEL}\n"
+                    '{"action":"place","params":{"face":4}}\n'
+                ),
+                stderr="",
+            )
+
+        with (
+            mock.patch.object(hermes_agent, "HERMES_STATELESS_GAMEPLAY", True),
+            mock.patch.object(hermes_agent, "HERMES_CONTAINER", ""),
+            mock.patch.object(hermes_agent, "HERMES_BIN", "hermes"),
+            mock.patch.object(hermes_agent, "HERMES_MODEL", "deepseek-v4-flash"),
+            mock.patch.object(hermes_agent, "HERMES_PROVIDER", "deepseek"),
+            mock.patch.object(hermes_agent, "HERMES_GAMEPLAY_MODEL", "gemini-3.6-flash"),
+            mock.patch.object(hermes_agent, "HERMES_GAMEPLAY_PROVIDER", "gemini"),
+            mock.patch.object(hermes_agent.subprocess, "run", side_effect=fake_run),
+        ):
+            hermes_agent._run_chat("game", None, 40)
+            hermes_agent._run_chat("reflection", None, 40, gameplay=False)
+
+        gameplay_command = calls[0][0]
+        self.assertIn("-z", gameplay_command)
+        self.assertEqual(gameplay_command[gameplay_command.index("-m") + 1], "gemini-3.6-flash")
+        self.assertEqual(gameplay_command[gameplay_command.index("--provider") + 1], "gemini")
+        general_command = calls[1][0]
+        self.assertNotIn("-z", general_command)
+        self.assertEqual(general_command[general_command.index("-m") + 1], "deepseek-v4-flash")
+        self.assertEqual(general_command[general_command.index("--provider") + 1], "deepseek")
+
+    def test_live_sized_prompt_and_memory_are_bounded_without_raw_logging(self):
+        state = {
+            "game_type": "las_vegas",
+            "round": 2,
+            "total_rounds": 4,
+            "current_roll": [1, 2, 2, 3, 4, 5, 6, 6],
+            "your_roll": [1, 2, 2, 3, 4, 5, 6, 6],
+            "casinos": [{"number": i, "bills": [70000, 20000]} for i in range(1, 7)],
+            "players": {str(i): {"dice_remaining": 8, "money": 0} for i in range(4)},
+            "game_rules_brief": {"rules": ["r" * 220 for _ in range(11)]},
+            "user_preferences": {"strategy_hint": "p" * 1000, "risk_profile": "balanced"},
+            "my_memory": {
+                "my_recent_moves": [
+                    {"turn": i, "note": f"move-{i}-" + ("m" * 700)}
+                    for i in range(40)
+                ],
+                "my_private_reads": ["x" * 700 for _ in range(20)],
+            },
+            "_action_window_id": "live-sized-window",
+            "_decision_budget_configured_seconds": 90.0,
+            "_decision_budget_seconds": 90.0,
+            "_decision_budget_policy": "hermes_deadline_reserve",
+            "_server_turn_remaining_seconds": 75.49,
+            "_submit_reserve_seconds": 12.0,
+        }
+        legal = [{
+            "action": "place",
+            "hint": {
+                "faces_available": [{"face": i, "casino": i} for i in range(1, 7)],
+                "contract_note": "l" * 1200,
+            },
+        }]
+
+        prompt = hermes_agent._bounded_gameplay_prompt(state, legal)
+        payload = json.loads(prompt.rsplit("GAME:\n", 1)[1])
+        with (
+            mock.patch.object(
+                hermes_agent, "HERMES_GAMEPLAY_REASONING_EFFORT", "none",
+            ),
+            mock.patch.object(
+                hermes_agent, "HERMES_GAMEPLAY_THINKING_MODE", "disabled",
+            ),
+        ):
+            provenance = hermes_agent._prompt_provenance(prompt, state)
+
+        self.assertLessEqual(len(payload["my_memory"]["my_recent_moves"]), 4)
+        self.assertLessEqual(len(payload["my_memory"]["my_private_reads"]), 4)
+        self.assertLessEqual(len(json.dumps(payload["my_memory"]).encode()), 4096)
+        self.assertLess(provenance["prompt_bytes"], 20000)
+        self.assertEqual(provenance["action_window_id"], "live-sized-window")
+        self.assertEqual(provenance["reasoning_profile"], "clawarena_no_thinking")
+        self.assertEqual(provenance["reasoning_effort"], "none")
+        self.assertEqual(provenance["thinking_mode"], "disabled")
+        self.assertEqual(provenance["provider"], "profile_default")
+        self.assertEqual(provenance["model"], "profile_default")
+        self.assertEqual(provenance["max_output_tokens"], 768)
+        self.assertEqual(provenance["configured_budget_seconds"], 90.0)
+        self.assertEqual(provenance["effective_budget_seconds"], 90.0)
+        self.assertEqual(provenance["server_remaining_seconds"], 75.49)
+        self.assertEqual(provenance["submit_reserve_seconds"], 12.0)
+        self.assertEqual(provenance["decision_budget_policy"], "hermes_deadline_reserve")
+        self.assertNotIn("move-39", json.dumps(provenance))
+
+    def test_bounded_gameplay_uses_one_provider_attempt_then_legal_fallback(self):
+        state = {
+            "game_type": "las_vegas",
+            "_action_window_id": "window-1",
+            "_decision_budget_configured_seconds": 60,
+            "_decision_budget_seconds": 60,
+            "_decision_budget_policy": "hermes_deadline_reserve",
+            "_server_turn_remaining_seconds": 75,
+            "_submit_reserve_seconds": 12,
+        }
+        legal = [{
+            "action": "place",
+            "hint": {"faces_available": [{"face": 4}]},
+        }]
+        calls = []
+
+        def fake_chat(prompt, session_id, timeout):
+            calls.append((prompt, session_id, timeout))
+            raise TimeoutError("provider stalled")
+
+        before = dict(hermes_agent._COUNTS)
+        try:
+            with (
+                mock.patch.object(hermes_agent, "HERMES_STATELESS_GAMEPLAY", True),
+                mock.patch.object(hermes_agent, "_run_chat", side_effect=fake_chat),
+            ):
+                move = hermes_agent.decide(state, legal)
+                provider_after = hermes_agent._COUNTS["provider_attempts"]
+        finally:
+            hermes_agent._COUNTS.update(before)
+
+        self.assertEqual(move, {"action": "place", "params": {"face": 4}})
+        self.assertEqual(len(calls), 1)
+        self.assertEqual([call[1] for call in calls], [None])
+        self.assertTrue(all(call[2] <= hermes_agent.HERMES_ATTEMPT_TIMEOUT for call in calls))
+        self.assertEqual(calls[0][2], 59.8)
+        self.assertEqual(
+            provider_after,
+            before.get("provider_attempts", 0) + 1,
+        )
+        self.assertIn("one move in a live ClawArena game", calls[0][0])
 
     def test_gameplay_chat_prefers_final_json_after_latest_hermes_reasoning_recap(self):
         proc = mock.Mock(
@@ -1967,6 +2700,121 @@ class ReflectionWorkerTests(unittest.TestCase):
 
 
 class SetupTests(unittest.TestCase):
+    def test_gameplay_profile_overrides_reasoning_without_mutating_user_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "hermes"
+            source.mkdir()
+            source_config = source / "config.yaml"
+            source_text = (
+                "model:\n  default: deepseek-v4-flash\n  provider: deepseek\n"
+                "agent:\n  reasoning_effort: max\n  reasoning_overrides:\n"
+                "    deepseek-v4-flash: max\n  api_max_retries: 2\n  max_turns: 6\n"
+                "display:\n  show_reasoning: true\n"
+                "fallback_providers:\n  - provider: another\n"
+            )
+            source_config.write_text(source_text)
+            (source / ".env").write_text("PROVIDER_KEY=not-printed\n")
+
+            expected = {
+                "agent.reasoning_effort": "none",
+                "model.max_tokens": "768",
+                "agent.api_max_retries": "0",
+            }
+
+            def fake_run(command, **_kwargs):
+                return mock.Mock(returncode=0, stdout=expected[command[-1]] + "\n", stderr="")
+
+            with (
+                mock.patch.dict(os.environ, {
+                    "HERMES_HOME": str(source),
+                    "HERMES_TIMEOUT_SECONDS": "40",
+                    "HERMES_ATTEMPT_TIMEOUT_SECONDS": "35",
+                }),
+                mock.patch.object(setup_local_runner.subprocess, "run", side_effect=fake_run),
+            ):
+                target = setup_local_runner._prepare_gameplay_home(
+                    root / "arena", "/opt/hermes/.venv/bin/hermes",
+                )
+
+            rendered = (target / "config.yaml").read_text()
+            self.assertEqual(source_config.read_text(), source_text)
+            self.assertIn('reasoning_effort: "none"', rendered)
+            self.assertIn("reasoning_overrides: {}", rendered)
+            self.assertIn("api_max_retries: 0", rendered)
+            self.assertIn("max_turns: 1", rendered)
+            self.assertIn("max_tokens: 768", rendered)
+            self.assertIn("fallback_providers: []", rendered)
+            self.assertNotIn("deepseek-v4-flash: max", rendered)
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE((target / "config.yaml").stat().st_mode), 0o600)
+            self.assertTrue((target / ".env").is_symlink())
+
+            runner_env = setup_local_runner._runner_env(
+                token="secret-not-logged",
+                base="https://test.example/api/v1",
+                home=root / "arena",
+                hermes_bin="/opt/hermes/.venv/bin/hermes",
+                gameplay_home=target,
+            )
+            self.assertEqual(runner_env["HERMES_GAMEPLAY_REASONING_EFFORT"], "none")
+            self.assertEqual(runner_env["HERMES_GAMEPLAY_THINKING_MODE"], "disabled")
+            self.assertEqual(runner_env["HERMES_TIMEOUT_SECONDS"], "60")
+            self.assertEqual(runner_env["HERMES_ATTEMPT_TIMEOUT_SECONDS"], "60")
+            self.assertEqual(runner_env["CLAWARENA_HERMES_MAX_TOKENS"], "768")
+            self.assertEqual(runner_env["HERMES_MAX_TOKENS"], "768")
+
+    def test_gameplay_provider_route_is_written_only_to_isolated_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "hermes"
+            source.mkdir()
+            source_config = source / "config.yaml"
+            source_text = (
+                "model:\n  default: deepseek-v4-flash\n  provider: deepseek\n"
+                "  base_url: https://api.deepseek.com\n"
+                "agent:\n  reasoning_effort: max\n  api_max_retries: 2\n"
+            )
+            source_config.write_text(source_text)
+            (source / ".env").write_text("GOOGLE_API_KEY=not-printed\n")
+            env = {
+                "HERMES_HOME": str(source),
+                setup_local_runner.HERMES_GAMEPLAY_PROVIDER_ENV: "gemini",
+                setup_local_runner.HERMES_GAMEPLAY_MODEL_ENV: "gemini-3.6-flash",
+                setup_local_runner.HERMES_GAMEPLAY_BASE_URL_ENV: "",
+            }
+            expected = {
+                "agent.reasoning_effort": "none",
+                "model.max_tokens": "768",
+                "agent.api_max_retries": "0",
+                "model.provider": "gemini",
+                "model.default": "gemini-3.6-flash",
+                "model.base_url": "",
+            }
+
+            def fake_run(command, **_kwargs):
+                return mock.Mock(returncode=0, stdout=expected[command[-1]] + "\n", stderr="")
+
+            with mock.patch.object(
+                setup_local_runner.subprocess, "run", side_effect=fake_run,
+            ):
+                target = setup_local_runner._prepare_gameplay_home(
+                    root / "arena", "/opt/hermes/.venv/bin/hermes", env,
+                )
+
+            rendered = (target / "config.yaml").read_text()
+            self.assertEqual(source_config.read_text(), source_text)
+            self.assertIn('provider: "gemini"', rendered)
+            self.assertIn('default: "gemini-3.6-flash"', rendered)
+            self.assertIn('base_url: ""', rendered)
+            self.assertTrue((target / ".env").is_symlink())
+
+    def test_gameplay_provider_route_requires_provider_and_model_together(self):
+        with self.assertRaisesRegex(RuntimeError, "must be set together"):
+            setup_local_runner._gameplay_route({
+                setup_local_runner.HERMES_GAMEPLAY_PROVIDER_ENV: "gemini",
+            })
+
     def test_hermes_state_owner_rejects_another_arena_or_runtime(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
@@ -2350,6 +3198,10 @@ class SetupTests(unittest.TestCase):
             "message": "RuntimeError: offline",
         })
 
+    @unittest.skipUnless(
+        shutil.which("curl"),
+        "curl setup integration runs in the host test lane; runtime images use clawarena-runtime-smoke",
+    )
     def test_end_to_end_setup_waits_for_runner_readiness(self):
         token = base64.urlsafe_b64encode(
             json.dumps({"a": 77, "t": "test-auth"}).encode()
@@ -2442,11 +3294,26 @@ class SetupTests(unittest.TestCase):
                 home = Path(tmp) / "home"
                 hermes = Path(tmp) / "hermes"
                 hermes.write_text(
-                    "#!/bin/sh\nprintf 'Warning: Unknown toolsets: __clawarena_no_tools_v1__\\n'\n"
+                    "#!/bin/sh\n"
+                    "if [ \"$1\" = config ] && [ \"$2\" = get ]; then\n"
+                    "  case \"$3\" in\n"
+                    "    agent.reasoning_effort) printf 'none\\n' ;;\n"
+                    "    model.max_tokens) printf '768\\n' ;;\n"
+                    "    agent.api_max_retries) printf '0\\n' ;;\n"
+                    "  esac\n"
+                    "  exit 0\n"
+                    "fi\n"
+                    "printf 'Warning: Unknown toolsets: __clawarena_no_tools_v1__\\n'\n"
                     "printf 'CLAWARENA_READY\\n'\n"
                     "printf 'session_id: setup-preflight\\n' >&2\nexit 0\n"
                 )
                 hermes.chmod(0o700)
+                hermes_source = Path(tmp) / "hermes-home"
+                hermes_source.mkdir()
+                (hermes_source / "config.yaml").write_text(
+                    "model:\n  default: fake\n  provider: fake\n"
+                    "agent:\n  reasoning_effort: max\n"
+                )
                 base = f"http://127.0.0.1:{server.server_port}/api/v1"
                 origin = f"http://127.0.0.1:{server.server_port}"
                 setup_script = Path(tmp) / "clawarena-setup.py"
@@ -2459,6 +3326,7 @@ class SetupTests(unittest.TestCase):
                     **os.environ,
                     "CLAWARENA_HOME": str(home),
                     "HERMES_BIN": str(hermes),
+                    "HERMES_HOME": str(hermes_source),
                 }
                 setup = subprocess.run(
                     ["/bin/sh", "-c", command],
@@ -2637,6 +3505,11 @@ class RunnerLoopTests(unittest.TestCase):
             mock.patch.object(runner.arena_client, "decode_connection_token", return_value=(1, "auth")),
             mock.patch.object(runner.arena_client, "claim_daily_bonus", return_value=(409, {"detail": "done"})),
             mock.patch.object(runner.arena_client, "heartbeat", return_value=200),
+            mock.patch.object(
+                runner.arena_client,
+                "heartbeat_with_response",
+                return_value=(200, {"agent_preferences": {}}),
+            ),
             mock.patch.object(runner.arena_client, "poll", side_effect=list(polls)),
             mock.patch.object(runner.arena_client, "act", side_effect=act),
             mock.patch.object(runner.brain, "preflight", return_value="test-model"),
@@ -2672,6 +3545,47 @@ class RunnerLoopTests(unittest.TestCase):
             runner._poll_retry_delay(1, 429, rng=lambda: 0.0),
             10.0,
         )
+
+    def test_hermes_budget_uses_server_reserve_instead_of_remaining_fraction(self):
+        poll = {"turn_deadline": "1970-01-01T00:01:15.490000+00:00"}
+        with (
+            mock.patch.dict(os.environ, {"CLAWARENA_BRAIN": "hermes"}),
+            mock.patch.object(runner.time, "time", return_value=0.0),
+        ):
+            budget = runner._decision_budget(poll)
+
+        self.assertEqual(budget["configured_seconds"], 90.0)
+        # 90 is no longer reachable at this deadline: the server reserve wins,
+        # which is the policy this test exists to pin.
+        self.assertAlmostEqual(budget["effective_seconds"], 63.49)
+        self.assertAlmostEqual(budget["server_remaining_seconds"], 75.49)
+        self.assertEqual(budget["submit_reserve_seconds"], 12.0)
+        self.assertEqual(budget["policy"], "hermes_deadline_reserve")
+
+    def test_hermes_budget_shrinks_only_to_preserve_server_submit_reserve(self):
+        poll = {"turn_deadline": "1970-01-01T00:00:50+00:00"}
+        with (
+            mock.patch.dict(os.environ, {"CLAWARENA_BRAIN": "hermes"}),
+            mock.patch.object(runner.time, "time", return_value=0.0),
+        ):
+            budget = runner._decision_budget(poll)
+
+        self.assertEqual(budget["effective_seconds"], 38.0)
+        self.assertEqual(
+            budget["server_remaining_seconds"] - budget["effective_seconds"],
+            12.0,
+        )
+
+    def test_default_budget_keeps_existing_remaining_fraction_policy(self):
+        poll = {"turn_deadline": "1970-01-01T00:01:21.333333+00:00"}
+        with (
+            mock.patch.dict(os.environ, {"CLAWARENA_BRAIN": "starter"}),
+            mock.patch.object(runner.time, "time", return_value=0.0),
+        ):
+            budget = runner._decision_budget(poll)
+
+        self.assertAlmostEqual(budget["effective_seconds"], 36.6, places=2)
+        self.assertEqual(budget["policy"], "default_remaining_45pct")
 
     def test_poll_retry_backoff_resets_after_success(self):
         retry_attempts = []
@@ -2836,6 +3750,37 @@ class RunnerLoopTests(unittest.TestCase):
         self.assertEqual(len(moves), 1)
         self.assertEqual(memos, [(501, "confirmed read")])
 
+    def test_turn_updating_409_replays_cached_decision_without_second_inference(self):
+        first = self.playing(511, 1)
+        first["action_window_id"] = "stable-window"
+        second = self.playing(511, 2)
+        second["action_window_id"] = "stable-window"
+        decide = mock.Mock(return_value={
+            "action": "challenge",
+            "params": {},
+            "memo": "one decision",
+        })
+        result, actions, moves, memos = self.run_loop(
+            deque([
+                (200, first),
+                (200, second),
+                (200, {"status": "finished", "match_id": 511}),
+            ]),
+            deque([
+                (409, {"status": "error", "message": "The turn is updating; poll and retry"}),
+                (200, {"status": "ok", "ack_type": "las_vegas_action_ack"}),
+            ]),
+            ["runner.py", "--matches", "1", "--no-reflect"],
+            decide=decide,
+        )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(decide.call_count, 1)
+        self.assertEqual(len(actions), 2)
+        self.assertEqual(actions[0], actions[1])
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(memos, [(511, "one decision")])
+
     def test_diplomacy_server_rejection_is_injected_for_one_corrective_turn(self):
         first = self.playing_diplomacy(601, 1)
         second = self.playing_diplomacy(601, 2)
@@ -2947,6 +3892,33 @@ class RunnerLoopTests(unittest.TestCase):
         self.assertEqual(decide.call_count, 1)
         self.assertEqual(len(actions), 1)
         self.assertEqual(moves, [])
+
+
+class DistributionParityTests(unittest.TestCase):
+    def test_there_is_no_second_copy_of_the_kit(self):
+        """The mirror under Next's public directory must stay gone.
+
+        It existed to serve the kit at ``/kit/<file>`` and had to be re-copied
+        by hand after every edit. It drifted — a release behind for a day, and
+        missing ``report_sink.py`` entirely — so Django now serves the one
+        canonical directory. Anything that recreates it (a fixture generator
+        writing two targets, a helpful re-copy) brings back the drift, so the
+        absence is the assertion.
+        """
+
+        mirror = REPO_DIR / "frontend" / "public" / "kit"
+        # Ignore __pycache__: a worktree that predates the removal keeps stale
+        # build output there, which is residue rather than a second copy.
+        resurrected = sorted(
+            str(path.relative_to(mirror))
+            for path in mirror.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        ) if mirror.exists() else []
+        self.assertEqual(
+            resurrected,
+            [],
+            "frontend/public/kit is back; /kit is served from kit/ by Django",
+        )
 
 
 if __name__ == "__main__":

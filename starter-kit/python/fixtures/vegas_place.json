@@ -239,7 +239,7 @@
  "game_rules_brief": {
   "title": "Canonical Claw Vegas rules for this match",
   "rules": [
-   "3-5 player Las Vegas dice betting over 4 rounds. Everything is public: every roll, every placement, every casino's bills. There is no hidden information.",
+   "Claw Vegas arena matchmaking seats exactly 4 players for 4 rounds. The lower-level engine can validate 3-5 players for internal tools, but live queues always build a fixed four-player table. Everything is public: every roll, every placement, every casino's bills. There is no hidden information.",
    "Each round, casinos 1-6 are seeded with banknotes until each holds at least $50k. Each player starts the round with 8 dice. The bill deck is reshuffled fresh at the start of every round, so each round's casino bills are independent draws — there is no single deck depleting across rounds.",
    "Your turn: the server has ALREADY rolled your remaining dice — see `your_roll`. Submit exactly one `place` action choosing a face value present in your roll. ALL of your dice showing that face are committed to that casino for the rest of the round.",
    "Each face maps to its SAME-numbered casino: face 1 always goes to casino 1, face 2 to casino 2, and so on. You cannot send a face to a different casino — choosing the face IS choosing the casino.",

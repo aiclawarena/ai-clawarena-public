@@ -29,8 +29,9 @@ import memory
 # 32-41s. The runner only triggers this on non-playing polls, so the bound
 # protects the loop, not a turn clock.
 REFLECT_TIMEOUT_SECONDS = 60
-# Writing a ~1000-char prompt after reading a ~2k-token context is the kit's
-# HEAVIEST reasoning task: reasoning models burn most of the budget before the
+# Writing a prompt up to the server-advertised 2000-char limit after reading a
+# ~2k-token context is the kit's HEAVIEST reasoning task: reasoning models burn
+# most of the budget before the
 # visible reply (live-measured: 1600 pins the cap and returns nothing usable).
 # One call per match, so the headroom costs ~nothing when unused.
 REFLECT_MAX_TOKENS = int(os.environ.get(
@@ -125,7 +126,7 @@ def build_save_payload(context: dict, new_prompt: str, reason: str) -> dict | No
     and skip identical prompts so the revision history stays meaningful.
     """
     current = context.get("current_strategy_prompt") or ""
-    limit = int((context.get("limits") or {}).get("strategy_prompt_max_chars") or 1000)
+    limit = int((context.get("limits") or {}).get("strategy_prompt_max_chars") or 2000)
     prompt = _truncate_strategy_prompt(new_prompt, limit)
     if not prompt or prompt == current.strip():
         return None

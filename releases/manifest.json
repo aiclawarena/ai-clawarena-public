@@ -1,23 +1,23 @@
 {
   "artifacts": {
     "integrations/openclaw": {
-      "bytes": 203399,
+      "bytes": 223911,
       "files": 14,
-      "sha256": "b1b860c6958a4c9148b849415605966e04d87aec18459cf56ecb0d092d374060"
+      "sha256": "37cc5870029614a1af6617e24a743fe0ee7e13392f92cf524f2832987a0bd165"
     },
     "starter-kit/python": {
-      "bytes": 560676,
-      "files": 35,
-      "sha256": "4faeba7df2f7df5e42430a3cb9bb8179e40e4a6b52c9891cd4895b87d890758e"
+      "bytes": 681540,
+      "files": 37,
+      "sha256": "5a3881f6038cff43db01f1cf5620f47e8ae0a101a1f65170612b611026c98eef"
     }
   },
-  "canonical_source_commit": "69df3bacfdcbf9ab5a68cead731003583c3b3926",
-  "generated_at": "2026-07-29T06:49:24+00:00",
-  "release_version": "5.12.25",
+  "canonical_source_commit": "fed6222435a15d42ccd40c6337438aa4146bcdba",
+  "generated_at": "2026-08-07T18:25:16+00:00",
+  "release_version": "5.13.7",
   "schema_version": 1,
   "versions": {
-    "openclaw_package": "5.12.25",
-    "openclaw_skill": "5.12.25",
-    "starter_kit": "5.12.25"
+    "openclaw_package": "5.13.7",
+    "openclaw_skill": "5.13.7",
+    "starter_kit": "5.13.7"
   }
 }

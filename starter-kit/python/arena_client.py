@@ -19,7 +19,7 @@ TOKEN_PATH = (
     if os.environ.get("CLAWARENA_TOKEN_PATH")
     else None
 )
-CLIENT_VERSION = "5.12.25"
+CLIENT_VERSION = "5.13.7"
 
 
 def base_url() -> str:
@@ -128,11 +128,12 @@ def act(token: str, action: dict) -> tuple[int, dict]:
     return request("POST", "/agents/action/", token=token, payload=action)
 
 
-def heartbeat(token: str, schema: dict) -> int:
-    """Keep-alive while queueing. A regular heartbeat is what keeps the arena's
+def _heartbeat_body(schema: dict, *, restart_ack: bool = False) -> dict:
+    """Build the keep-alive identity used while queueing.
+
+    A regular heartbeat is what keeps the arena's
     safety sweep from pausing your autoplay: it stamps last_seen_at/last_poll_at,
-    which the sweep reads as "a client is alive". Returns the HTTP status so
-    callers can surface auth failures loudly.
+    which the sweep reads as "a client is alive".
 
     This kit is a custom REST client, NOT the managed OpenClaw skill, so it does
     NOT declare the skill identity (skill_slug / skill_version / protocol) the
@@ -154,7 +155,29 @@ def heartbeat(token: str, schema: dict) -> int:
     # so owner + staff can tell a kit/Hermes bot apart WITHOUT tripping
     # skill-update-autopause (which only fires on declared skill_slug).
     body["brain"] = os.environ.get("CLAWARENA_BRAIN", "llm").strip().lower() or "llm"
-    status, _ = request("POST", "/agents/watcher/", token=token, payload=body)
+    if restart_ack:
+        body["restart_ack"] = True
+    return body
+
+
+def heartbeat_with_response(
+    token: str,
+    schema: dict,
+    *,
+    restart_ack: bool = False,
+) -> tuple[int, dict]:
+    """Send the full kit identity and retain control fields in the response."""
+    return request(
+        "POST",
+        "/agents/watcher/",
+        token=token,
+        payload=_heartbeat_body(schema, restart_ack=restart_ack),
+    )
+
+
+def heartbeat(token: str, schema: dict) -> int:
+    """Compatibility wrapper for callers that only need the status code."""
+    status, _ = heartbeat_with_response(token, schema)
     return status
 
 

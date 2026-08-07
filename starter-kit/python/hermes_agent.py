@@ -33,9 +33,16 @@ Env:
   HERMES_KEEP_RULES=1      load the container's SOUL/AGENTS persona; default is a
                            clean gameplay session (--ignore-rules), the same
                            clean-session posture OpenClaw uses for turns.
-  HERMES_TIMEOUT_SECONDS   per-turn subprocess timeout (default 60). The server
-                           turn timeout is 90s, so a slow turn falls back to the
-                           heuristic rather than forfeiting.
+  HERMES_TIMEOUT_SECONDS   total per-turn budget (default 60). Gameplay uses one
+                           native zero-tool (-z) provider attempt, then a deterministic
+                           legal fallback; a window never starts a second call.
+  CLAWARENA_HERMES_GAMEPLAY_PROVIDER / _MODEL / _BASE_URL
+                           optional ClawArena-only route. setup_local_runner.py
+                           writes it only to the isolated gameplay profile; the
+                           user's normal Hermes profile and reflection route stay
+                           unchanged.
+  CLAWARENA_HERMES_MAX_TOKENS  gameplay-only output cap (default/max 768).
+                           The runner does not modify the user's normal Hermes profile.
   HERMES_REFLECT_TIMEOUT_SECONDS  post-match reflection timeout (default 120). It
                            runs on a non-playing poll, off any turn clock.
   HERMES_REPORT_TIMEOUT_SECONDS  report-delivery timeout (default 30); only one
@@ -47,11 +54,14 @@ CLAWARENA_ALLOW_KEYLESS when this brain is selected.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import os
 import re
 import subprocess
 import threading
+import time
 
 import agent as heuristic_agent
 import helpers
@@ -60,11 +70,52 @@ import memory
 
 HERMES_CONTAINER = os.environ.get("HERMES_DOCKER_CONTAINER", "").strip()
 HERMES_BIN = os.environ.get("HERMES_BIN", "hermes").strip() or "hermes"
+HERMES_GAMEPLAY_HOME = os.environ.get("HERMES_GAMEPLAY_HOME", "").strip()
+HERMES_GAMEPLAY_REASONING_EFFORT = os.environ.get(
+    "HERMES_GAMEPLAY_REASONING_EFFORT", "",
+).strip().lower()
+HERMES_GAMEPLAY_THINKING_MODE = os.environ.get(
+    "HERMES_GAMEPLAY_THINKING_MODE", "",
+).strip().lower()
 HERMES_MODEL = os.environ.get("HERMES_MODEL", "").strip()
 HERMES_PROVIDER = os.environ.get("HERMES_PROVIDER", "").strip()
+HERMES_GAMEPLAY_MODEL = os.environ.get(
+    "CLAWARENA_HERMES_GAMEPLAY_MODEL", "",
+).strip()
+HERMES_GAMEPLAY_PROVIDER = os.environ.get(
+    "CLAWARENA_HERMES_GAMEPLAY_PROVIDER", "",
+).strip()
 HERMES_SKILL = os.environ.get("HERMES_SKILL", "").strip()
 HERMES_KEEP_RULES = os.environ.get("HERMES_KEEP_RULES", "").strip().lower() not in ("", "0", "false", "no")
-HERMES_TIMEOUT = int(os.environ.get("HERMES_TIMEOUT_SECONDS", "60"))
+MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS = 60.0
+HERMES_TIMEOUT = max(
+    MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS,
+    float(os.environ.get("HERMES_TIMEOUT_SECONDS", "60")),
+)
+HERMES_ATTEMPT_TIMEOUT = max(
+    MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS,
+    float(os.environ.get("HERMES_ATTEMPT_TIMEOUT_SECONDS", "60")),
+)
+HERMES_MAX_ATTEMPTS = 1
+HERMES_STATELESS_GAMEPLAY = os.environ.get(
+    "HERMES_STATELESS_GAMEPLAY", "1",
+).strip().lower() not in ("0", "false", "no")
+
+
+def _gameplay_max_tokens() -> int:
+    """Return the bounded output cap used only by ClawArena gameplay."""
+    try:
+        requested = int(os.environ.get("CLAWARENA_HERMES_MAX_TOKENS", "768"))
+    except (TypeError, ValueError):
+        requested = 768
+    return max(128, min(768, requested))
+
+
+HERMES_GAMEPLAY_MAX_TOKENS = _gameplay_max_tokens()
+# This process is the ClawArena runner, so overriding its child environment does
+# not mutate the user's regular Hermes shell/profile. The isolated gameplay
+# profile is pinned to the same value by setup_local_runner.py.
+os.environ["HERMES_MAX_TOKENS"] = str(HERMES_GAMEPLAY_MAX_TOKENS)
 HERMES_REFLECT_TIMEOUT = int(os.environ.get("HERMES_REFLECT_TIMEOUT_SECONDS", "120"))
 HERMES_REPORT_TIMEOUT = int(os.environ.get("HERMES_REPORT_TIMEOUT_SECONDS", "30"))
 # Optional per-turn report delivery (parity with the OpenClaw watcher). The
@@ -81,7 +132,14 @@ HERMES_SEND_UNAVAILABLE_MARKERS = (
 HERMES_NO_TOOLS_SENTINEL = "__clawarena_no_tools_v1__"
 HERMES_NO_TOOLS_WARNING = "Unknown toolset"
 
-_COUNTS = {"turns": 0, "hermes": 0, "corrections": 0, "fallback": 0}
+_COUNTS = {
+    "turns": 0,
+    "hermes": 0,
+    "corrections": 0,
+    "fallback": 0,
+    "provider_attempts": 0,
+}
+_LAST_CHAT_DIAGNOSTICS: dict[str, object] = {}
 _REPORT_LOCK = threading.Lock()
 # In -Q (programmatic) mode `hermes chat` prints the session id on stderr as
 # `session_id: <id>`; capture it on turn 1 so later turns can --resume it.
@@ -106,10 +164,18 @@ _RESUMED_CONTRACT = (
 )
 
 
-def _invoke(timeout: int | None = None) -> list[str]:
+def _invoke(timeout: float | None = None, *, gameplay: bool = False) -> list[str]:
     if not HERMES_CONTAINER:
         return [HERMES_BIN]
-    command = ["docker", "exec", HERMES_CONTAINER]
+    command = ["docker", "exec"]
+    if gameplay:
+        command += ["-e", f"HERMES_MAX_TOKENS={HERMES_GAMEPLAY_MAX_TOKENS}"]
+    if gameplay and HERMES_GAMEPLAY_HOME:
+        # Keep the user's normal Hermes profile untouched. setup_local_runner
+        # creates a private ClawArena-only profile with bounded reasoning and
+        # the same provider route, and only gameplay inference opts into it.
+        command += ["-e", f"HERMES_HOME={HERMES_GAMEPLAY_HOME}"]
+    command.append(HERMES_CONTAINER)
     if timeout:
         # subprocess.run(timeout=...) only kills the host-side docker client.
         # GNU timeout runs inside the container and terminates Hermes itself.
@@ -117,7 +183,7 @@ def _invoke(timeout: int | None = None) -> list[str]:
             "timeout",
             "--signal=TERM",
             "--kill-after=5s",
-            f"{max(1, int(timeout))}s",
+            f"{max(1.0, float(timeout)):.3f}".rstrip("0").rstrip(".") + "s",
         ]
     return command + [HERMES_BIN]
 
@@ -179,45 +245,11 @@ def _build_prompt(state, legal_actions, session_id, board):
     )
 
 
-def _run_chat(prompt, session_id, timeout):
-    """Run one `hermes chat -q -Q` turn in the match's resumable session.
+def _extract_programmatic_reply(stdout: str) -> str:
+    """Return only Hermes' final reply while proving the zero-tool selection."""
 
-    Returns (clean_text, session_id). `-Q` gives a clean final answer on stdout
-    (only a `↻ Resumed session` status line to drop) and the session id on
-    stderr. Hermes treats an empty `-t ""` as its configured default toolsets,
-    so use a reserved non-existent toolset name instead. Current Hermes versions
-    resolve that explicit selection to zero tools; leaving `--yolo` off also
-    makes future behavior fail closed if the CLI ever changes. `--ignore-rules`
-    (default) keeps a clean gameplay session.
-    """
-    cmd = _invoke(timeout) + [
-        "chat", "-q", prompt, "-t", HERMES_NO_TOOLS_SENTINEL,
-        "-Q", "--source", "clawarena",
-    ]
-    if not HERMES_KEEP_RULES:
-        cmd += ["--ignore-rules"]
-    if HERMES_SKILL:
-        cmd += ["-s", HERMES_SKILL]
-    if session_id:
-        cmd += ["--resume", session_id]
-    if HERMES_MODEL:
-        cmd += ["-m", HERMES_MODEL]
-    if HERMES_PROVIDER:
-        cmd += ["--provider", HERMES_PROVIDER]
-    outer_timeout = timeout + 15 if HERMES_CONTAINER else timeout
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=outer_timeout,
-        check=False,
-    )
-    if proc.returncode != 0:
-        if proc.returncode == 124:
-            raise TimeoutError(f"hermes chat exceeded {timeout}s")
-        detail = "\n".join(part for part in (proc.stderr, proc.stdout) if part)
-        raise RuntimeError(f"hermes chat rc={proc.returncode}: {detail[-600:]}")
-    output_lines = (proc.stdout or "").splitlines()
+    output_lines = str(stdout or "").splitlines()
+
     def is_no_tools_warning(line: str) -> bool:
         return HERMES_NO_TOOLS_WARNING in line and HERMES_NO_TOOLS_SENTINEL in line
 
@@ -232,10 +264,15 @@ def _run_chat(prompt, session_id, timeout):
         and "Resumed session" not in line
         and not is_no_tools_warning(line)
     )
+    return _extract_final_reply(text, output_lines=output_lines)
+
+
+def _extract_final_reply(text: str, *, output_lines: list[str] | None = None) -> str:
+    """Select the final complete JSON object without exposing reasoning."""
+    output_lines = output_lines if output_lines is not None else str(text or "").splitlines()
     # Hermes 0.19 may include a reasoning recap in stdout even with -Q. The
     # recap can contain valid JSON examples before the actual answer, so select
-    # the final complete object instead of letting the shared parser take the
-    # first one it sees.
+    # the final complete object.
     decoder = json.JSONDecoder()
     cursor = 0
     final_object = None
@@ -252,14 +289,97 @@ def _run_chat(prompt, session_id, timeout):
             final_object = candidate
         cursor = max(end, start + 1)
     if final_object is not None:
-        text = json.dumps(final_object, ensure_ascii=False, separators=(",", ":"))
-    elif any("Reasoning" in line for line in output_lines):
-        # Preflight is intentionally plain text rather than JSON.
-        text = next(
+        return json.dumps(final_object, ensure_ascii=False, separators=(",", ":"))
+    if any("Reasoning" in line for line in output_lines):
+        return next(
             (line.strip() for line in reversed(output_lines) if line.strip()),
             "",
         )
-    match = _SESSION_RE.search(proc.stderr or "")
+    return text
+
+
+def _run_chat(prompt, session_id, timeout, *, gameplay: bool = True):
+    """Run a native zero-tool turn or the legacy resumable chat path.
+
+    Stateless gameplay uses Hermes' purpose-built ``-z`` mode. Legacy resumed
+    sessions use ``chat -Q`` which gives a clean final answer on stdout
+    (only a `↻ Resumed session` status line to drop) and the session id on
+    stderr. Hermes treats an empty `-t ""` as its configured default toolsets,
+    so use a reserved non-existent toolset name instead. Current Hermes versions
+    resolve that explicit selection to zero tools; leaving `--yolo` off also
+    makes future behavior fail closed if the CLI ever changes. `--ignore-rules`
+    (default) keeps a clean gameplay session.
+    """
+    native_zero_tool = gameplay and session_id is None and HERMES_STATELESS_GAMEPLAY
+    if native_zero_tool:
+        cmd = _invoke(timeout, gameplay=True) + ["-z", prompt]
+    else:
+        cmd = _invoke(timeout, gameplay=gameplay) + [
+            "chat", "-q", prompt, "-t", HERMES_NO_TOOLS_SENTINEL,
+            "-Q", "--source", "clawarena", "--max-turns", "1",
+        ]
+    if not HERMES_KEEP_RULES:
+        cmd += ["--ignore-rules"]
+    if HERMES_SKILL:
+        cmd += ["--skills" if native_zero_tool else "-s", HERMES_SKILL]
+    if session_id:
+        cmd += ["--resume", session_id]
+    selected_model = (
+        HERMES_GAMEPLAY_MODEL if gameplay and HERMES_GAMEPLAY_MODEL else HERMES_MODEL
+    )
+    selected_provider = (
+        HERMES_GAMEPLAY_PROVIDER
+        if gameplay and HERMES_GAMEPLAY_PROVIDER
+        else HERMES_PROVIDER
+    )
+    if selected_model:
+        cmd += ["-m", selected_model]
+    if selected_provider:
+        cmd += ["--provider", selected_provider]
+    outer_timeout = timeout + 15 if HERMES_CONTAINER else timeout
+    run_env = None
+    if native_zero_tool and HERMES_GAMEPLAY_HOME and not HERMES_CONTAINER:
+        run_env = dict(os.environ)
+        run_env["HERMES_HOME"] = HERMES_GAMEPLAY_HOME
+    proc = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=outer_timeout,
+        env=run_env,
+        check=False,
+    )
+    stdout = str(proc.stdout or "")
+    stderr = str(proc.stderr or "")
+    _LAST_CHAT_DIAGNOSTICS.clear()
+    _LAST_CHAT_DIAGNOSTICS.update({
+        "mode": "native_zero_tool" if native_zero_tool else "chat_sentinel",
+        "returncode": proc.returncode,
+        "stdout_chars": len(stdout),
+        "stderr_chars": len(stderr),
+        "stdout_sha256": hashlib.sha256(stdout.encode("utf-8")).hexdigest()[:20],
+        "stderr_sha256": hashlib.sha256(stderr.encode("utf-8")).hexdigest()[:20],
+        "zero_tool_warning": (
+            HERMES_NO_TOOLS_WARNING in stdout
+            and HERMES_NO_TOOLS_SENTINEL in stdout
+        ),
+        "session_marker": bool(_SESSION_RE.search(stderr)),
+    })
+    if proc.returncode != 0:
+        if proc.returncode == 124:
+            raise TimeoutError(f"hermes chat exceeded {timeout}s")
+        detail = "\n".join(part for part in (proc.stderr, proc.stdout) if part)
+        raise RuntimeError(f"hermes chat rc={proc.returncode}: {detail[-600:]}")
+    text = (
+        _extract_final_reply(stdout)
+        if native_zero_tool
+        else _extract_programmatic_reply(stdout)
+    )
+    _LAST_CHAT_DIAGNOSTICS.update({
+        "extracted_chars": len(text),
+        "extracted_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()[:20],
+    })
+    match = _SESSION_RE.search(stderr)
     return text, (match.group(1) if match else session_id)
 
 
@@ -293,12 +413,13 @@ def preflight() -> str:
     )
     if not text.strip():
         raise RuntimeError("Hermes returned an empty model reply")
-    model = HERMES_MODEL or "Hermes configured model"
-    provider = f" via {HERMES_PROVIDER}" if HERMES_PROVIDER else ""
+    model = HERMES_GAMEPLAY_MODEL or HERMES_MODEL or "Hermes configured model"
+    selected_provider = HERMES_GAMEPLAY_PROVIDER or HERMES_PROVIDER
+    provider = f" via {selected_provider}" if selected_provider else ""
     return f"{model}{provider}"
 
 
-def _repair_diplomacy_move(state, legal_actions, move, active_sid):
+def _repair_diplomacy_move(state, legal_actions, move, active_sid, *, deadline=None):
     """Give Hermes one same-session correction, then degrade optional metadata safely."""
     if (
         state.get("game_type") != "diplomacy"
@@ -316,7 +437,8 @@ def _repair_diplomacy_move(state, legal_actions, move, active_sid):
 
     latest = move
     correction_called = False
-    if active_sid:
+    remaining = (deadline - time.monotonic()) if deadline else HERMES_TIMEOUT
+    if active_sid and remaining >= 5:
         correction_prompt = (
             "SERVER_CONTRACT_PREFLIGHT_REJECTED: the server-authored current legal action "
             "contract rejects your previous JSON: "
@@ -325,7 +447,11 @@ def _repair_diplomacy_move(state, legal_actions, move, active_sid):
             "optional proposal/strategy fields, and reply with ONLY the corrected JSON."
         )
         try:
-            text, corrected_sid = _run_chat(correction_prompt, active_sid, HERMES_TIMEOUT)
+            text, corrected_sid = _run_chat(
+                correction_prompt,
+                active_sid,
+                max(1, min(12, int(remaining))),
+            )
             correction_called = True
             parsed = llm_agent._parse_action(text, legal_actions, state)
             if parsed and parsed.get("action") in llm_agent._DIPLOMACY_BATCH_ACTIONS:
@@ -342,7 +468,10 @@ def _repair_diplomacy_move(state, legal_actions, move, active_sid):
                     return parsed, corrected_sid or active_sid, True
             active_sid = corrected_sid or active_sid
         except Exception as exc:  # noqa: BLE001 - deterministic degradation still acts
-            print(f"[hermes] diplomacy correction failed ({exc})", flush=True)
+            print(
+                f"[hermes] diplomacy correction failed ({_failure_code(exc)})",
+                flush=True,
+            )
 
     safe_params, notes = helpers.degrade_diplomacy_batch(
         latest["action"],
@@ -360,8 +489,203 @@ def _repair_diplomacy_move(state, legal_actions, move, active_sid):
     return safe, active_sid, correction_called
 
 
-def decide(state: dict, legal_actions: list[dict]) -> dict:
+def _bounded_gameplay_prompt(state: dict, legal_actions: list[dict]) -> str:
+    """Build a fresh compact Hermes turn with no resumable-session baggage."""
+    messages = llm_agent._bounded_structured_messages(state, legal_actions)
+    return (
+        messages[0]["content"]
+        + "\n\nReply with only one compact JSON object. Do not use tools.\n\nGAME:\n"
+        + messages[1]["content"]
+    )
+
+
+def _prompt_provenance(prompt: str, state: dict) -> dict:
+    """Describe a live prompt without retaining or logging its contents."""
+    raw = str(prompt or "")
+    marker = raw.rfind("GAME:\n")
+    payload_text = raw[marker + len("GAME:\n"):] if marker >= 0 else ""
+    try:
+        payload = json.loads(payload_text) if payload_text else {}
+    except json.JSONDecodeError:
+        payload = {}
+
+    def encoded_size(value) -> int:
+        return len(json.dumps(
+            value, ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+        ).encode("utf-8"))
+
+    state_value = payload.get("state") if isinstance(payload, dict) else {}
+    memory_value = payload.get("my_memory") if isinstance(payload, dict) else {}
+    return {
+        "event": "clawarena_prompt_provenance",
+        "action_window_id": str(state.get("_action_window_id") or ""),
+        "brain": "hermes",
+        "prompt_bytes": len(raw.encode("utf-8")),
+        "prompt_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20],
+        "contract_bytes": len(raw[:marker].encode("utf-8")) if marker >= 0 else None,
+        "payload_bytes": len(payload_text.encode("utf-8")),
+        "payload_field_bytes": {
+            key: encoded_size(value)
+            for key, value in payload.items()
+        } if isinstance(payload, dict) else {},
+        "state_field_counts": {
+            key: len(value)
+            for key, value in (state_value.items() if isinstance(state_value, dict) else [])
+            if isinstance(value, (dict, list))
+        },
+        "memory_field_counts": {
+            key: len(value)
+            for key, value in (memory_value.items() if isinstance(memory_value, dict) else [])
+            if isinstance(value, (dict, list))
+        },
+        "reasoning_profile": (
+            "clawarena_no_thinking"
+            if HERMES_GAMEPLAY_REASONING_EFFORT == "none"
+            and HERMES_GAMEPLAY_THINKING_MODE == "disabled"
+            else "user_default"
+        ),
+        "reasoning_effort": HERMES_GAMEPLAY_REASONING_EFFORT or "user_default",
+        "thinking_mode": HERMES_GAMEPLAY_THINKING_MODE or "provider_default",
+        "provider": HERMES_GAMEPLAY_PROVIDER or HERMES_PROVIDER or "profile_default",
+        "model": HERMES_GAMEPLAY_MODEL or HERMES_MODEL or "profile_default",
+        "max_output_tokens": HERMES_GAMEPLAY_MAX_TOKENS,
+        "configured_budget_seconds": round(float(
+            state.get("_decision_budget_configured_seconds") or HERMES_TIMEOUT
+        ), 2),
+        "effective_budget_seconds": round(float(
+            state.get("_decision_budget_seconds") or HERMES_TIMEOUT
+        ), 2),
+        "server_remaining_seconds": round(float(
+            state.get("_server_turn_remaining_seconds") or 0.0
+        ), 2),
+        "submit_reserve_seconds": round(float(
+            state.get("_submit_reserve_seconds") or 0.0
+        ), 2),
+        "decision_budget_policy": str(
+            state.get("_decision_budget_policy") or "hermes_default_cap"
+        ),
+    }
+
+
+def _failure_code(exc: Exception) -> str:
+    if isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)):
+        return "hermes_timeout"
+    message = str(exc).lower()
+    if "session" in message and "not found" in message:
+        return "hermes_session_missing"
+    if "context" in message and any(
+        word in message for word in ("exhaust", "overflow", "length")
+    ):
+        return "hermes_context_exhausted"
+    return f"hermes_{type(exc).__name__.lower()}"
+
+
+def _decide_bounded(state: dict, legal_actions: list[dict]) -> dict:
+    """Run exactly one fresh provider turn, then fall back without reinference."""
     _COUNTS["turns"] += 1
+    started = time.monotonic()
+    try:
+        requested_budget = float(state.get("_decision_budget_seconds") or HERMES_TIMEOUT)
+    except (TypeError, ValueError):
+        requested_budget = float(HERMES_TIMEOUT)
+    total_budget = max(5.0, min(float(HERMES_TIMEOUT), requested_budget))
+    deadline = started + total_budget
+    prompt = _bounded_gameplay_prompt(state, legal_actions)
+    prompt_provenance = _prompt_provenance(prompt, state)
+    failure_codes = []
+
+    for attempt in range(1, HERMES_MAX_ATTEMPTS + 1):
+        remaining = deadline - time.monotonic()
+        if remaining < 2:
+            failure_codes.append("decision_budget_exhausted")
+            break
+        # Keep fractional headroom instead of truncating (for example) a 35.9s
+        # effective budget to 35s. GNU timeout and subprocess.run accept floats.
+        available = max(1.0, remaining - 0.1)
+        attempt_timeout = max(
+            1.0,
+            min(HERMES_ATTEMPT_TIMEOUT, math.floor(available * 10.0) / 10.0),
+        )
+        attempt_provenance = dict(prompt_provenance)
+        attempt_provenance["provider_timeout_seconds"] = round(attempt_timeout, 2)
+        print(json.dumps(attempt_provenance, separators=(",", ":")), flush=True)
+        _COUNTS["provider_attempts"] += 1
+        try:
+            text, _unused_session = _run_chat(prompt, None, attempt_timeout)
+        except Exception as exc:  # noqa: BLE001 - bounded retry/fallback below
+            failure_codes.append(_failure_code(exc))
+            continue
+
+        provenance = llm_agent._reply_provenance(text, legal_actions, state)
+        provenance.update(brain="hermes", attempt=attempt)
+        provenance["transport"] = dict(_LAST_CHAT_DIAGNOSTICS)
+        print(json.dumps(provenance, separators=(",", ":")), flush=True)
+        move = llm_agent._parse_action(text, legal_actions, state)
+        if not move:
+            failure_codes.append(str(provenance.get("outcome") or "invalid_reply"))
+            continue
+
+        move, _sid, correction_called = _repair_diplomacy_move(
+            state,
+            legal_actions,
+            move,
+            None,
+            deadline=deadline,
+        )
+        if correction_called:
+            _COUNTS["corrections"] += 1
+        _COUNTS["hermes"] += 1
+        print(
+            f"[hermes] turn {_COUNTS['turns']}: "
+            f"{json.dumps(move, ensure_ascii=False)} "
+            f"(bounded fresh attempt {attempt}; "
+            f"hermes {_COUNTS['hermes']}/{_COUNTS['turns']})",
+            flush=True,
+        )
+        print(json.dumps({
+            "event": "clawarena_decision",
+            "action_window_id": str(state.get("_action_window_id") or ""),
+            "stage": "decision_ready",
+            "brain": "hermes",
+            "duration_ms": round((time.monotonic() - started) * 1000),
+            "attempts": attempt,
+            "fallback_reason": "",
+        }, separators=(",", ":")), flush=True)
+        return move
+
+    _COUNTS["fallback"] += 1
+    failure_reason = failure_codes[-1] if failure_codes else "model_unavailable_or_invalid"
+    print(
+        f"[hermes] FALLBACK ({failure_reason}) -> heuristic "
+        f"(fallbacks {_COUNTS['fallback']}/{_COUNTS['turns']})",
+        flush=True,
+    )
+    print(json.dumps({
+        "event": "clawarena_decision",
+        "action_window_id": str(state.get("_action_window_id") or ""),
+        "stage": "decision_ready",
+        "brain": "hermes",
+        "duration_ms": round((time.monotonic() - started) * 1000),
+        "attempts": min(HERMES_MAX_ATTEMPTS, max(1, len(failure_codes))),
+        "fallback_reason": failure_reason,
+    }, separators=(",", ":")), flush=True)
+    return heuristic_agent.decide(state, legal_actions)
+
+
+def decide(state: dict, legal_actions: list[dict]) -> dict:
+    if HERMES_STATELESS_GAMEPLAY:
+        return _decide_bounded(state, legal_actions)
+    _COUNTS["turns"] += 1
+    started = time.monotonic()
+    try:
+        total_budget = float(state.get("_decision_budget_seconds") or HERMES_TIMEOUT)
+    except (TypeError, ValueError):
+        total_budget = float(HERMES_TIMEOUT)
+    total_budget = max(5.0, min(float(HERMES_TIMEOUT), total_budget))
+    deadline = started + total_budget
+
+    def remaining(*, cap=HERMES_TIMEOUT) -> int:
+        return max(1, min(int(cap), int(deadline - time.monotonic())))
     context_epoch = ""
     if str(state.get("game_type") or "").strip().lower() == "diplomacy":
         context_epoch = str(state.get("decision_context_epoch") or "").strip()
@@ -401,7 +725,10 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
     try:
         try:
             text, new_sid = _run_chat(
-                _build_prompt(state, legal_actions, session_id, board), session_id, HERMES_TIMEOUT)
+                _build_prompt(state, legal_actions, session_id, board),
+                session_id,
+                remaining(),
+            )
         except RuntimeError as exc:
             missing_session = _is_missing_session_error(exc)
             context_exhausted = _is_context_exhaustion_error(exc)
@@ -420,8 +747,13 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
             persisted_turn_count = 0
             was_delta = False
             recovered = "missing session" if missing_session else "context exhaustion"
+            if deadline - time.monotonic() < 5:
+                raise TimeoutError("no decision budget remains for Hermes session recovery")
             text, new_sid = _run_chat(
-                _build_prompt(state, legal_actions, None, board), None, HERMES_TIMEOUT)
+                _build_prompt(state, legal_actions, None, board),
+                None,
+                remaining(cap=12),
+            )
         # Hermes has now SEEN this board — make it the diff base for next turn's
         # delta, keyed to the (possibly just-created) session id.
         active_sid = new_sid or session_id
@@ -448,6 +780,7 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
                 legal_actions,
                 move,
                 active_sid,
+                deadline=deadline,
             )
             if correction_called:
                 corrected_sid = corrected_sid or active_sid
@@ -479,15 +812,33 @@ def decide(state: dict, legal_actions: list[dict]) -> dict:
                   f"{recovery_suffix}; "
                   f"hermes {_COUNTS['hermes']}/{_COUNTS['turns']})",
                   flush=True)
+            print(json.dumps({
+                "event": "clawarena_decision",
+                "action_window_id": str(state.get("_action_window_id") or ""),
+                "stage": "decision_ready",
+                "brain": "hermes",
+                "duration_ms": round((time.monotonic() - started) * 1000),
+                "fallback_reason": "",
+            }, separators=(",", ":")), flush=True)
             return move
         reason = "unparseable/illegal reply"
     except Exception as exc:  # noqa: BLE001 — never lose the turn to the model
-        reason = f"hermes chat failed ({exc})"
+        # TimeoutExpired includes the full command (and therefore the prompt)
+        # in its string form. Log only a bounded classifier, never raw input.
+        reason = _failure_code(exc)
     _COUNTS["fallback"] += 1
     print(f"[hermes] FALLBACK ({reason}) -> heuristic "
           f"(fallbacks {_COUNTS['fallback']}/{_COUNTS['turns']}); a persistent rate "
           "means Hermes is not really playing — check HERMES_* env / the model.",
           flush=True)
+    print(json.dumps({
+        "event": "clawarena_decision",
+        "action_window_id": str(state.get("_action_window_id") or ""),
+        "stage": "decision_ready",
+        "brain": "hermes",
+        "duration_ms": round((time.monotonic() - started) * 1000),
+        "fallback_reason": reason[:160],
+    }, separators=(",", ":")), flush=True)
     try:
         return heuristic_agent.decide(state, legal_actions)
     except Exception:  # noqa: BLE001 — the turn must never be lost to a bug
@@ -508,11 +859,15 @@ def reflect_chat(messages: list[dict], match_id) -> str:
     except Exception:  # noqa: BLE001
         session_id = None
     try:
-        text, _ = _run_chat(prompt, session_id, HERMES_REFLECT_TIMEOUT)
+        text, _ = _run_chat(
+            prompt, session_id, HERMES_REFLECT_TIMEOUT, gameplay=False,
+        )
     except RuntimeError as exc:
         if not session_id or not _is_missing_session_error(exc):
             raise
-        text, _ = _run_chat(prompt, None, HERMES_REFLECT_TIMEOUT)
+        text, _ = _run_chat(
+            prompt, None, HERMES_REFLECT_TIMEOUT, gameplay=False,
+        )
     return text
 
 

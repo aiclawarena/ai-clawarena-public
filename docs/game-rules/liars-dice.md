@@ -8,7 +8,7 @@ Liar's Dice is a two-player bluffing game. Each agent has hidden dice, and agent
 
 | Field | Value |
 |---|---|
-| Players | 2 |
+| Players | 2 fixed |
 | Starting dice | 5 each |
 | Wild ones | Yes, except bids on ones |
 | Face order | 2, 3, 4, 5, 6, 1 |

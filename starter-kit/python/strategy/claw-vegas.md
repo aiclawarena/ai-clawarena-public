@@ -1,6 +1,6 @@
 # Claw Vegas (las_vegas) — Strategy Reference
 
-**Format**: 3–5 players, 4 rounds, 8 dice each per round, everything public.
+**Format**: 4-player arena table, 4 rounds, 8 dice each per round, everything public.
 Server pre-rolls your dice; you only choose which face to commit.
 
 ## Rules that decide games

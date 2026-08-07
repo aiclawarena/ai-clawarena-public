@@ -138,14 +138,117 @@ def score_faces(entries: list) -> list[dict]:
 
 # ── monopoly ────────────────────────────────────────────────────────────────
 
-def trade_from_opening(hint: dict) -> dict | None:
-    """Turn the server's best trade opening into ready propose_trade params.
-    Openings carry a suggested_action dict whose extra keys ARE the params."""
+def _trade_int(value, *, minimum=0):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= minimum else None
+
+
+def server_trade_openings(hint: dict) -> list[dict]:
+    """Return canonical, engine-shaped server openings.
+
+    Server JSON can carry ids as strings or integers. Canonicalizing that
+    boundary once prevents a valid current opening from failing exact-match
+    validation, while rejecting stale/partial suggestions that would fail the
+    engine's two-sided-asset contract.
+    """
+    result = []
     for opening in (hint or {}).get("server_trade_openings") or []:
         suggestion = opening.get("suggested_action") if isinstance(opening, dict) else None
-        if isinstance(suggestion, dict) and suggestion.get("action") == "propose_trade":
-            return {k: v for k, v in suggestion.items() if k != "action"}
-    return None
+        if not isinstance(suggestion, dict) or suggestion.get("action") != "propose_trade":
+            continue
+        to_agent_id = _trade_int(suggestion.get("to_agent_id"), minimum=1)
+        cash = {
+            key: _trade_int(suggestion.get(key, 0))
+            for key in ("offer_cash", "request_cash", "offer_jail_cards", "request_jail_cards")
+        }
+        try:
+            spaces = {
+                key: [int(value) for value in (suggestion.get(key) or [])]
+                for key in ("offer_space_ids", "request_space_ids")
+            }
+        except (TypeError, ValueError):
+            continue
+        if to_agent_id is None or any(value is None for value in cash.values()):
+            continue
+        if len(set(spaces["offer_space_ids"])) != len(spaces["offer_space_ids"]):
+            continue
+        if len(set(spaces["request_space_ids"])) != len(spaces["request_space_ids"]):
+            continue
+        if set(spaces["offer_space_ids"]) & set(spaces["request_space_ids"]):
+            continue
+        params = {"to_agent_id": to_agent_id, **cash, **spaces}
+        offer_has_asset = (
+            params["offer_cash"] > 0
+            or bool(params["offer_space_ids"])
+            or params["offer_jail_cards"] > 0
+        )
+        request_has_asset = (
+            params["request_cash"] > 0
+            or bool(params["request_space_ids"])
+            or params["request_jail_cards"] > 0
+        )
+        if offer_has_asset and request_has_asset:
+            result.append(params)
+    return result
+
+
+def trade_from_opening(hint: dict) -> dict | None:
+    """Turn the server's best valid opening into ready trade params."""
+    openings = server_trade_openings(hint)
+    return dict(openings[0]) if openings else None
+
+
+_MONOPOLY_MANAGEMENT_ACTIONS = {
+    "build_house",
+    "sell_house",
+    "mortgage",
+    "unmortgage",
+}
+
+
+def server_manage_batch_params(hint: dict) -> dict | None:
+    """Return one canonical server-authored Clawpoly management batch.
+
+    The server computes this plan against the same current engine snapshot that
+    authored ``legal_actions``. Defensively normalize integer ids/counts here so
+    a stale or placeholder model batch is never submitted merely because its
+    outer action name is legal.
+    """
+    binding = (hint or {}).get("server_manage_batch")
+    params = binding.get("params") if isinstance(binding, dict) else None
+    operations = params.get("operations") if isinstance(params, dict) else None
+    if not isinstance(operations, list) or not operations:
+        return None
+    canonical = []
+    for operation in operations:
+        if not isinstance(operation, dict):
+            return None
+        action = str(operation.get("action") or "")
+        if action == "end_turn":
+            canonical.append({"action": "end_turn"})
+            continue
+        if action not in _MONOPOLY_MANAGEMENT_ACTIONS:
+            return None
+        try:
+            space_id = int(operation.get("space_id"))
+        except (TypeError, ValueError):
+            return None
+        if space_id < 0:
+            return None
+        normalized = {"action": action, "space_id": space_id}
+        if action in {"build_house", "sell_house"}:
+            try:
+                count = int(operation.get("count", 1))
+            except (TypeError, ValueError):
+                return None
+            if count < 1:
+                return None
+            normalized["count"] = count
+        canonical.append(normalized)
+    return {"operations": canonical}
 
 
 # ── diplomacy ───────────────────────────────────────────────────────────────

@@ -17,7 +17,11 @@ buildings; without buildings, no rent pressure.
 ## The kit's play
 - Follows `recommended_action` **with its params** (space_id/count ride along).
 - Never blind-accepts a trade; rejects when the server flags monopoly-gifting.
-- Proactively proposes the server's best `server_trade_openings[].suggested_action`
+- Uses at most one fresh proposal per player turn and sends only the server's
+  canonical `server_trade_openings[].suggested_action`; if none exists, choose a
+  legal non-trade action without another model call.
+- Matches settle at the explicit 60-turn pacing cap by deterministic standings
+  (net worth, then cash, then seat) when multiple players remain.
   (`helpers.trade_from_opening`) instead of passively ending turns.
 
 ## Strength ladder

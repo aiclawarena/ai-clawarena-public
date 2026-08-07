@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import queue
 import random
@@ -18,6 +19,7 @@ import sys
 import threading
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import arena_client
@@ -42,10 +44,88 @@ else:
 POLL_RETRY_BASE_SECONDS = 6.0
 POLL_RATE_LIMIT_RETRY_BASE_SECONDS = 20.0
 POLL_RETRY_MAX_SECONDS = 30.0
+# How long one decision may take before the runner stops waiting and plays a
+# heuristic. 40s was chosen when turns did not reason; with DeepSeek thinking on,
+# a third of speak turns overran it and were played by the fallback instead —
+# invisible in the gateway ledger, because a client timeout is an upstream
+# success. Measured latency is p50 8.5s / max 37s, so this is headroom for the
+# tail rather than a slower loop. Only phases long enough to allow it see the
+# full 90 (the budget is also capped at remaining x 0.45).
+DEFAULT_DECISION_CAP_SECONDS = 90.0
+DEFAULT_SUBMIT_RESERVE_SECONDS = 8.0
+# Matched to the default cap once arena turns started reasoning. Left at 60 it
+# became the binding limit for Hermes alone: a measured Mafia turn aborted at
+# 59.8s and the heuristic played it, while starter-kit seats on the same table
+# had 90s. The gap was invisible because only the default cap was raised.
+HERMES_DECISION_CAP_SECONDS = 90.0
+HERMES_SUBMIT_RESERVE_SECONDS = 12.0
 
 
 def log(message: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {message}", flush=True)
+
+
+def _decision_budget(poll: dict, *, brain_kind: str | None = None) -> dict:
+    """Return a deadline-derived inference budget and non-secret provenance.
+
+    The standard LLM path keeps the historical less-than-half policy. Hermes'
+    native no-thinking process has a measured long tail, so it receives a
+    bounded 60s cap while always preserving 12s for action submission/ACK.
+    """
+    raw = poll.get("turn_deadline")
+    if not raw and isinstance(poll.get("state"), dict):
+        raw = poll["state"].get("turn_deadline")
+    remaining = 70.0
+    if raw:
+        try:
+            remaining = max(
+                0.0,
+                datetime.fromisoformat(str(raw).replace("Z", "+00:00")).timestamp()
+                - time.time(),
+            )
+        except (TypeError, ValueError):
+            pass
+    selected_brain = (
+        brain_kind
+        if brain_kind is not None
+        else os.environ.get("CLAWARENA_BRAIN", "")
+    )
+    is_hermes = str(selected_brain).strip().lower() == "hermes"
+    if is_hermes:
+        configured = HERMES_DECISION_CAP_SECONDS
+        reserve = HERMES_SUBMIT_RESERVE_SECONDS
+        effective = max(5.0, min(configured, remaining - reserve))
+        policy = "hermes_deadline_reserve"
+    else:
+        configured = DEFAULT_DECISION_CAP_SECONDS
+        reserve = DEFAULT_SUBMIT_RESERVE_SECONDS
+        effective = max(5.0, min(configured, remaining * 0.45, remaining - reserve))
+        policy = "default_remaining_45pct"
+    return {
+        "configured_seconds": configured,
+        "effective_seconds": effective,
+        "server_remaining_seconds": remaining,
+        "submit_reserve_seconds": reserve,
+        "policy": policy,
+    }
+
+
+def _decision_budget_seconds(poll: dict) -> float:
+    """Backward-compatible scalar accessor used by focused callers/tests."""
+    return float(_decision_budget(poll)["effective_seconds"])
+
+
+def _action_span(action_window_id, match_id, game_type, stage, started, **extra) -> None:
+    payload = {
+        "event": "clawarena_action_span",
+        "action_window_id": str(action_window_id or ""),
+        "match_id": match_id,
+        "game_type": game_type,
+        "stage": stage,
+        "duration_ms": round((time.monotonic() - started) * 1000),
+    }
+    payload.update({key: value for key, value in extra.items() if value not in (None, "")})
+    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), flush=True)
 
 
 def _poll_retry_delay(
@@ -84,6 +164,33 @@ def _should_deliver(poll: dict) -> bool:
         return bool(poll.get("report_important"))
     names = {str(a.get("action")) for a in (poll.get("legal_actions") or []) if isinstance(a, dict)}
     return any(n != "chat" for n in names)
+
+
+def _restart_pending(payload: dict | None) -> bool:
+    prefs = (payload or {}).get("agent_preferences") or {}
+    requested_at = str(prefs.get("watcher_restart_requested_at") or "")
+    ack_at = str(prefs.get("watcher_restart_ack_at") or "")
+    return bool(requested_at and (not ack_at or requested_at > ack_at))
+
+
+def _ack_and_restart(token: str, schema: dict, payload: dict | None) -> bool:
+    """Acknowledge one server-authorized idle restart, then replace this process."""
+    if not _restart_pending(payload):
+        return False
+    status_code, response = arena_client.heartbeat_with_response(
+        token,
+        schema,
+        restart_ack=True,
+    )
+    if status_code != 200 or _restart_pending(response):
+        log(f"restart acknowledgement failed ({status_code}); continuing safely")
+        return False
+    log("dashboard restart acknowledged; replacing runner process")
+    os.execv(
+        sys.executable,
+        [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+    )
+    return True
 
 
 class ReflectionWorker:
@@ -195,7 +302,7 @@ def main() -> int:
             agent_id, auth_token = arena_client.decode_connection_token(token)
             status_code, bonus = arena_client.claim_daily_bonus(agent_id, auth_token)
             if status_code == 200:
-                log(f"daily bonus claimed: +{bonus.get('amount')} HP (balance {bonus.get('balance')})")
+                log(f"daily bonus claimed: +{bonus.get('amount')} CP (balance {bonus.get('balance')})")
             else:
                 log(f"daily bonus: {bonus.get('detail') or bonus.get('message') or status_code}")
         except Exception as exc:  # noqa: BLE001 — funding is best-effort
@@ -218,10 +325,14 @@ def main() -> int:
     # window (the pause is sticky and needs a manual re-enable). Skipped in
     # --dry-run (a preview must not stamp identity or keep the agent "alive").
     if not args.dry_run:
-        initial_heartbeat = arena_client.heartbeat(token, schema)
+        initial_heartbeat, heartbeat_payload = arena_client.heartbeat_with_response(
+            token,
+            schema,
+        )
         if initial_heartbeat != 200:
             log(f"initial heartbeat failed ({initial_heartbeat}) — exiting")
             return 1
+        _ack_and_restart(token, schema, heartbeat_payload)
         ready_file = os.environ.get("CLAWARENA_READY_FILE", "").strip()
         if ready_file:
             try:
@@ -251,7 +362,9 @@ def main() -> int:
     action_rejection = None  # one server-authored correction turn for Diplomacy
     diplomacy_corrections = 0
     diplomacy_fallback_attempted = False
+    window_fallback_attempted = False
     forced_submission = None
+    action_span_started = None
     # The server delivers game_rules_brief and strategy_brief once per match
     # (and replays them on an explicit restart resync). Cache both top-level keys
     # per match and ride them into decide()'s state so the LLM (which
@@ -286,6 +399,11 @@ def main() -> int:
             log(f"poll recovered after {poll_failures} failures — retry backoff reset")
             poll_failures = 0
         needs_context_resync = False
+
+        # Agent Control restart is guarded server-side to idle/paused/no-match.
+        # Poll carries the same timestamps as heartbeat, so a long-polling runner
+        # can acknowledge promptly instead of waiting for its next keep-alive.
+        _ack_and_restart(token, schema, poll)
 
         status = poll.get("status", "idle")
         match_id = poll.get("match_id")
@@ -350,9 +468,14 @@ def main() -> int:
             # the schema) the arena safety-pauses autoplay within grace_seconds.
             # (--dry-run never keeps the agent alive — it only previews a move.)
             if not args.dry_run and time.time() - last_heartbeat > heartbeat_every:
-                hb_status = arena_client.heartbeat(token, schema)
+                hb_status, heartbeat_payload = arena_client.heartbeat_with_response(
+                    token,
+                    schema,
+                )
                 if hb_status != 200:
                     log(f"heartbeat failed ({hb_status}) — autoplay may get safety-paused")
+                else:
+                    _ack_and_restart(token, schema, heartbeat_payload)
                 last_heartbeat = time.time()
             continue
 
@@ -392,8 +515,17 @@ def main() -> int:
             action_rejection = None
             diplomacy_corrections = 0
             diplomacy_fallback_attempted = False
+            window_fallback_attempted = False
             forced_submission = None
             reject_window_id = action_window_id
+            action_span_started = time.monotonic()
+            _action_span(
+                action_window_id,
+                match_id,
+                poll.get("game_type"),
+                "received",
+                action_span_started,
+            )
             if pending_submission and pending_submission["action_window_id"] != action_window_id:
                 pending_submission = None
         legal_actions = poll.get("legal_actions") or []
@@ -420,6 +552,18 @@ def main() -> int:
         # Per-match memory: our answer to OpenClaw's accumulating session —
         # explicit, restart-proof, never compacted away.
         state["my_memory"] = memory.begin_turn(match_id, state)
+        decision_budget = _decision_budget(poll)
+        state["_decision_budget_seconds"] = decision_budget["effective_seconds"]
+        state["_decision_budget_configured_seconds"] = decision_budget[
+            "configured_seconds"
+        ]
+        state["_decision_budget_policy"] = decision_budget["policy"]
+        state["_server_turn_remaining_seconds"] = decision_budget[
+            "server_remaining_seconds"
+        ]
+        state["_submit_reserve_seconds"] = decision_budget["submit_reserve_seconds"]
+        state["_action_window_id"] = action_window_id
+        state["_match_id"] = match_id
 
         if forced_submission and forced_submission["action_window_id"] == action_window_id:
             move = dict(forced_submission["move"])
@@ -432,12 +576,36 @@ def main() -> int:
             log(f"retrying unconfirmed action: {move['action']}")
         else:
             try:
+                _action_span(
+                    action_window_id,
+                    match_id,
+                    state.get("game_type"),
+                    "inference_started",
+                    action_span_started or time.monotonic(),
+                    decision_budget_seconds=round(state["_decision_budget_seconds"], 2),
+                    configured_budget_seconds=round(
+                        state["_decision_budget_configured_seconds"], 2,
+                    ),
+                    server_remaining_seconds=round(
+                        state["_server_turn_remaining_seconds"], 2,
+                    ),
+                    submit_reserve_seconds=round(state["_submit_reserve_seconds"], 2),
+                    decision_budget_policy=state["_decision_budget_policy"],
+                )
                 move = dict(brain.decide(state, usable_actions))
             except Exception as exc:  # noqa: BLE001 — a decide bug must not forfeit the match
                 log(f"decide() crashed ({exc}) — playing first legal action")
                 move = {"action": usable_actions[0].get("action"), "params": {}}
             memo = move.pop("memo", None)
             move["idempotency_key"] = helpers.action_idempotency_key(seq, move)
+            _action_span(
+                action_window_id,
+                match_id,
+                state.get("game_type"),
+                "decision_ready",
+                action_span_started or time.monotonic(),
+                action=move.get("action"),
+            )
 
         if args.dry_run:
             log(f"[dry-run] would submit: {move}")
@@ -449,6 +617,14 @@ def main() -> int:
             "memo": memo,
         }
         status_code, result = arena_client.act(token, move)
+        _action_span(
+            action_window_id,
+            match_id,
+            state.get("game_type"),
+            "submitted",
+            action_span_started or time.monotonic(),
+            action=move.get("action"),
+        )
         if status_code == 0 or status_code >= 500:
             # The server may have queued the action before the ACK was lost.
             # Retry the exact same payload/key once now; if transport is still
@@ -465,13 +641,25 @@ def main() -> int:
             memory.record_move(match_id, move, phase=state.get("phase"))
             memory.record_memo(match_id, memo)
             log(f"acted: {move['action']} ({result.get('ack_type', 'ok')})")
+            _action_span(
+                action_window_id,
+                match_id,
+                state.get("game_type"),
+                "ACKed",
+                action_span_started or time.monotonic(),
+                action=move.get("action"),
+                ack_type=result.get("ack_type", "ok"),
+            )
             # Per-turn report on exactly the turns the dashboard report_level +
             # server report_important flag allow (same gate as the OpenClaw
             # watcher). A runtime that can deliver (hermes_agent via Hermes'
             # direct send command) exposes report(); best-effort, never blocks play.
             if _should_deliver(poll) and hasattr(brain, "report"):
                 try:
-                    brain.report(state, move)
+                    # The memo was popped off `move` before submission (the
+                    # server does not take it), but it is the one line that says
+                    # WHY — restore it for the report only.
+                    brain.report(state, {**move, "memo": memo} if memo else move)
                 except Exception as exc:  # noqa: BLE001 — a report must not break play
                     log(f"report skipped ({exc})")
             time.sleep(0.5)
@@ -482,7 +670,30 @@ def main() -> int:
             action_rejection = None
             memory.record_move(match_id, move, phase=state.get("phase"))
             memory.record_memo(match_id, memo)
+            _action_span(
+                action_window_id,
+                match_id,
+                state.get("game_type"),
+                "ACKed",
+                action_span_started or time.monotonic(),
+                action=move.get("action"),
+                ack_type="action_already_queued",
+            )
             time.sleep(0.5)
+        elif (
+            status_code == 409
+            and not result.get("code")
+            and "updat" in str(result.get("message") or "").lower()
+        ):
+            # A racing engine tick can answer "turn is updating; poll and retry"
+            # while keeping the same action_window_id. Preserve the terminal
+            # decision and retry its exact idempotent payload; never pay for a
+            # second model decision in this window.
+            log(
+                f"action window updating ({str(result.get('message') or result)[:140]}) "
+                "— retrying cached decision"
+            )
+            time.sleep(3)
         elif status_code == 401:
             log("action token rejected (rotated?) — exiting")
             return 1
@@ -560,8 +771,51 @@ def main() -> int:
                 time.sleep(1.5)
             else:
                 rejected_actions.add(move["action"])
-                log(f"action rejected {status_code}: {str(result)[:140]} — backing off")
-                time.sleep(10 if status_code == 429 else 3)
+                _action_span(
+                    action_window_id,
+                    match_id,
+                    state.get("game_type"),
+                    "rejected",
+                    action_span_started or time.monotonic(),
+                    action=move.get("action"),
+                    fallback_reason=str(result.get("code") or status_code)[:120],
+                )
+                if not window_fallback_attempted:
+                    window_fallback_attempted = True
+                    fallback_actions = [
+                        entry for entry in legal_actions
+                        if entry.get("action") not in rejected_actions
+                    ]
+                    try:
+                        fallback = heuristic_agent.decide(
+                            state,
+                            fallback_actions or legal_actions,
+                        )
+                    except Exception:  # noqa: BLE001 - server deadline remains the final guard
+                        fallback = None
+                    if isinstance(fallback, dict) and fallback.get("action"):
+                        fallback = dict(fallback)
+                        fallback.pop("memo", None)
+                        fallback["idempotency_key"] = helpers.action_idempotency_key(
+                            seq,
+                            fallback,
+                        )
+                        forced_submission = {
+                            "action_window_id": action_window_id,
+                            "move": fallback,
+                        }
+                        log(
+                            f"action rejected {status_code}: {str(result)[:100]} — "
+                            "using one cached legal fallback without another inference"
+                        )
+                        time.sleep(1)
+                        continue
+                last_acted_window_id = action_window_id
+                log(
+                    f"action rejected {status_code}: {str(result)[:140]} — "
+                    "terminal for this window; waiting for the server deadline"
+                )
+                time.sleep(1.5)
 
 
 if __name__ == "__main__":

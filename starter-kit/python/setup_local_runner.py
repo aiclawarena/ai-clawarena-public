@@ -3,14 +3,19 @@
 setup_local_watcher.py.
 
 A user pastes ONE prompt into their own Hermes agent; the agent runs THIS script
-with its terminal tool, and it: provisions a ClawArena agent (or reuses a saved
-token), fetches the zero-dependency kit, and launches runner.py as a DETACHED
-background process (start_new_session — survives this call AND Hermes exit,
-but must be relaunched after the host/container restarts), then prints the
-claim link as JSON. Stdlib only, no pip deps.
+with its terminal tool, and it: adopts a ClawArena agent (redeeming the one-use
+setup key the site issued, or reusing a saved token), fetches the
+zero-dependency kit, and launches runner.py as a DETACHED background process
+(start_new_session — survives this call AND Hermes exit, but must be relaunched
+after the host/container restarts), then prints its status as JSON. Stdlib only,
+no pip deps.
 
     curl -fsSLO <arena>/kit/setup_local_runner.py
-    CLAWARENA_BASE=<arena>/api/v1 python3 setup_local_runner.py
+    CLAWARENA_BASE=<arena>/api/v1 CLAWARENA_RECOVERY_KEY=<key> python3 setup_local_runner.py
+
+Token-less public provisioning is still attempted when no key and no saved token
+exist; the arena refuses it for the whole closed beta, so the site-issued key is
+the path that works.
 
 `--stop` terminates the running runner. Re-running refreshes the staged kit and
 restarts the single live runner; it never double-launches one.
@@ -35,9 +40,50 @@ import urllib.request
 from pathlib import Path
 
 KIT_FILES = ["arena_client.py", "runner.py", "agent.py", "llm_agent.py",
-             "hermes_agent.py", "helpers.py", "memory.py", "reflect.py"]
+             "hermes_agent.py", "helpers.py", "memory.py", "reflect.py",
+             # llm_agent imports this at module level, so omitting it does not
+             # degrade reports — it stops the runner from importing at all.
+             "report_sink.py", "play.py"]
 DEFAULT_ARENA_BASE = "https://aiclawarena.ai/api/v1"
 STATE_OWNER_FILENAME = "state_owner.json"
+MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS = 60.0
+MIN_HERMES_GAMEPLAY_MAX_TOKENS = 128
+MAX_HERMES_GAMEPLAY_MAX_TOKENS = 768
+HERMES_GAMEPLAY_PROVIDER_ENV = "CLAWARENA_HERMES_GAMEPLAY_PROVIDER"
+HERMES_GAMEPLAY_MODEL_ENV = "CLAWARENA_HERMES_GAMEPLAY_MODEL"
+HERMES_GAMEPLAY_BASE_URL_ENV = "CLAWARENA_HERMES_GAMEPLAY_BASE_URL"
+
+
+def _gameplay_max_tokens(env: dict[str, str] | None = None) -> int:
+    values = os.environ if env is None else env
+    try:
+        requested = int(values.get("CLAWARENA_HERMES_MAX_TOKENS", "768"))
+    except (TypeError, ValueError):
+        requested = 768
+    return max(
+        MIN_HERMES_GAMEPLAY_MAX_TOKENS,
+        min(MAX_HERMES_GAMEPLAY_MAX_TOKENS, requested),
+    )
+
+
+def _gameplay_route(env: dict[str, str] | None = None) -> dict[str, str]:
+    """Return an optional, complete ClawArena-only Hermes provider route."""
+    values = os.environ if env is None else env
+    provider = str(values.get(HERMES_GAMEPLAY_PROVIDER_ENV) or "").strip()
+    model = str(values.get(HERMES_GAMEPLAY_MODEL_ENV) or "").strip()
+    base_url = str(values.get(HERMES_GAMEPLAY_BASE_URL_ENV) or "").strip()
+    if bool(provider) != bool(model):
+        raise RuntimeError(
+            f"{HERMES_GAMEPLAY_PROVIDER_ENV} and {HERMES_GAMEPLAY_MODEL_ENV} "
+            "must be set together"
+        )
+    if not provider:
+        if base_url:
+            raise RuntimeError(
+                f"{HERMES_GAMEPLAY_BASE_URL_ENV} requires a gameplay provider and model"
+            )
+        return {}
+    return {"provider": provider, "model": model, "base_url": base_url}
 
 
 class ClawArenaAPIError(RuntimeError):
@@ -277,11 +323,32 @@ def _atomic_write(path: Path, value: str, mode: int = 0o600) -> None:
         raise
 
 
+def _reject_non_python(url: str, response, first_bytes: bytes) -> None:
+    """A 200 is not proof the file exists.
+
+    The kit is served from a Next.js public directory, whose catch-all answers a
+    missing path with 200 and an HTML page. Saved under a .py name that becomes
+    a syntax error at import, hours later, with nothing pointing back at the
+    download — so refuse it here, where the URL is still in hand.
+    """
+
+    content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    looks_like_html = first_bytes.lstrip()[:14].lower().startswith((b"<!doctype", b"<html"))
+    if content_type in {"text/html", "application/xhtml+xml"} or looks_like_html:
+        raise RuntimeError(
+            f"{url} returned a web page instead of a Python file — the kit file "
+            "is missing on the server. Do not retry; report the URL."
+        )
+
+
 def _download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
     try:
         with os.fdopen(fd, "wb") as handle, urllib.request.urlopen(url, timeout=30) as response:
+            head = response.read(64)
+            _reject_non_python(url, response, head)
+            handle.write(head)
             shutil.copyfileobj(response, handle)
             handle.flush()
             os.fsync(handle.fileno())
@@ -311,23 +378,229 @@ def _log_tail(path: Path, limit: int = 1200) -> str:
         return ""
 
 
-def _runner_env(*, token: str, base: str, home: Path, hermes_bin: str) -> dict[str, str]:
+def _runner_env(
+    *, token: str, base: str, home: Path, hermes_bin: str,
+    gameplay_home: Path | None = None,
+) -> dict[str, str]:
     env = dict(os.environ)
+    gameplay_route = _gameplay_route(env)
+    gameplay_max_tokens = _gameplay_max_tokens(env)
+    try:
+        configured_timeout = float(env.get("HERMES_TIMEOUT_SECONDS", "60"))
+    except ValueError:
+        configured_timeout = MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS
+    try:
+        configured_attempt_timeout = float(
+            env.get("HERMES_ATTEMPT_TIMEOUT_SECONDS", configured_timeout)
+        )
+    except ValueError:
+        configured_attempt_timeout = MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS
     env.update(
         CLAWARENA_CONNECTION_TOKEN=token,
         CLAWARENA_BRAIN="hermes",
         HERMES_BIN=hermes_bin,
+        HERMES_GAMEPLAY_HOME=str(gameplay_home or ""),
+        HERMES_GAMEPLAY_REASONING_EFFORT="none",
+        HERMES_GAMEPLAY_THINKING_MODE="disabled",
+        CLAWARENA_HERMES_MAX_TOKENS=str(gameplay_max_tokens),
+        HERMES_MAX_TOKENS=str(gameplay_max_tokens),
+        HERMES_TIMEOUT_SECONDS=(
+            f"{max(MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS, configured_timeout):g}"
+        ),
+        HERMES_ATTEMPT_TIMEOUT_SECONDS=(
+            f"{max(MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS, configured_attempt_timeout):g}"
+        ),
         CLAWARENA_BASE=base,
         CLAWARENA_KIT_MEMORY_DIR=str(home / "kit-memory"),
         CLAWARENA_READY_FILE=str(home / "runner.ready"),
     )
+    if gameplay_route:
+        env.update({
+            HERMES_GAMEPLAY_PROVIDER_ENV: gameplay_route["provider"],
+            HERMES_GAMEPLAY_MODEL_ENV: gameplay_route["model"],
+            HERMES_GAMEPLAY_BASE_URL_ENV: gameplay_route["base_url"],
+        })
     # A recovery key is a setup-only, one-use secret. Never pass it into the
     # long-lived runner after setup has exchanged it for the local token.
     env.pop("CLAWARENA_RECOVERY_KEY", None)
     return env
 
 
+def _yaml_section_overrides(
+    text: str, section: str, replacements: dict[str, object],
+) -> str:
+    """Replace simple keys in one top-level YAML mapping without a YAML dep."""
+    lines = text.splitlines()
+    section_index = next(
+        (index for index, line in enumerate(lines) if line.strip() == f"{section}:" and not line.startswith((" ", "\t"))),
+        None,
+    )
+    if section_index is None:
+        if lines and lines[-1].strip():
+            lines.append("")
+        section_index = len(lines)
+        lines.append(f"{section}:")
+    section_end = len(lines)
+    for index in range(section_index + 1, len(lines)):
+        line = lines[index]
+        if line and not line.startswith((" ", "\t", "#")):
+            section_end = index
+            break
+
+    keys = set(replacements)
+    kept = []
+    index = section_index + 1
+    while index < section_end:
+        line = lines[index]
+        match = re.match(r"^  ([A-Za-z0-9_]+)\s*:", line)
+        if not match or match.group(1) not in keys:
+            kept.append(line)
+            index += 1
+            continue
+        index += 1
+        while index < section_end:
+            nested = lines[index]
+            if nested.strip() and not nested.startswith((" ", "\t", "#")):
+                break
+            if re.match(r"^  [A-Za-z0-9_]+\s*:", nested):
+                break
+            index += 1
+
+    rendered = [
+        f"  {key}: {json.dumps(value, ensure_ascii=False)}"
+        for key, value in replacements.items()
+    ]
+    return "\n".join(
+        lines[:section_index + 1] + rendered + kept + lines[section_end:]
+    ).rstrip() + "\n"
+
+
+def _yaml_top_level_override(text: str, key: str, value: object) -> str:
+    """Replace one complete top-level YAML key, including its nested block."""
+    lines = text.splitlines()
+    start = next(
+        (index for index, line in enumerate(lines) if re.match(rf"^{re.escape(key)}\s*:", line)),
+        None,
+    )
+    rendered = f"{key}: {json.dumps(value, ensure_ascii=False)}"
+    if start is None:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.append(rendered)
+        return "\n".join(lines).rstrip() + "\n"
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if line and not line.startswith((" ", "\t", "#")):
+            end = index
+            break
+    return "\n".join(lines[:start] + [rendered] + lines[end:]).rstrip() + "\n"
+
+
+def _validate_gameplay_home(
+    target: Path, hermes_bin: str, env: dict[str, str] | None = None,
+) -> None:
+    check_env = dict(os.environ)
+    check_env["HERMES_HOME"] = str(target)
+    route = _gameplay_route(env)
+    checks = {
+        "agent.reasoning_effort": "none",
+        "model.max_tokens": str(_gameplay_max_tokens(env)),
+        "agent.api_max_retries": "0",
+    }
+    if route:
+        checks.update({
+            "model.provider": route["provider"],
+            "model.default": route["model"],
+            "model.base_url": route["base_url"],
+        })
+    for key, expected in checks.items():
+        result = subprocess.run(
+            [hermes_bin, "config", "get", key],
+            env=check_env,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        if result.returncode != 0 or result.stdout.strip() != expected:
+            raise RuntimeError(
+                f"Hermes gameplay profile validation failed for {key}"
+            )
+
+
+def _prepare_gameplay_home(
+    home: Path, hermes_bin: str, env: dict[str, str] | None = None,
+) -> Path:
+    """Create a private ClawArena-only Hermes profile with thinking disabled.
+
+    The user's normal profile may deliberately use ``reasoning_effort: max``
+    for chat. Gameplay has a hard action clock, so inheriting that global
+    preference creates avoidable timeouts. Even ``low`` keeps DeepSeek V4
+    thinking enabled and can saturate the action deadline, so the isolated
+    gameplay profile disables thinking entirely. By default it preserves the
+    provider route; an explicit complete CLAWARENA_HERMES_GAMEPLAY_* route can
+    replace it only inside this isolated profile while reusing the user's
+    existing provider credential store.
+    """
+    values = os.environ if env is None else env
+    route = _gameplay_route(values)
+    source_home = Path(
+        str(values.get("HERMES_HOME") or "").strip() or (Path.home() / ".hermes")
+    ).resolve()
+    source_config = source_home / "config.yaml"
+    target = home / "hermes-gameplay"
+    if not source_config.is_file():
+        if (target / "config.yaml").is_file():
+            _validate_gameplay_home(target, hermes_bin, values)
+            return target
+        raise RuntimeError(f"Hermes config not found at {source_config}")
+    try:
+        source_text = source_config.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"Hermes config is not readable: {source_config}") from exc
+
+    model_overrides: dict[str, object] = {
+        "max_tokens": _gameplay_max_tokens(values),
+    }
+    if route:
+        model_overrides.update({
+            "provider": route["provider"],
+            "default": route["model"],
+            "base_url": route["base_url"],
+        })
+    rendered = _yaml_section_overrides(source_text, "model", model_overrides)
+    rendered = _yaml_section_overrides(rendered, "agent", {
+        "reasoning_effort": "none",
+        "reasoning_overrides": {},
+        "max_turns": 1,
+        "api_max_retries": 0,
+    })
+    rendered = _yaml_section_overrides(rendered, "display", {
+        "show_reasoning": False,
+    })
+    # A second provider would violate the action_window single-call contract.
+    rendered = _yaml_top_level_override(rendered, "fallback_providers", [])
+
+    target.mkdir(parents=True, exist_ok=True, mode=0o700)
+    target.chmod(0o700)
+    _atomic_write(target / "config.yaml", rendered)
+    source_env = source_home / ".env"
+    target_env = target / ".env"
+    if source_env.is_file():
+        target_env.unlink(missing_ok=True)
+        target_env.symlink_to(source_env)
+
+    _validate_gameplay_home(target, hermes_bin, values)
+    return target
+
+
 def _preflight_candidate(kit: Path, env: dict[str, str]) -> None:
+    gameplay_home_value = str(env.get("HERMES_GAMEPLAY_HOME") or "").strip()
+    if not gameplay_home_value:
+        raise RuntimeError("HERMES_GAMEPLAY_HOME is required for Hermes gameplay")
+    gameplay_home = Path(gameplay_home_value)
+    _prepare_gameplay_home(gameplay_home.parent, env["HERMES_BIN"], env)
     preflight_env = dict(env)
     preflight_env.pop("CLAWARENA_SKIP_PREFLIGHT", None)
     try:
@@ -621,10 +894,26 @@ def main():
         token = _saved_text(home / "token") or ""
     reused = bool(token)
     if not token:
-        resp = _post(
-            f"{base}/agents/provision/",
-            {"runtime_kind": "hermes"},
-        )
+        try:
+            resp = _post(
+                f"{base}/agents/provision/",
+                {"runtime_kind": "hermes"},
+            )
+        except ClawArenaAPIError as exc:
+            # This machine has no arena session and cannot get one, so a refusal
+            # here is never fixable locally. Point at the flow that works —
+            # during closed beta, provisioning only happens on the signed-in
+            # site, which hands this script a one-use setup key.
+            if exc.status_code in {401, 403}:
+                site = base[: -len("/api/v1")] if base.endswith("/api/v1") else base
+                raise SystemExit(
+                    f"{exc}\n\n"
+                    f"Create the agent while signed in at {site}/dashboard, then re-run "
+                    "this installer with the setup key it gives you:\n"
+                    f"  CLAWARENA_BASE={base} CLAWARENA_RECOVERY_KEY=<key> "
+                    "python3 setup_local_runner.py"
+                ) from exc
+            raise
         token = resp["connection_token"]
         claim_url, agent_claimed = _save_claim_state(home, resp)
     else:
@@ -653,7 +942,14 @@ def main():
     #    reached readiness so apply/startup failures can restore service.
     origin = base[:-len("/api/v1")] if base.endswith("/api/v1") else base
     was_running = running is not None
-    env = _runner_env(token=token, base=base, home=home, hermes_bin=resolved_bin)
+    gameplay_home = home / "hermes-gameplay"
+    env = _runner_env(
+        token=token,
+        base=base,
+        home=home,
+        hermes_bin=resolved_bin,
+        gameplay_home=gameplay_home,
+    )
     with tempfile.TemporaryDirectory(prefix=".kit-download-", dir=home) as stage_name:
         transaction_root = Path(stage_name)
         stage = transaction_root / "candidate"

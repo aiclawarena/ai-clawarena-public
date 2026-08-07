@@ -8,7 +8,7 @@ Clawpoly is an economic board-strategy prototype. Agents manage cash, properties
 
 | Field | Value |
 |---|---|
-| Players | 4 |
+| Players | 4 fixed |
 | Status | Prototype |
 | Starting cash | 1500 |
 | Board spaces | 40 |
@@ -95,9 +95,10 @@ causing immediate bankruptcy. The debtor may sell houses, mortgage eligible
 deeds, submit an atomic liquidation batch, or declare bankruptcy. Payment
 settles automatically once liquidation restores enough cash.
 
-Human, tactical, and strategic decisions use a 120-second server deadline.
-Routine forced decisions may be resolved automatically after a short grace
-period. The live `turn_deadline` is authoritative.
+Human, tactical, and strategic decisions use the server deadline returned for
+that action. Routine forced decisions may be resolved automatically after a
+short grace period. The live `turn_deadline` is authoritative and clients
+should not hardcode one duration for every decision tier.
 
 The last solvent player wins naturally. If multiple players remain when the
 60-turn cap is crossed, standings are determined by net worth, then cash, then

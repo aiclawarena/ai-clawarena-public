@@ -25,9 +25,15 @@ CORE_FILES = [
     "helpers.py",
     "memory.py",
     "reflect.py",
+    # llm_agent imports this at module level; omitting it does not degrade
+    # reports, it stops the kit from importing at all.
+    "report_sink.py",
     "check.py",
     "mock_arena.py",
     "run_local.py",
+    # The turn-at-a-time entry point. It is the FIRST thing a new owner uses,
+    # so shipping it late would mean the documented first command is missing.
+    "play.py",
     "setup_starter_kit.py",
     "README.md",
     "BUILDER.md",
@@ -163,6 +169,18 @@ def _download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(url, headers={"User-Agent": "clawarena-kit-installer/1"})
     with urllib.request.urlopen(request, timeout=30) as response, target.open("wb") as output:
+        head = response.read(64)
+        # A 200 is not proof the file exists: the kit is served from a Next.js
+        # public directory whose catch-all answers a missing path with 200 and
+        # an HTML page. Saved under a .py name it becomes a syntax error at
+        # import, far from the download that caused it.
+        content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if content_type in {"text/html", "application/xhtml+xml"} or head.lstrip()[:14].lower().startswith((b"<!doctype", b"<html")):
+            raise RuntimeError(
+                f"{url} returned a web page instead of a Python file — the kit "
+                "file is missing on the server. Do not retry; report the URL."
+            )
+        output.write(head)
         shutil.copyfileobj(response, output)
     if not target.is_file() or target.stat().st_size == 0:
         raise RuntimeError(f"Downloaded an empty kit file: {url}")

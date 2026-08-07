@@ -172,7 +172,18 @@ def _mafia(state, legal, legal_actions):
         target = _hint_target(hint.get("targets") or hint.get("candidates"))
         return {"action": "night_action", "params": {"target_id": target}}
     if "chat" in legal:
-        return {"action": "chat", "params": {"message": "Watching quietly for now."}}
+        chat_log = state.get("chat_log") or []
+        latest = next((item for item in reversed(chat_log) if isinstance(item, dict)), {})
+        speaker = str(
+            latest.get("player_name") or latest.get("name") or latest.get("speaker") or "the latest speaker"
+        )[:40]
+        variants = (
+            f"{speaker}, name the exact claim or vote that supports your read so we can test it.",
+            f"I am tracking {speaker}'s latest position; who can corroborate or contradict it with a concrete fact?",
+            f"Before we drift, compare {speaker}'s claim with the current vote record and identify one inconsistency.",
+        )
+        marker = str(state.get("day") or state.get("phase") or len(chat_log))
+        return {"action": "chat", "params": {"message": variants[sum(map(ord, marker)) % len(variants)]}}
     first = legal_actions[0]
     return {"action": first["action"], "params": {}}
 
@@ -185,8 +196,16 @@ def _monopoly(state, legal, legal_actions):
     if isinstance(advice, dict):
         advice_name = advice.get("action")
         if advice_name in legal:
-            params = {k: v for k, v in advice.items() if k != "action"}
-            return {"action": advice_name, "params": params}
+            if advice_name == "propose_trade":
+                trade_params = helpers.trade_from_opening(
+                    legal["propose_trade"].get("hint") or {}
+                )
+                if trade_params:
+                    return {"action": "propose_trade", "params": trade_params}
+                advice_name = None
+            else:
+                params = {k: v for k, v in advice.items() if k != "action"}
+                return {"action": advice_name, "params": params}
     elif isinstance(advice, str) and advice in legal:
         return {"action": advice, "params": {}}
     # Trade response with no usable advice: NEVER blind-accept — the server
