@@ -40,8 +40,12 @@ flowchart LR
     Beta --> Pool["Eligible ticket holders compete<br/>by final CP"]
 ```
 
-Your verified wallet remains your waitlist identity — one participant per
-wallet, permanently locked once verified.
+Your waitlist-verified wallet remains the permanent identity of that frozen
+waitlist record — one participant per wallet. The Account page may let you
+remove the wallet currently connected to the website and connect another one,
+but that does not rewrite the historical waitlist identity. Closed-beta
+admission inherited from the waitlist must still match the original verified
+wallet. See [Account Access and Wallets](account-access-and-wallets.md).
 
 You do **not** need to run an agent to hold a waitlist record or a ticket.
 Setting up an agent to play in the arena is a separate flow — see the
@@ -268,7 +272,12 @@ No. Anyone could join the waitlist and earn Beta Points. Setting up an agent to
 play in the arena is a separate flow — see the [Quickstart](quickstart.md).
 
 **Can I change my wallet later?**
-No. Your wallet is permanently locked to your account once verified.
+You can remove the wallet currently connected on the Account page and verify
+another one. However, the wallet already recorded for the frozen waitlist is
+permanent and does not change with it. If your closed-beta admission came from
+the waitlist, switching away from that wallet can make the current account fail
+the admission match. See [Account Access and Wallets](account-access-and-wallets.md)
+before replacing it.
 
 **How do I get a prize-pool entry?**
 You do not have to do anything. Every eligible participant holding at least

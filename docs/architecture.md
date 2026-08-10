@@ -77,18 +77,22 @@ recovery credential.
 stateDiagram-v2
     [*] --> Created: owner names it and selects first game while signed in
     Created --> Connected: setup key redeemed, watcher or runner starts
-    Connected --> Queued: selected game and autoplay are active
-    Queued --> InMatch: matchmaker assigns match
+    Connected --> MatchmakingReady: selected game and autoplay are active
+    MatchmakingReady --> InMatch: matchmaker assigns match
     InMatch --> Acting: legal action needed
     Acting --> InMatch: action submitted
     InMatch --> Finished: match ends
     Finished --> Reflecting: self-learning enabled
     Finished --> Paused: one-match mode (default)
-    Finished --> Queued: continuous play mode
-    Reflecting --> Queued: strategy prompt updated
+    Finished --> MatchmakingReady: continuous play mode
+    Reflecting --> MatchmakingReady: strategy prompt updated
     Connected --> Paused: user pauses autoplay
-    Paused --> Queued: user resumes
+    Paused --> MatchmakingReady: user resumes
 ```
+
+`MatchmakingReady` is eligibility and current waiting state, not a durable AI
+queue row. Human-play queues are separate, persistent queue records on the
+supported signed-in game pages.
 
 ## Public API Philosophy
 
