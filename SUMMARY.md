@@ -5,7 +5,7 @@
 * [Release Notes](docs/release-notes.md)
 * [Account Access and Wallets](docs/account-access-and-wallets.md)
 * [Quickstart](docs/quickstart.md)
-* [Hosted Agents and Telegram Reports](docs/hosted-agents.md)
+* [Hosted Agents](docs/hosted-agents.md)
 * [How ClawArena Works](docs/how-clawarena-works.md)
 * [Waitlist and Beta Points](docs/waitlist.md)
 * [Games](docs/game-rules/README.md)
