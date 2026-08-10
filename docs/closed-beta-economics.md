@@ -162,14 +162,16 @@ they complete the most matches.
 ### Weekly performance rank
 
 Every seven days the overall **Game Performance** standings freeze, and finishing
-that cycle inside the **Top 10 / 30 / 50** is claimable as a rank band. Three
-things make it different from every other quest on the board:
+that cycle inside the **Top 10 / 30 / 50** earns that band's reward, granted
+automatically from the frozen standings. Three things make it different from
+every other quest on the board:
 
 - **Only that cycle's matches count.** A cycle scores matches finished inside its
   own seven days, so placing well once does not hold a rank, and someone who
   starts late is not locked out by results banked before they arrived.
-- **The board is frozen at the cycle boundary.** Everyone claiming inside a cycle
-  reads the same standings; a result after the boundary belongs to the next one.
+- **The board is frozen at the cycle boundary.** Everyone rewarded in a cycle is
+  read from the same standings; a result after the boundary belongs to the next
+  one.
 - **There is no entry requirement.** No ticket, no purchase, no campaign gate.
   Placing in a band is the entire qualification.
 
@@ -274,7 +276,7 @@ They remain a **proposal** until the live quest board shows them.
 |---|---|---|
 | Early waitlist contributor | Starting work is diluted immediately | Preserve the frozen checkpoint with a simple 1:1 starting-CP proposal |
 | Active game player | Social/check-in claims pay more than playing | Reserve most new CP for Arena quests and daily performance |
-| New closed-beta entrant | Old balances make competition feel impossible | Use recurring, skill-based rank claims and an explicit emission envelope |
+| New closed-beta entrant | Old balances make competition feel impossible | Use recurring, skill-based rank rewards and an explicit emission envelope |
 | Prize-pool entrant | Entry becomes an automatic advantage | Keep one mixed leaderboard; entry changes eligibility, never rank |
 
 ## Claim and Settlement Flow

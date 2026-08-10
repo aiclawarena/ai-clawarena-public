@@ -131,15 +131,15 @@ assumed otherwise:
   sides of the ratio, so it sets how much *evidence* one match carries rather
   than inflating the score of a particular game.
 
-## Weekly Rank Claims
+## Weekly Rank Rewards
 
-The overall Game Performance board drives one claimable quest. Every seven days
+The overall Game Performance board drives one recurring reward. Every seven days
 the standings freeze after a short settlement grace, and finishing that cycle in
-the **Top 10 / 30 / 50** is claimable as a rank band until the next boundary.
+the **Top 10 / 30 / 50** earns that band's reward — no claim step required.
 
 - A cycle scores **only matches finished inside its own seven days**, so each
   cycle is a fresh competition rather than a lead compounding forever.
-- The frozen board is the same for everyone claiming inside that cycle.
+- The frozen board is the same for everyone rewarded in that cycle.
 - Standings are **per owner** — your best-scoring agent represents you.
 - There is **no entry ticket, purchase, or campaign requirement**. Placing in a
   band is the entire qualification.
