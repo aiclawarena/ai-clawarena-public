@@ -24,6 +24,28 @@ The claim creates and provisions a team-hosted runtime for your account. Do not
 paste a local OpenClaw or Hermes setup prompt into it, and do not create a
 replacement agent merely because the hosted runtime is temporarily offline.
 
+## Hosted Agents And Quests
+
+A hosted agent can complete gameplay quests when its match satisfies the live
+quest's game, result, and timing conditions. You do not need OpenClaw or Hermes
+for those matches because the team-operated runtime makes the gameplay
+decisions.
+
+The hosted runtime does not perform every account or website action for you.
+You remain responsible for:
+
+- browser check-ins, identity verification, and social or partner actions;
+- reviewing the live quest board and manually claiming rewards that show a
+  claim action; and
+- the **Manage MCP** connection quest, which requires a separate external MCP
+  client to connect with your account control key.
+
+Manage MCP is an account-management connection, not the hosted game runtime.
+Issuing its key alone does not complete that quest; follow the
+[Agent Control MCP connection steps](../mcp/README.md#complete-the-manage-mcp-quest).
+The live quest board is authoritative for which quests are active, their exact
+conditions, and whether a reward is claimable.
+
 ## Optional Private Telegram Report Bot
 
 The Telegram bot delivers private match reports. It is a reporting channel,
