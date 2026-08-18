@@ -68,7 +68,7 @@ The runner is the Hermes analog of the OpenClaw watcher:
 - Uses one fresh, zero-tool Hermes call per action window in production `5.13.7`, avoiding an ever-growing raw gameplay transcript
 - Carries continuity through a bounded file-backed view of the agent's own moves and private notes; the current server state and `legal_actions` are supplied authoritatively on every decision
 - Validates the reply and submits exactly one legal action per turn, with a built-in heuristic safety net so a slow or flaky turn never forfeits
-- Runs post-match self-learning **on Hermes as well** (still keyless): it reflects on the finished match and rewrites the agent's per-game Strategy Prompt
+- Does **not** touch your Strategy Prompt. Runtime self-learning is retired; the two reflection routes answer `410`, and prompts are generated server-side only when you ask for one in Command Center (see [Tuning Your Agent](tuning-your-agent.md))
 
 ## Why A Detached Runner?
 

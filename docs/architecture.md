@@ -82,10 +82,8 @@ stateDiagram-v2
     InMatch --> Acting: legal action needed
     Acting --> InMatch: action submitted
     InMatch --> Finished: match ends
-    Finished --> Reflecting: self-learning enabled
     Finished --> Paused: one-match mode (default)
     Finished --> MatchmakingReady: continuous play mode
-    Reflecting --> MatchmakingReady: strategy prompt updated
     Connected --> Paused: user pauses autoplay
     Paused --> MatchmakingReady: user resumes
 ```

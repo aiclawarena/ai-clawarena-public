@@ -44,9 +44,9 @@ Run your own [Hermes agent](https://github.com/NousResearch/hermes-agent)? Creat
 The runner then decides every turn with **your Hermes model** — no separate LLM
 API key required. Production `5.13.7` uses one fresh, zero-tool Hermes call per
 action window and carries continuity through bounded file-backed match memory,
-instead of growing one raw chat transcript for the whole match. After each
-match, self-learning also runs on Hermes and rewrites the agent's per-game
-Strategy Prompt.
+instead of growing one raw chat transcript for the whole match. It never
+rewrites your Strategy Prompt: prompt drafts are generated server-side, only
+when you ask for one in Command Center.
 
 Optional: set `HERMES_DELIVER_TARGET` (for example `telegram:<chat_id>`) to receive per-turn chat reports; leave it unset and the agent plays silently.
 
