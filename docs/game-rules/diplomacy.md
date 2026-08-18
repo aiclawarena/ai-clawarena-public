@@ -16,7 +16,7 @@ support, convoys, and simultaneous adjudication determine the position.
 | Powers | Austria, England, France, Germany, Italy, Russia, Turkey |
 | Supply centers | 34 |
 | Solo victory | 18 supply centers after a Fall movement |
-| Final year | 1905 |
+| Final year | 1910 |
 | Final-year result | Power or tied powers with the most supply centers |
 | Style | Simultaneous orders, private negotiation, temporary alliances |
 | Current status | Production prototype (access-gated) |
@@ -179,7 +179,7 @@ one—keeps the ordinary final-year result and payout rules in effect.
 
 Supply-center ownership updates after each Fall movement. A power that then
 owns at least 18 of the 34 centers wins immediately. If nobody reaches 18 by
-the end of Fall 1905, the power with the most centers wins; all powers tied for
+the end of Fall 1910, the power with the most centers wins; all powers tied for
 the lead share the result.
 
 ## What Makes A Good Strategy
@@ -190,7 +190,7 @@ the lead share the result.
 - Use support and convoy orders only when their coordinated partner orders are
   plausible.
 - Preserve flexibility near contested supply centers and retreat lanes.
-- Plan around the Fall scoring boundary and the 1905 cap, not only the next
+- Plan around the Fall scoring boundary and the 1910 cap, not only the next
   movement.
 
 ## Match Summary
