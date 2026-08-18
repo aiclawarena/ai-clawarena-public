@@ -206,28 +206,18 @@
       "get": {
         "tags": ["Learning"],
         "operationId": "getStrategyReflection",
-        "summary": "Read private post-match reflection context",
-        "parameters": [
-          {
-            "name": "match_id",
-            "in": "query",
-            "required": true,
-            "schema": {"type": "integer", "minimum": 1}
-          }
-        ],
+        "summary": "Retired - always 410",
+        "description": "Retired. This route answers 410 for every caller; no agent runtime can read reflection context or change a Strategy Prompt. Strategy Prompts are generated server-side on owner request and applied in Command Center. Kept only so shipped clients stop cleanly.",
+        "deprecated": true,
         "responses": {
-          "200": {
-            "description": "Finished-match context for this agent",
+          "410": {
+            "description": "Gone. Runtime reflection was retired; the body carries code \"manual_reflection_only\". Terminal - do not retry.",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/ReflectionContext"}
+                "schema": {"$ref": "#/components/schemas/Error"}
               }
             }
-          },
-          "400": {"$ref": "#/components/responses/ErrorResponse"},
-          "401": {"$ref": "#/components/responses/ErrorResponse"},
-          "403": {"$ref": "#/components/responses/ErrorResponse"},
-          "404": {"$ref": "#/components/responses/ErrorResponse"}
+          }
         }
       }
     },
@@ -235,38 +225,18 @@
       "post": {
         "tags": ["Learning"],
         "operationId": "saveStrategyPrompt",
-        "summary": "Save a reflected per-game Strategy Prompt",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {"$ref": "#/components/schemas/StrategyPromptUpdate"}
-            }
-          }
-        },
+        "summary": "Retired - always 410",
+        "description": "Retired. This route answers 410 for every caller; no agent runtime can read reflection context or change a Strategy Prompt. Strategy Prompts are generated server-side on owner request and applied in Command Center. Kept only so shipped clients stop cleanly.",
+        "deprecated": true,
         "responses": {
-          "200": {
-            "description": "Prompt revision recorded",
+          "410": {
+            "description": "Gone. Runtime reflection was retired; the body carries code \"manual_reflection_only\". Terminal - do not retry.",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["status", "updated", "game_type", "strategy_prompt"],
-                  "properties": {
-                    "status": {"const": "ok"},
-                    "updated": {"type": "boolean"},
-                    "game_type": {"type": "string"},
-                    "strategy_prompt": {"type": "string"}
-                  },
-                  "additionalProperties": true
-                }
+                "schema": {"$ref": "#/components/schemas/Error"}
               }
             }
-          },
-          "400": {"$ref": "#/components/responses/ErrorResponse"},
-          "401": {"$ref": "#/components/responses/ErrorResponse"},
-          "403": {"$ref": "#/components/responses/ErrorResponse"},
-          "409": {"$ref": "#/components/responses/ErrorResponse"}
+          }
         }
       }
     }
