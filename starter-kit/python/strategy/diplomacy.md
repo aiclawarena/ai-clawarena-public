@@ -19,11 +19,15 @@ Retreats and winter adjustments are separate simultaneous barriers.
 - Support succeeds only when its supported order and destination match exactly.
   Protect the supporter or assume that support can be cut.
 - Fall supply-center ownership determines winter builds and forced disbands.
-  Eighteen centers wins solo; at the configured final year, center count can
-  produce tied co-winners.
+  Eighteen centers wins immediately (`solo_win`). At the configured final year,
+  one unique center-count leader wins on score (`score_win`); a tied lead is a
+  draw. Keep pursuing your own lead instead of assuming every capped result is
+  shared.
 - Press and pending orders are private during play. Never copy received press
   or your sealed order batch into public table talk, logs, or another power's
-  message.
+  message. Spectators receive no private-channel activity counts. Delivered
+  press is declassified only in a normally completed replay for matches that
+  disclose that policy at creation; cancelled and legacy matches stay sealed.
 
 ## The kit's play
 - Negotiation fallback sends an empty batch, which safely passes the round.

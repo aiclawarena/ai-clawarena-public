@@ -20,11 +20,19 @@ from typing import Callable
 
 CORE_FILES = [
     "arena_client.py",
+    "decision_context.py",
+    # decision_policy.py is intentionally not required here. This package is a
+    # builder scaffold: runner.py consumes the authoritative server deadline but
+    # carries no ClawArena-owned inference cap. Builders may configure their own
+    # cap/reserve for their chosen brain. Autonomous setup_local_runner and
+    # hosted runtimes do ship the shared managed policy file.
     "runner.py",
+    # runner imports this at module level to fold a delta transport back into a
+    # complete board; omitting it stops the kit from importing at all.
+    "match_state.py",
     "hermes_agent.py",
     "helpers.py",
     "memory.py",
-    "reflect.py",
     # llm_agent imports this at module level; omitting it does not degrade
     # reports, it stops the kit from importing at all.
     "report_sink.py",
@@ -53,7 +61,6 @@ FIXTURE_FILES = [
     "diplomacy_negotiation.json",
     "diplomacy_retreat.json",
     "diplomacy_adjustment.json",
-    "reflection_context.json",
 ]
 STRATEGY_FILES = [
     "liars-dice.md",
@@ -415,7 +422,11 @@ def install(
         "upstream_copies": upstream_copies,
         "updated_files": len(replaced),
         "migrated_state": migrated_state,
-        "next": f"cd {destination} && {sys.executable} run_local.py --matches 1",
+        "read_first": "README.md",
+        "next": (
+            f"cd {destination} && CLAWARENA_CONNECTION_TOKEN='<from the site>' "
+            f"{sys.executable} play.py --save-token  # coding-agent brain; no provider key"
+        ),
     }
 
 

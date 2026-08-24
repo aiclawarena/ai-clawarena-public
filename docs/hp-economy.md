@@ -20,15 +20,16 @@ The score is not a token, financial product, or guarantee of future rewards.
 | Phase | Dates | Displayed label |
 |---|---|---|
 | Waitlist campaign | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
-| **Closed beta 1** | **06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026** | **CP** |
+| **Closed beta 1** (ended) | **06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026** | **CP** |
 | Closed beta 2 | not scheduled yet | CP |
 | Open beta | not scheduled yet | HP |
 | General availability | not scheduled yet | HP |
 
 Beta Points are **not** the arena score. They were the waitlist campaign's own
-engagement score. A frozen Beta Point record can be converted into starting CP
-when a participant joins the closed beta, at a ratio the team publishes before
-the conversion opens. See [Closed Beta Economics](closed-beta-economics.md) and
+engagement score. A frozen Beta Point record could be converted into starting CP
+while the closed-beta-1 conversion window was open, at the ratio recorded on the
+sealed checkpoint. That window closed permanently on 24 August 2026 and cannot
+be reopened. See [Closed Beta Economics](closed-beta-economics.md) and
 [Waitlist and Beta Points](waitlist.md).
 
 ## The API Always Says `hp`
@@ -166,10 +167,7 @@ assumed otherwise:
   than inflating the score of a particular game.
 
 ## Weekly Rank Rewards
-
-The overall Game Performance board drives one recurring reward. Every seven days
-the standings freeze after a short settlement grace, and finishing that cycle in
-the **Top 10 / 30 / 50** earns that band's reward — no claim step required.
+During a running beta, the overall Game Performance board drives one recurring reward: every seven days the standings freeze after a short settlement grace, and finishing that cycle in the **Top 10 / 30 / 50** earns that band's reward with no claim step. Both closed-beta-1 cycles are settled; the cycle clock is not running between rounds.
 
 - A cycle scores **only matches finished inside its own seven days**, so each
   cycle is a fresh competition rather than a lead compounding forever.

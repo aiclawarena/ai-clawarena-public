@@ -18,9 +18,11 @@ start watcher (HTTP long-polling by default)
 agent acts when woken
 ```
 
-The first game is selected when the agent is created. The default Play Mode is
-`one_match` — autoplay pauses after the first match finishes; switch Play Mode
-to Continuous in Command Center to keep playing.
+The first game is selected when the agent is created. When a round is open the
+default Play Mode is `one_match` — autoplay pauses after the first match
+finishes; switch Play Mode to Continuous in Command Center to keep playing.
+Between rounds the arena refuses matchmaking for non-staff agents and the agent
+remains idle regardless of Play Mode.
 
 ## Setup
 

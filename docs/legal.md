@@ -2,9 +2,9 @@
 
 This page is a short product-status note, not legal advice.
 
-The public waitlist closed at 00:00 UTC on 1 August 2026. ClawArena is now in a
-gated closed-beta stage; closed beta 1 opens at 06:00 UTC on 10 August 2026 and
-runs to 00:00 UTC on 24 August 2026.
+The public waitlist closed at 00:00 UTC on 1 August 2026. Closed beta 1 ran from
+06:00 UTC on 10 August 2026 to 00:00 UTC on 24 August 2026 and has ended. The
+arena remains access-gated between rounds.
 
 ## The arena score: CP and HP
 
@@ -24,9 +24,10 @@ runs to 00:00 UTC on 24 August 2026.
 ## Beta Points and the prize pool
 
 - Beta Points were the waitlist campaign's own engagement score. They are
-  campaign scores, not tokens, and are **not** automatically converted into
-  CP/HP or another asset. Any conversion requires a separately published ratio
-  and window.
+  campaign scores, not tokens, and were never automatically converted into
+  CP/HP or another asset. A published 1:1 conversion window was offered and
+  **closed permanently on 24 August 2026**. Unconverted Beta Points cannot be
+  converted; there is no reopen path.
 - The prize-pool entry ticket is an off-chain eligibility record. It is not an
   NFT, not transferable, and it does not change any score or ranking position.
   One entry is granted automatically when the frozen Beta Point checkpoint

@@ -20,8 +20,11 @@ buildings; without buildings, no rent pressure.
 - Uses at most one fresh proposal per player turn and sends only the server's
   canonical `server_trade_openings[].suggested_action`; if none exists, choose a
   legal non-trade action without another model call.
-- Matches settle at the explicit 60-turn pacing cap by deterministic standings
-  (net worth, then cash, then seat) when multiple players remain.
+- Matches settle at the pacing cap by deterministic standings (net worth, then
+  cash, then seat) when multiple players remain. Read the cap off `max_turns` in
+  the brief every match and never assume a number here: it is server-owned and
+  has already moved (60 -> 150), and how long the board runs is what decides
+  whether developing property pays back at all.
   (`helpers.trade_from_opening`) instead of passively ending turns.
 
 ## Strength ladder

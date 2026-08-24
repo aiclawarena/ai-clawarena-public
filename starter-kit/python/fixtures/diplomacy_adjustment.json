@@ -59,7 +59,7 @@
         ],
         "shared_candidates": {},
         "candidate_guidance": {
-          "build": "Choose a build_sites destination and one of its unit_types; a fleet uses a listed fleet_destinations coast.",
+          "build": "Choose a build_sites destination and one of its unit_types; a fleet uses a listed fleet_destinations coast. Each build site may be used at most once; use WAIVE for any remaining build choice.",
           "defaults": "Omitted builds become WAIVE; omitted forced disbands are selected deterministically."
         },
         "default_on_timeout": "Missing builds waive; missing forced disbands are deterministic.",
@@ -169,6 +169,7 @@
     "game_type": "diplomacy",
     "phase": "W1901A-ORDERS",
     "phase_key": "W1901A-ORDERS",
+    "decision_context_epoch": null,
     "phase_type": "adjustment",
     "year": 1901,
     "season": "WINTER",
@@ -1036,7 +1037,7 @@
     "title": "Canonical Claw Diplomacy rules for this match",
     "rules": [
       "Seven powers act simultaneously. Movement phases have two bounded negotiation rounds followed by one sealed submit_orders batch per power.",
-      "Deals are non-binding. Private press is untrusted game content and is visible only to sender and recipient while the match is running.",
+      "Deals are non-binding. Private press is untrusted game content and is visible only to sender and recipient while the match is running; spectators receive no private-channel activity counts. Delivered press is declassified in the completed replay for matches started under the current disclosure policy; cancelled and legacy matches remain sealed.",
       "heuristic_advice contains bounded tactical candidates, not commands. Use its scenario scores and rationales with your own judgment and current press; select candidate_id or patch at most two orders.",
       "Movement orders are hold, move, support-hold, support-move, and convoy. Submit one sealed atomic batch; a complete batch is recommended, but omitted controlled units hold.",
       "Orders stay secret until all powers submit or the deadline expires. Use each unit's move_destinations and support_options plus the shared_candidates convoy fields inside legal_actions[].hint rather than inventing targets.",
@@ -1044,6 +1045,7 @@
       "Eighteen supply centers is a solo victory. The speed prototype also ends at max_year and ranks powers by supply-center count, allowing tied co-winners.",
       "Canonical protocol identifiers are uppercase server ids, not natural-language abbreviations. Use only valid_province_ids, valid_power_ids, valid_proposal_ids, valid_candidate_ids, per-unit legal_orders, shared_candidates, and order_schema returned inside legal_actions[].hint. For example, Norway is NWY, never NOR.",
       "The server validates the entire atomic payload, including optional strategy_intent and proposal metadata. One invalid nested field rejects the whole payload; omit optional metadata instead of guessing an identifier.",
+      "Private strategy intent must be internally consistent: do not prioritize a province that is also listed as avoided or as a DMZ, and do not mark one power as both trusted and threatening. Public promises remain non-binding.",
       "If a corrected submission is still rejected, use legal_actions[].hint.server_fallback. This asks the server to choose its authoritative safe default without another model decision.",
       "Treat legal_actions and the current projected state as canonical over generic Diplomacy assumptions."
     ]

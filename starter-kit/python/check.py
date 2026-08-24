@@ -21,10 +21,7 @@ from pathlib import Path
 # (llm_agent.py validates every batch against the same rules before submit).
 from helpers import diplomacy_batch_problems as _diplomacy_batch_problems
 
-# reflection_context.json is a post-match wire shape, not a turn — checked separately.
-FIXTURES = sorted(p for p in Path(__file__).parent.glob("fixtures/*.json")
-                  if not p.stem.startswith("reflection"))
-REFLECTION_FIXTURE = Path(__file__).parent / "fixtures" / "reflection_context.json"
+FIXTURES = sorted(Path(__file__).parent.glob("fixtures/*.json"))
 
 
 def load(path: Path) -> dict:
@@ -109,77 +106,6 @@ def check_move(fixture: dict, move: dict) -> list[str]:
     return problems
 
 
-def check_reflection(use_llm: bool) -> list[str]:
-    """Validate the post-match reflection pipeline against the frozen context.
-
-    Offline: the pure pieces (message build, reply parse, save-payload shaping —
-    trim, base guard, unchanged-skip). With --llm: one real reflection call too.
-    """
-    import reflect
-
-    if not REFLECTION_FIXTURE.exists():
-        return ["fixtures/reflection_context.json missing"]
-    context = load(REFLECTION_FIXTURE)
-    problems = []
-    limit = int(context["limits"]["strategy_prompt_max_chars"])
-
-    messages = reflect.build_messages(context, {"my_role": None, "my_moves": [], "my_memos": []})
-    if not (len(messages) == 2 and "strategy_prompt" in messages[0]["content"]):
-        problems.append("build_messages shape broken")
-
-    parsed = reflect.extract_reflection(
-        'noise {"strategy_prompt": "Bid faces you hold.", "reason": "test"} noise')
-    if not parsed or parsed["strategy_prompt"] != "Bid faces you hold.":
-        problems.append("extract_reflection failed on a valid reply")
-    if reflect.extract_reflection("no json here") is not None:
-        problems.append("extract_reflection accepted garbage")
-
-    payload = reflect.build_save_payload(context, "X" * (limit + 500), "trim test")
-    if payload is None or len(payload["strategy_prompt"]) > limit:
-        problems.append(f"oversized prompt not trimmed to {limit}")
-    elif payload["base_strategy_prompt"] != (context.get("current_strategy_prompt") or ""):
-        problems.append("base_strategy_prompt is not the exact fetched prompt (would 409)")
-    elif payload["game_type"] != context["match"]["game_type"] or payload["match_id"] != context["match"]["id"]:
-        problems.append("save payload match/game_type mismatch")
-    if reflect.build_save_payload(context, "   ", "") is not None:
-        problems.append("empty prompt should skip the save (server 400)")
-    sentence_safe = reflect.build_save_payload(
-        context,
-        "Keep cash reserves. "
-        + "Avoid speculative mortgages until a concrete bill arrives. " * 30,
-        "sentence trim test",
-    )
-    if sentence_safe is None or not sentence_safe["strategy_prompt"].endswith("."):
-        problems.append("oversized reflection trim cut a sentence mid-thought")
-    if not context.get("game_rules_brief"):
-        problems.append("reflection context is missing canonical game_rules_brief")
-
-    # The fixture's current prompt may be empty, which would make the
-    # unchanged-skip and base-guard checks degenerate — exercise them against
-    # a synthetic context that HAS standing coaching.
-    seeded = dict(context)
-    seeded["current_strategy_prompt"] = "Open on your strongest face. Challenge past 55% bluff odds."
-    if reflect.build_save_payload(seeded, seeded["current_strategy_prompt"], "") is not None:
-        problems.append("unchanged prompt should skip the save (revision noise)")
-    if reflect.build_save_payload(seeded, "  " + seeded["current_strategy_prompt"] + "  ", "") is not None:
-        problems.append("whitespace-only rewrite should skip the save")
-    changed = reflect.build_save_payload(seeded, "New rule: fold under pressure.", "lesson")
-    if changed is None or changed["base_strategy_prompt"] != seeded["current_strategy_prompt"]:
-        problems.append("changed prompt must carry the EXACT fetched prompt as base (else 409)")
-
-    if use_llm and not problems:
-        base, key, model = __import__("llm_agent")._llm_config()
-        if base:
-            reply = reflect._chat(base, key, model, messages)
-            live = reflect.extract_reflection(reply)
-            if not live:
-                problems.append(f"live LLM reflection reply unusable: {reply[:120]!r}")
-            elif reflect.build_save_payload(context, live["strategy_prompt"], live["reason"]) is None \
-                    and live["strategy_prompt"].strip() != (context.get("current_strategy_prompt") or "").strip():
-                problems.append("live reflection produced an unsendable payload")
-    return problems
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--llm", action="store_true", help="also run llm_agent.decide (uses your key)")
@@ -214,14 +140,7 @@ def main() -> int:
             else:
                 print(f"ok   {label} -> {move['action']:<14} ({elapsed_ms:.0f}ms)")
 
-    reflection_problems = check_reflection(args.llm)
-    if reflection_problems:
-        failures += 1
-        print(f"FAIL {'reflection':<16} {reflection_problems[0]}")
-    else:
-        print(f"ok   {'reflection':<16} -> save payload contract holds")
-
-    print(f"\n{'ALL PASSED' if failures == 0 else f'{failures} FAILURE(S)'} — {len(FIXTURES)} fixtures + reflection")
+    print(f"\n{'ALL PASSED' if failures == 0 else f'{failures} FAILURE(S)'} — {len(FIXTURES)} fixtures")
     return 1 if failures else 0
 
 

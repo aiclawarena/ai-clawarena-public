@@ -39,16 +39,22 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-KIT_FILES = ["arena_client.py", "runner.py", "agent.py", "llm_agent.py",
-             "hermes_agent.py", "helpers.py", "memory.py", "reflect.py",
+KIT_FILES = ["arena_client.py", "runner.py", "decision_context.py", "decision_policy.py", "agent.py", "llm_agent.py",
+             # runner imports match_state at module level.
+             "match_state.py",
+             "hermes_agent.py", "helpers.py", "memory.py",
              # llm_agent imports this at module level, so omitting it does not
              # degrade reports — it stops the runner from importing at all.
              "report_sink.py", "play.py"]
 DEFAULT_ARENA_BASE = "https://aiclawarena.ai/api/v1"
 STATE_OWNER_FILENAME = "state_owner.json"
 MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS = 60.0
+DEFAULT_HERMES_GAMEPLAY_TIMEOUT_SECONDS = 165.0
 MIN_HERMES_GAMEPLAY_MAX_TOKENS = 128
-MAX_HERMES_GAMEPLAY_MAX_TOKENS = 768
+# Matches kit.hermes_agent and the arena gateway: the provider counts hidden
+# reasoning against this cap, so 768 truncated a reasoning turn before its
+# action JSON.
+MAX_HERMES_GAMEPLAY_MAX_TOKENS = 8000
 HERMES_GAMEPLAY_PROVIDER_ENV = "CLAWARENA_HERMES_GAMEPLAY_PROVIDER"
 HERMES_GAMEPLAY_MODEL_ENV = "CLAWARENA_HERMES_GAMEPLAY_MODEL"
 HERMES_GAMEPLAY_BASE_URL_ENV = "CLAWARENA_HERMES_GAMEPLAY_BASE_URL"
@@ -57,9 +63,9 @@ HERMES_GAMEPLAY_BASE_URL_ENV = "CLAWARENA_HERMES_GAMEPLAY_BASE_URL"
 def _gameplay_max_tokens(env: dict[str, str] | None = None) -> int:
     values = os.environ if env is None else env
     try:
-        requested = int(values.get("CLAWARENA_HERMES_MAX_TOKENS", "768"))
+        requested = int(values.get("CLAWARENA_HERMES_MAX_TOKENS", "8000"))
     except (TypeError, ValueError):
-        requested = 768
+        requested = 8000
     return max(
         MIN_HERMES_GAMEPLAY_MAX_TOKENS,
         min(MAX_HERMES_GAMEPLAY_MAX_TOKENS, requested),
@@ -386,7 +392,12 @@ def _runner_env(
     gameplay_route = _gameplay_route(env)
     gameplay_max_tokens = _gameplay_max_tokens(env)
     try:
-        configured_timeout = float(env.get("HERMES_TIMEOUT_SECONDS", "60"))
+        configured_timeout = float(
+            env.get(
+                "HERMES_TIMEOUT_SECONDS",
+                str(DEFAULT_HERMES_GAMEPLAY_TIMEOUT_SECONDS),
+            )
+        )
     except ValueError:
         configured_timeout = MIN_HERMES_GAMEPLAY_TIMEOUT_SECONDS
     try:
@@ -400,8 +411,8 @@ def _runner_env(
         CLAWARENA_BRAIN="hermes",
         HERMES_BIN=hermes_bin,
         HERMES_GAMEPLAY_HOME=str(gameplay_home or ""),
-        HERMES_GAMEPLAY_REASONING_EFFORT="none",
-        HERMES_GAMEPLAY_THINKING_MODE="disabled",
+        HERMES_GAMEPLAY_REASONING_EFFORT="low",
+        HERMES_GAMEPLAY_THINKING_MODE="enabled",
         CLAWARENA_HERMES_MAX_TOKENS=str(gameplay_max_tokens),
         HERMES_MAX_TOKENS=str(gameplay_max_tokens),
         HERMES_TIMEOUT_SECONDS=(
@@ -504,7 +515,7 @@ def _validate_gameplay_home(
     check_env["HERMES_HOME"] = str(target)
     route = _gameplay_route(env)
     checks = {
-        "agent.reasoning_effort": "none",
+        "agent.reasoning_effort": "low",
         "model.max_tokens": str(_gameplay_max_tokens(env)),
         "agent.api_max_retries": "0",
     }
@@ -532,15 +543,14 @@ def _validate_gameplay_home(
 def _prepare_gameplay_home(
     home: Path, hermes_bin: str, env: dict[str, str] | None = None,
 ) -> Path:
-    """Create a private ClawArena-only Hermes profile with thinking disabled.
+    """Create a private ClawArena-only Hermes profile with low reasoning.
 
     The user's normal profile may deliberately use ``reasoning_effort: max``
     for chat. Gameplay has a hard action clock, so inheriting that global
-    preference creates avoidable timeouts. Even ``low`` keeps DeepSeek V4
-    thinking enabled and can saturate the action deadline, so the isolated
-    gameplay profile disables thinking entirely. By default it preserves the
-    provider route; an explicit complete CLAWARENA_HERMES_GAMEPLAY_* route can
-    replace it only inside this isolated profile while reusing the user's
+    preference creates avoidable timeouts. The isolated gameplay profile pins
+    reasoning to ``low`` while keeping thinking enabled. By default it preserves
+    the provider route; an explicit complete CLAWARENA_HERMES_GAMEPLAY_* route
+    can replace it only inside this isolated profile while reusing the user's
     existing provider credential store.
     """
     values = os.environ if env is None else env
@@ -571,7 +581,7 @@ def _prepare_gameplay_home(
         })
     rendered = _yaml_section_overrides(source_text, "model", model_overrides)
     rendered = _yaml_section_overrides(rendered, "agent", {
-        "reasoning_effort": "none",
+        "reasoning_effort": "low",
         "reasoning_overrides": {},
         "max_turns": 1,
         "api_max_retries": 0,
@@ -604,11 +614,16 @@ def _preflight_candidate(kit: Path, env: dict[str, str]) -> None:
     preflight_env = dict(env)
     preflight_env.pop("CLAWARENA_SKIP_PREFLIGHT", None)
     try:
-        hermes_timeout = int(preflight_env.get("HERMES_TIMEOUT_SECONDS", "60"))
+        hermes_timeout = int(
+            preflight_env.get(
+                "HERMES_TIMEOUT_SECONDS",
+                str(int(DEFAULT_HERMES_GAMEPLAY_TIMEOUT_SECONDS)),
+            )
+        )
     except ValueError:
         hermes_timeout = 60
     result = subprocess.run(
-        [sys.executable, str(kit / "runner.py"), "--preflight-only", "--no-reflect"],
+        [sys.executable, str(kit / "runner.py"), "--preflight-only"],
         cwd=str(kit),
         env=preflight_env,
         capture_output=True,
@@ -690,7 +705,12 @@ def _start_runner(
         )
     _atomic_write(pidfile, str(proc.pid))
     try:
-        hermes_timeout = int(os.environ.get("HERMES_TIMEOUT_SECONDS", "60"))
+        hermes_timeout = int(
+            os.environ.get(
+                "HERMES_TIMEOUT_SECONDS",
+                str(int(DEFAULT_HERMES_GAMEPLAY_TIMEOUT_SECONDS)),
+            )
+        )
     except ValueError:
         hermes_timeout = 60
     startup_timeout = max(90, hermes_timeout + 30)

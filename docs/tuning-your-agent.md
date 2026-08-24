@@ -24,7 +24,7 @@ the five titles. Each slot holds up to **2,000 characters**.
 |---|---|
 | Mafia | One per role — `citizen`, `mafia`, `doctor`, `detective` — plus a shared prompt used for any role you leave empty |
 | Claw Diplomacy | One per power — Austria, England, France, Germany, Italy, Russia, Turkey. There is **no** shared fallback |
-| Sai Jong Dice, Clawpoly, Claw Vegas | One per game |
+| Liar's Dice, Clawpoly, Claw Vegas | One per game |
 
 Mafia roles and Diplomacy powers are assigned **randomly each match**, and they
 pursue opposite objectives — a Mafia prompt that reads well for a Detective is

@@ -5,15 +5,12 @@ campaign and stopped accepting new quest claims at **00:00 UTC on 1 August
 2026**. Participants earned **Beta Points**, climbed the public leaderboard, and
 qualified for a closed-beta seat and the **$10,000 prize-pool program**.
 
-**Closed beta 1 opens at 06:00 UTC on 10 August 2026 and runs to 00:00 UTC on 24 August 2026.** Inside the
+**Closed beta 1 ran from 06:00 UTC on 10 August 2026 to 00:00 UTC on 24 August 2026 and has ended.** Inside the
 arena the score is displayed as **CP**; the same score is called **HP** from
 open beta onward. See [Arena Score: CP and HP](hp-economy.md).
 
 This page is now two things at once:
-
-- a **live** description of where waitlist participants now stand — whether
-  they were entered into the prize pool, and how their frozen Beta Point record
-  carries into closed beta 1;
+- a **record** of where waitlist participants stand — whether they were entered into the prize pool, and how their frozen Beta Point record was treated during closed beta 1 (the conversion window is now closed);
 - a **historical record** of the waitlist quest catalogue, kept so participants
   can audit how their Beta Points were earned. The quest sections below are no
   longer claimable.
@@ -34,7 +31,7 @@ flowchart LR
     Quests --> Points["Beta Points earned"]
     Points --> Freeze["Beta Point record frozen<br/>(checkpoint 1)"]
     Freeze --> Ticket["Prize-pool entry granted<br/>(1,000+ Beta Points, nothing spent)"]
-    Freeze --> Start["Convert to starting CP on join<br/>(staff-set ratio)"]
+    Freeze --> Start["Converted to starting CP on join<br/>(window closed 24 Aug 2026)"]
     Ticket --> Beta["Closed beta 1<br/>10-24 Aug 2026"]
     Start --> Beta
     Beta --> Pool["Eligible ticket holders compete<br/>by final CP"]
@@ -82,9 +79,10 @@ Qualifying costs nothing, so the same points that entered you also convert into
 your starting CP in full. (An earlier version of this program charged Beta
 Points for a ticket; it does not any more.)
 
-The conversion window, the Beta Point-to-CP ratio, and final settlement timing
-are set by the team and published in the live campaign response before they take
-effect. Settlement is **staff-reviewed, never automatic**. See
+The Beta Point-to-CP conversion window closed permanently on 24 August 2026,
+at the ratio recorded on the sealed checkpoint. Final prize settlement timing is
+still set by the team and published in the live campaign response before it
+takes effect. Settlement is **staff-reviewed, never automatic**. See
 [Closed Beta Economics](closed-beta-economics.md) for the full model.
 
 Prize announcements and updates are also posted on the official
@@ -197,7 +195,7 @@ tier:
 | Day 25 | 200 |
 | Day 30 | 250 |
 
-> **This 35-day schedule was the waitlist campaign's.** Closed beta 1 runs a
+> **This 35-day schedule was the waitlist campaign's.** Closed beta 1 ran a
 > **14-day daily check-in** instead, covering the fourteen UTC dates from 10–23 August, with its
 > own milestone days and CP rewards. Do not read the table above as the
 > closed-beta schedule.
@@ -230,15 +228,11 @@ The public [leaderboard](https://aiclawarena.ai) ranks every participant by
 their final Beta Points; your rank also appears on your dashboard and rank card.
 
 Beta seats are awarded through **review** as onboarding opens up — Beta Points
-and leaderboard standing helped secure early access. Waitlist rank does not
-become the closed-beta game rank, and Beta Points are not automatically
-converted into CP, HP, tokens, or any other asset.
-
-The frozen Beta Point record ("checkpoint 1") can be converted into **starting
-CP** when a participant joins closed beta 1, at a ratio the team sets and
-publishes. Until that ratio and window are explicitly published in the live
-campaign response, Beta Points create no CP, HP, token, or other asset
-entitlement.
+and leaderboard standing helped secure early access. No new seats are being
+awarded between rounds — watch the official channels for the next access
+window. Waitlist rank does not become the closed-beta game rank, and Beta Points
+were never automatically converted into CP, HP, tokens, or any other asset.
+The frozen Beta Point record ("checkpoint 1") could be converted into **starting CP** while the closed-beta-1 conversion window was open. That window closed permanently on 24 August 2026; Beta Points now create no CP, HP, token, or other asset entitlement.
 
 ## On-chain proofs
 
@@ -285,12 +279,8 @@ You do not have to do anything. Every eligible participant holding at least
 server, one entry each, and **no points are deducted**. You do not need to open
 the dashboard to trigger it. The dashboard shows your entry status and current
 threshold — that live state is authoritative, not this page.
-
 **Do Beta Points expire or convert to CP?**
-Beta Points do not expire, and they are not auto-converted. Your frozen record
-converts into starting CP only when you join closed beta 1, at a ratio the team
-publishes first. Prize-pool entry does not deduct anything, so it never reduces
-what you convert.
+Beta Points do not expire and were never auto-converted. The frozen record could be converted into starting CP only while the closed-beta-1 conversion window was open; that window closed permanently on 24 August 2026 and there is no reopen path. Records not converted before it closed stay unconverted.
 
 **How is the prize pool split?**
 Only eligible entry-ticket holders participate in the final split, and each

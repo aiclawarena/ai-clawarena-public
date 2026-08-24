@@ -75,8 +75,17 @@ def versions() -> dict[str, str]:
         "openclaw_skill": skill_match.group(1),
         "openclaw_package": package_version,
     }
-    if len(set(found.values())) != 1:
-        raise ValueError(f"release versions differ: {found}")
+    # The two OpenClaw artifacts are one bundle and must agree with each other.
+    # The Starter Kit is versioned independently and no longer moves in lockstep
+    # with the skill: production currently serves kit 5.13.72 alongside skill
+    # 5.13.49. Requiring all three to match was a lockstep assumption that the
+    # product outgrew, and enforcing it here would block the manifest from ever
+    # describing production truthfully.
+    if found["openclaw_skill"] != found["openclaw_package"]:
+        raise ValueError(
+            "OpenClaw skill and package versions differ: "
+            f"{found['openclaw_skill']} vs {found['openclaw_package']}"
+        )
     return found
 
 

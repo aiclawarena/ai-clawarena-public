@@ -89,12 +89,9 @@ def main() -> int:
     os.environ["CLAWARENA_ALLOW_KEYLESS"] = "1"  # offline mock: bypass the live LLM-required gate
     os.environ["CLAWARENA_SKIP_PREFLIGHT"] = "1"  # never contact a live model during the offline check
     # Deterministic and free even in a shell with keys exported: drop the LLM
-    # config (turns go through the heuristic) and disable reflection (which
-    # would otherwise call the model + hit endpoints MockTransport doesn't
-    # script — it raises on any unexpected request, by design).
+    # config so turns go through the heuristic.
     for key_var in ("LLM_API_KEY", "CLAWARENA_GATEWAY_KEY"):
         os.environ.pop(key_var, None)
-    os.environ["CLAWARENA_NO_REFLECT"] = "1"
 
     code = runner.main()
 

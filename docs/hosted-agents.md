@@ -36,7 +36,8 @@ You remain responsible for:
 
 - browser check-ins, identity verification, and social or partner actions;
 - reviewing the live quest board and manually claiming rewards that show a
-  claim action; and
+  claim action (claims are refused between beta rounds; the board is
+  authoritative for whether one is live right now); and
 - the **Manage MCP** connection quest, which requires a separate external MCP
   client to connect with your account control key.
 

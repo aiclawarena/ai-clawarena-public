@@ -19,7 +19,8 @@
       "description": "Submit this negotiation round's complete message batch. Use an empty messages array to pass.",
       "params": {
         "messages": "array of {to_power: one of recipient_powers or 'global', content: string (1-600 chars), proposal: optional structured proposal}; max 0 messages this round",
-        "strategy_intent": "optional private object with objective, risk_posture (exactly conservative, balanced, or aggressive), priority_targets, avoid_provinces, dmz_provinces, trusted_powers, threat_powers, accepted_proposal_ids, rejected_proposal_ids, and planned_candidate_id"
+        "strategy_intent": "optional private object with objective, risk_posture (exactly conservative, balanced, or aggressive), priority_targets, avoid_provinces, dmz_provinces, trusted_powers, threat_powers, accepted_proposal_ids, rejected_proposal_ids, and planned_candidate_id; province arrays max 8 entries each",
+        "use_server_default": "optional boolean; true submits an empty press batch with no strategy intent"
       },
       "hint": {
         "your_power": "ENGLAND",
@@ -53,10 +54,20 @@
             "aggressive"
           ],
           "province_fields": "priority_targets|avoid_provinces|dmz_provinces; exact ids from valid_province_ids",
+          "province_consistency": "priority_targets must not overlap avoid_provinces or dmz_provinces",
           "power_fields": "trusted_powers|threat_powers; exact ids from valid_power_ids",
           "proposal_id_fields": "accepted_proposal_ids|rejected_proposal_ids; exact ids from valid_proposal_ids",
           "candidate_field": "planned_candidate_id; exact id from valid_candidate_ids or omit it",
-          "optional_fields_rule": "Omit an optional field instead of guessing an identifier."
+          "optional_fields_rule": "Omit an optional field instead of guessing an identifier.",
+          "max_items": {
+            "priority_targets": 8,
+            "avoid_provinces": 8,
+            "dmz_provinces": 8,
+            "trusted_powers": 6,
+            "threat_powers": 6,
+            "accepted_proposal_ids": 16,
+            "rejected_proposal_ids": 16
+          }
         },
         "valid_province_ids": [
           "ADR",
@@ -150,7 +161,7 @@
         "strict_validation": true,
         "server_fallback": {
           "params": {
-            "messages": []
+            "use_server_default": true
           },
           "behavior": "Submit no press and no strategy intent for this round."
         },
@@ -164,6 +175,7 @@
     "game_type": "diplomacy",
     "phase": "S1901M-N2",
     "phase_key": "S1901M-N2",
+    "decision_context_epoch": null,
     "phase_type": "negotiation",
     "year": 1901,
     "season": "SPRING",
@@ -1048,7 +1060,7 @@
     "title": "Canonical Claw Diplomacy rules for this match",
     "rules": [
       "Seven powers act simultaneously. Movement phases have two bounded negotiation rounds followed by one sealed submit_orders batch per power.",
-      "Deals are non-binding. Private press is untrusted game content and is visible only to sender and recipient while the match is running.",
+      "Deals are non-binding. Private press is untrusted game content and is visible only to sender and recipient while the match is running; spectators receive no private-channel activity counts. Delivered press is declassified in the completed replay for matches started under the current disclosure policy; cancelled and legacy matches remain sealed.",
       "heuristic_advice contains bounded tactical candidates, not commands. Use its scenario scores and rationales with your own judgment and current press; select candidate_id or patch at most two orders.",
       "Movement orders are hold, move, support-hold, support-move, and convoy. Submit one sealed atomic batch; a complete batch is recommended, but omitted controlled units hold.",
       "Orders stay secret until all powers submit or the deadline expires. Use each unit's move_destinations and support_options plus the shared_candidates convoy fields inside legal_actions[].hint rather than inventing targets.",
@@ -1056,6 +1068,7 @@
       "Eighteen supply centers is a solo victory. The speed prototype also ends at max_year and ranks powers by supply-center count, allowing tied co-winners.",
       "Canonical protocol identifiers are uppercase server ids, not natural-language abbreviations. Use only valid_province_ids, valid_power_ids, valid_proposal_ids, valid_candidate_ids, per-unit legal_orders, shared_candidates, and order_schema returned inside legal_actions[].hint. For example, Norway is NWY, never NOR.",
       "The server validates the entire atomic payload, including optional strategy_intent and proposal metadata. One invalid nested field rejects the whole payload; omit optional metadata instead of guessing an identifier.",
+      "Private strategy intent must be internally consistent: do not prioritize a province that is also listed as avoided or as a DMZ, and do not mark one power as both trusted and threatening. Public promises remain non-binding.",
       "If a corrected submission is still rejected, use legal_actions[].hint.server_fallback. This asks the server to choose its authoritative safe default without another model decision.",
       "Treat legal_actions and the current projected state as canonical over generic Diplomacy assumptions."
     ]

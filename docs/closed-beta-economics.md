@@ -9,19 +9,19 @@ off-chain score that is called **HP** from open beta onward, and the same score
 the API always exposes under its `hp` field names. See
 [Arena Score: CP and HP](hp-economy.md).
 
-## Status at 17 August 2026
+## Status at 24 August 2026
 
 | Area | Current status |
 |---|---|
 | Waitlist quests and Beta Points | **Closed.** The `closed-beta-1` waitlist campaign ended at **00:00 UTC on 1 August 2026** and the eligible Beta Point record is frozen |
-| Closed beta 1 | **Running now.** Opened **06:00 UTC on 10 August 2026**, runs to **00:00 UTC on 24 August 2026** |
+| Closed beta 1 | **Ended.** Ran from **06:00 UTC on 10 August 2026** to **00:00 UTC on 24 August 2026**. Arena entry is closed between rounds; browsing, replays and standings stay open |
 | Score label | **CP** during closed beta 1 and 2; **HP** from open beta on. One score, one balance, `hp` field names unchanged |
 | Off-chain prize-pool entry | **Granted automatically by the server** to eligible waitlist participants with 1,000+ Beta Points in the sealed checkpoint (staff-set), one per participant, nothing deducted, no dashboard visit required |
-| Beta Point-to-CP conversion | Frozen record captured as **checkpoint 1**; it converts to starting CP when a participant joins the closed beta, at a staff-set ratio published before the conversion opens |
+| Beta Point-to-CP conversion | **Closed permanently on 24 August 2026.** Records not converted before the window closed can no longer be converted; there is no reopen path |
 | CP and Game Performance leaderboards | Implemented; both include entrants and non-entrants in one ranking |
 | Public game-weight formula and live weight disclosure | Implemented |
 | Closed-beta quest set | Setup, Arena, daily featured game, weekly performance rank, 14-day check-in, ported Discord roles, Partner quests; reward values not final |
-| Weekly Game Performance rank bands | **Live.** Standings freeze every 7 days; Top 10 / 30 / 50 receive 12,000 / 6,000 / 2,500 CP automatically, with no entry requirement |
+| Weekly Game Performance rank bands | **Settled.** Both closed-beta-1 cycles froze and paid out automatically (Top 10 / 30 / 50 → 12,000 / 6,000 / 2,500 CP, no entry requirement). No further cycle is running between rounds |
 | Final real-value prize settlement | **Staff-reviewed, never automatic.** Parameters and settlement schedule are not active |
 
 CP and Beta Points remain off-chain campaign scores. The entry ticket is also an
@@ -74,11 +74,7 @@ A checkpoint moves through three states:
 | `draft` | Captured and reviewable, but it cannot credit anything |
 | `sealed` | Locked with a published conversion ratio; only a sealed checkpoint credits starting CP |
 | `void` | Discarded and superseded; it never credits |
-
-Starting CP is credited **once**, when a participant joins the closed beta, from
-a sealed checkpoint at the ratio recorded on it. Re-joining does not credit a
-second time. The snapshot, eligibility rule, conversion ratio, and any credit
-cap are all published before the conversion opens.
+Starting CP was credited **once** per participant, when they joined the closed beta, from the sealed checkpoint at the ratio recorded on it. That conversion window closed permanently on 24 August 2026 and cannot be reopened; frozen records that were not converted while it was open stay unconverted.
 
 ## Why Waitlist Contribution Still Matters
 
@@ -89,10 +85,7 @@ would preserve that history in a simple, auditable way:
 ```text
 starting CP = frozen eligible Beta Points × 1.0
 ```
-
-That ratio is the **recommended proposal**, not an active production parameter.
-The ratio actually used is the one recorded on the sealed checkpoint and shown
-in the live campaign response.
+That ratio was the recommended proposal. The ratio actually applied is the one recorded on the sealed checkpoint used during the closed-beta-1 conversion, which closed permanently on 24 August 2026.
 
 A direct starting balance alone is not enough: if mission claims dominate all
 new CP, gameplay becomes economically optional. Closed beta therefore needs a
@@ -117,10 +110,7 @@ This is a portfolio limit, not a guarantee that the entire allowance will be
 issued. Unclaimed rewards remain unissued.
 
 ## Closed-Beta Quest Structure
-
-Closed beta 1 replaces the waitlist quest board with a set built around actually
-playing. The categories below are the structure; **reward values are not final**
-and are published in the live campaign response before they apply.
+Closed beta 1 replaced the waitlist quest board with a set built around actually playing. The categories below are that structure, kept as a record — quest claims are refused while the arena is between rounds.
 
 ### Setup quests
 
@@ -197,9 +187,7 @@ window is six hours shorter than seven full days; the live cycle payload is
 authoritative at every boundary.
 
 ### 14-day daily check-in
-
-Closed beta 1 runs a **14-day check-in** across the fourteen UTC dates from
-10–23 August.
+Closed beta 1 ran a **14-day check-in** across the fourteen UTC dates from 10–23 August.
 Days **3, 7, 10 and 14** pay a **streak bonus** on top of that day's ordinary
 check-in — a bonus earned by not breaking the run, not a separate collectible.
 Missing a day restarts the run. This replaces the waitlist campaign's 35-day
@@ -239,9 +227,7 @@ settled only from the final CP snapshot of eligible entrants, after staff
 review.
 
 ## Live Weekly Rank Calibration
-
-Each cycle's overall Game Performance standings are frozen once and the live
-production tiers are granted automatically:
+Each closed-beta-1 cycle's overall Game Performance standings were frozen once and the production tiers granted automatically (both cycles are now settled):
 
 | Frozen overall Game Performance rank | Automatic weekly grant |
 |---|---:|

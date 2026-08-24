@@ -20,8 +20,10 @@ Read the output, decide, submit, repeat. No provider key, no long-running
 process, no secret typed into a terminal you cannot see.
 
 The connection token comes from CLAWARENA_CONNECTION_TOKEN, or from the file
-`run_local.py` already saves. `--save-token` writes it once so later commands
-need no environment at all.
+`run_local.py` already saves. `--save-token` by itself writes it once and exits,
+so later commands need no environment and the owner can still approve the live
+match before this client connects to matchmaking. Combine it with `--wait` only
+after that approval.
 """
 from __future__ import annotations
 
@@ -34,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import arena_client  # noqa: E402
+import decision_context  # noqa: E402
 import run_local  # noqa: E402
 
 
@@ -73,15 +76,51 @@ def _turn_view(poll: dict) -> dict:
     so they cannot be missed in a long object.
     """
 
+    canonical = decision_context.decision_context_from_envelope(poll)
+    if canonical is not None:
+        # Use the same model-facing projection as Starter, Hermes and
+        # OpenClaw. Execution-only fallback payloads remain inside the trusted
+        # runner instead of competing with strategic decision support.
+        model_context = decision_context.context_prompt_payload(canonical)
+        stable = model_context["stable"]
+        turn = model_context["turn"]
+        view = {
+            "decision_context_version": canonical["version"],
+            "decision_context_id": stable["id"],
+            "status": turn.get("status") or poll.get("status"),
+            "is_your_turn": bool(turn.get("is_your_turn")),
+            "game_type": turn["game_type"],
+            "match_id": turn.get("match_id"),
+            "action_window_id": turn.get("action_window_id"),
+            "turn_deadline": turn.get("turn_deadline"),
+            "state_mode": turn["state_mode"],
+            "rules": stable.get("rules"),
+            "strategy": stable.get("strategy"),
+            "user_preferences": stable.get("user_preferences") or {},
+            "message_language": stable.get("message_language"),
+            "state": turn["state"],
+            "legal_actions": turn["legal_actions"],
+        }
+        if turn.get("decision_support") is not None:
+            view["decision_support"] = turn["decision_support"]
+        if turn.get("action_rejection") is not None:
+            view["action_rejection"] = turn["action_rejection"]
+        return view
+
+    # Older servers have no decision_context. Preserve the complete public
+    # snapshot instead of inventing a client-side game allowlist.
     return {
         "status": poll.get("status"),
         "is_your_turn": bool(poll.get("is_your_turn")),
         "game_type": poll.get("game_type") or (poll.get("state") or {}).get("game_type"),
         "match_id": poll.get("match_id"),
-        "legal_actions": poll.get("legal_actions") or [],
-        "seconds_remaining": poll.get("seconds_remaining"),
+        "action_window_id": poll.get("action_window_id"),
+        "turn_deadline": poll.get("turn_deadline"),
+        "rules": poll.get("game_rules_brief"),
+        "strategy": poll.get("strategy_brief"),
         "state": poll.get("state") or {},
-        "agent_preferences": poll.get("agent_preferences") or {},
+        "legal_actions": poll.get("legal_actions") or [],
+        "user_preferences": poll.get("agent_preferences") or {},
     }
 
 
@@ -108,7 +147,25 @@ def main() -> int:
 
     base = args.arena_base.rstrip("/")
     os.environ["CLAWARENA_BASE"] = base
+    # This entry point is driven by the coding assistant that invoked it, not by
+    # llm_agent.py. Keep that distinction visible in owner/staff diagnostics
+    # without changing the server's broader starter-kit runtime classification.
+    os.environ.setdefault("CLAWARENA_BRAIN", "coding-agent")
     token = _resolve_token(base, save=args.save_token)
+
+    # Saving a credential is an onboarding operation, not permission to enter
+    # matchmaking. In particular, the official setup prompt places the human's
+    # live-match consent gate immediately after this command.
+    if args.save_token and not args.act and not args.bonus and args.wait == 0:
+        _emit({
+            "ok": True,
+            "status": "token_saved",
+            "next": (
+                "Ask the owner to approve the first live match, then run "
+                "python3 play.py --wait 30."
+            ),
+        })
+        return 0
 
     if args.bonus:
         agent_id, auth_token = arena_client.decode_connection_token(token)
@@ -149,8 +206,11 @@ def main() -> int:
     view = _turn_view(poll)
     view["ok"] = True
     view["next"] = (
-        "Choose ONE entry from legal_actions, fill its params, and submit it with "
-        "--act. Hints inside legal_actions are guaranteed-legal moves."
+        "Treat rules, state, and legal_actions as authoritative. Choose ONE current "
+        "legal action, follow its params_schema and hint exactly, and submit it with "
+        "--act before turn_deadline. Treat a legal decision_support comparison as "
+        "complete and use its recommendation without recomputing it unless one specific "
+        "owner-strategy conflict is already obvious; trusted transport handles fallback separately."
         if view["is_your_turn"]
         else "Not your turn. Run again with --wait 30 to block until it is."
     )

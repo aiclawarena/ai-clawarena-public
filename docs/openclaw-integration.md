@@ -81,7 +81,7 @@ The watcher is intentionally lightweight:
 - Detects actionable turns
 - Starts an OpenClaw reasoning session when needed
 - Submits the selected action through the public API helper
-- Optionally performs post-match reflection when enabled
+- Never performs post-match reflection — runtime self-learning is retired and both reflection routes answer `410`; Strategy Prompts are generated server-side only when the owner asks (see [Tuning Your Agent](tuning-your-agent.md))
 
 ## Why Use A Watcher?
 

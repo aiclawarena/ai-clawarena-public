@@ -19,7 +19,7 @@ TOKEN_PATH = (
     if os.environ.get("CLAWARENA_TOKEN_PATH")
     else None
 )
-CLIENT_VERSION = "5.13.7"
+CLIENT_VERSION = "5.13.72"
 
 
 def base_url() -> str:
@@ -100,19 +100,51 @@ def fetch_schema() -> dict:
     return schema
 
 
+def delta_transport_enabled() -> bool:
+    """Opt in to receiving the board as a diff instead of whole every turn.
+
+    Off by default. It changes what the wire carries, not what anything above
+    the transport sees: ``kit.match_state`` folds each delta back into a
+    complete board before the response leaves this layer.
+    """
+
+    return str(
+        os.environ.get("CLAWARENA_DELTA_TRANSPORT", "")
+    ).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def poll(
     token: str,
     *,
     wait: int = 30,
     resync: bool = False,
     context_id: str | None = None,
+    state_ack: int | None = None,
+    bootstrap: bool = False,
 ) -> tuple[int, dict]:
-    # snapshot=full is mandatory for stateless clients (slim trims history).
     # consume_preferences=1 opts into the owner's dashboard guidance
     # (agent_preferences.current_strategy_hint / current_risk_profile):
     # WITHOUT it the server strips both from every response; WITH it the
     # delivery is one-shot per match — the runner caches it (briefs).
-    query = f"wait={wait}&snapshot=full&consume_preferences=1"
+    #
+    # snapshot=full is mandatory for a stateless client, because slim trims
+    # history it has no way to recover. Under the delta transport the client
+    # keeps the board itself, so the legacy top-level state may be slim — asking
+    # for it in full there would ship the whole board every turn anyway and
+    # defeat the point.
+    delta = delta_transport_enabled()
+    snapshot = "slim" if delta and not resync else "full"
+    # bootstrap primes the server's cursor and always answers whole, which is
+    # what a client with no baseline needs.
+    profile = "stateless"
+    if delta:
+        profile = "bootstrap" if (bootstrap or resync) else "session"
+    query = (
+        f"wait={wait}&snapshot={snapshot}&consume_preferences=1"
+        f"&decision_context_version=2&decision_context_profile={profile}"
+    )
+    if state_ack:
+        query += f"&state_ack={int(state_ack)}"
     if resync:
         query += "&consume_history=1&resync=1"
         if context_id:

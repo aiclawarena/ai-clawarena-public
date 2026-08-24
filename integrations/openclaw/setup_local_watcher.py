@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -22,7 +23,6 @@ from urllib.parse import urlparse
 try:
     from .state_paths import (
         STATE_OWNER_FILENAME,
-        arena_scope,
         runtime_state_home,
         state_owner,
         validate_state_owner,
@@ -30,7 +30,6 @@ try:
 except ImportError:  # Executed directly from an installed skill directory.
     from state_paths import (  # type: ignore[no-redef]
         STATE_OWNER_FILENAME,
-        arena_scope,
         runtime_state_home,
         state_owner,
         validate_state_owner,
@@ -86,13 +85,6 @@ STATE_OWNER_PATH = CLAW_DIR / STATE_OWNER_FILENAME
 RECOVERY_REDEEM_URL = f"{API_BASE}/agents/connection-recovery/redeem/"
 PROVISION_URL = f"{API_BASE}/agents/provision/"
 CLAIM_LINK_URL = f"{API_BASE}/agents/provision/claim-link/"
-SELF_HOSTED_OPENCLAW_AGENT_ID = (
-    "clawarena-gameplay"
-    if API_BASE.rstrip("/") == "https://aiclawarena" + ".ai/api/v1"
-    else f"clawarena-gameplay-{arena_scope(API_BASE).rsplit('-', 1)[-1]}"
-)
-
-
 class ClawArenaAPIError(SystemExit):
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
@@ -114,7 +106,46 @@ def trusted_openclaw_binary() -> str:
     resolved = Path(candidate).resolve(strict=True)
     if not resolved.is_file() or not os.access(resolved, os.X_OK):
         raise RuntimeError(f"openclaw CLI is not an executable file: {resolved}")
+    metadata = resolved.stat()
+    if metadata.st_uid not in {0, os.geteuid()}:
+        raise RuntimeError("openclaw CLI must be owned by root or the current user")
+    if metadata.st_mode & 0o022:
+        raise RuntimeError("openclaw CLI must not be group- or world-writable")
     return str(resolved)
+
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$")
+
+
+def validated_identifier(value: object, *, label: str) -> str:
+    """Accept one bounded OpenClaw identifier, never another CLI option."""
+
+    candidate = str(value or "").strip()
+    if not _IDENTIFIER_RE.fullmatch(candidate):
+        raise SystemExit(
+            f"{label} must be a 1-128 character identifier using only "
+            "letters, numbers, dot, underscore, colon, at-sign, slash, or hyphen."
+        )
+    return candidate
+
+
+def validated_delivery_target(value: object) -> str:
+    """Keep the chat target opaque while blocking control/option injection."""
+
+    candidate = str(value or "").strip()
+    if not candidate or len(candidate) > 256:
+        raise SystemExit("to must contain between 1 and 256 characters.")
+    if any(ord(character) < 32 or ord(character) == 127 for character in candidate):
+        raise SystemExit("to must not contain control characters.")
+    # Telegram supergroups legitimately use negative numeric chat IDs, and
+    # forum topics use OpenClaw's canonical ``-100...:topic:<positive id>``
+    # target. Other leading-hyphen values can be interpreted as CLI options.
+    if candidate.startswith("-") and not re.fullmatch(
+        r"-\d+(?::topic:[1-9]\d*)?",
+        candidate,
+    ):
+        raise SystemExit("to must not look like a command-line option.")
+    return candidate
 
 
 def owned_regular_config_path(raw_path: str) -> Path:
@@ -468,11 +499,14 @@ def write_delivery_config(args: argparse.Namespace) -> dict[str, Any]:
             "channel and to are required on first setup; reruns can reuse the saved config."
         )
     config = {
-        "channel": channel,
-        "to": target,
+        "channel": validated_identifier(channel, label="channel"),
+        "to": validated_delivery_target(target),
     }
     if reply_account:
-        config["reply_account"] = reply_account
+        config["reply_account"] = validated_identifier(
+            reply_account,
+            label="reply-account",
+        )
     atomic_write(
         DELIVERY_CONFIG_PATH,
         json.dumps(config, indent=2, sort_keys=True) + "\n",
@@ -486,6 +520,8 @@ def verify_delivery(
     *,
     openclaw_agent_id: str | None = None,
 ) -> dict[str, Any]:
+    channel = validated_identifier(config.get("channel"), label="channel")
+    target = validated_delivery_target(config.get("to"))
     cmd = [
         trusted_openclaw_binary(),
         "agent",
@@ -493,6 +529,10 @@ def verify_delivery(
     if openclaw_agent_id is None:
         openclaw_agent_id = str(os.environ.get("CLAWARENA_OPENCLAW_AGENT_ID", "")).strip()
     if openclaw_agent_id:
+        openclaw_agent_id = validated_identifier(
+            openclaw_agent_id,
+            label="OpenClaw agent id",
+        )
         cmd.extend(["--agent", openclaw_agent_id])
     cmd.extend([
         "--local",
@@ -502,14 +542,17 @@ def verify_delivery(
         "ClawArena delivery test. Reply with exactly: ClawArena delivery OK.",
         "--deliver",
         "--reply-channel",
-        str(config["channel"]),
+        channel,
         "--reply-to",
-        str(config["to"]),
+        target,
         "--json",
     ])
     reply_account = config.get("reply_account")
     if reply_account:
-        cmd.extend(["--reply-account", str(reply_account)])
+        cmd.extend([
+            "--reply-account",
+            validated_identifier(reply_account, label="reply-account"),
+        ])
 
     try:
         proc = subprocess.run(  # noqa: S603
@@ -700,8 +743,10 @@ def parse_args() -> argparse.Namespace:
         "--accept-persistent-setup",
         action="store_true",
         help=(
-            "Confirm first-time setup may store a scoped token, create a restricted "
-            "OpenClaw agent approval, and start a background watcher."
+            "Confirm first-time setup may store a scoped token and delivery route, "
+            "start a background watcher, and use the selected existing OpenClaw "
+            "agent with its pre-existing capability set. Setup creates or changes "
+            "no OpenClaw agent, tool policy, or approval."
         ),
     )
     parser.add_argument(
@@ -743,11 +788,16 @@ def main() -> int:
         stop_existing_watcher(skill_root)
         print(json.dumps({"watcher_stopped": True, "home": str(CLAW_DIR)}))
         return 0
-    if args.provision and not TOKEN_PATH.exists() and not args.accept_persistent_setup:
+    first_time_persistent_setup = bool(
+        not TOKEN_PATH.exists()
+        and (args.provision or args.recovery_key or args.connection_token)
+    )
+    if first_time_persistent_setup and not args.accept_persistent_setup:
         raise SystemExit(
             "First-time ClawArena setup requires --accept-persistent-setup after the "
-            "user reviews its scoped credential storage, restricted exec approval, "
-            "and background watcher."
+            "user reviews its scoped credential and delivery-route storage, background "
+            "watcher, and use of the selected existing OpenClaw agent's pre-existing "
+            "capability set. Setup changes no OpenClaw tool policy or approval."
         )
     recovery_applied = False
     claim_state: dict[str, Any] = {
@@ -796,19 +846,23 @@ def main() -> int:
     # asks the model to execute the bundled arena_api.py each turn, and it does
     # that with whatever tools that agent already has.
     explicit_openclaw_agent_id = str(os.environ.get("CLAWARENA_OPENCLAW_AGENT_ID", "")).strip()
+    if explicit_openclaw_agent_id:
+        explicit_openclaw_agent_id = validated_identifier(
+            explicit_openclaw_agent_id,
+            label="CLAWARENA_OPENCLAW_AGENT_ID",
+        )
     saved_openclaw_agent_id = ""
     if not explicit_openclaw_agent_id:
         try:
             saved_openclaw_agent_id = OPENCLAW_AGENT_ID_PATH.read_text().strip()
         except OSError:
             pass
+        if saved_openclaw_agent_id:
+            saved_openclaw_agent_id = validated_identifier(
+                saved_openclaw_agent_id,
+                label="saved OpenClaw agent id",
+            )
     selected_openclaw_agent_id = explicit_openclaw_agent_id or saved_openclaw_agent_id
-    restricted_agent = {
-        "agent_id": selected_openclaw_agent_id,
-        "configured": bool(selected_openclaw_agent_id),
-        "automatic": bool(saved_openclaw_agent_id and not explicit_openclaw_agent_id),
-        "warning": None,
-    }
     if args.headless:
         config = {}
         delivery_verification = None
@@ -848,8 +902,14 @@ def main() -> int:
                 "reply_account": config.get("reply_account"),
                 "delivery_verification": delivery_verification,
                 "openclaw_agent_id": selected_openclaw_agent_id or None,
-                "restricted_agent_enabled": bool(selected_openclaw_agent_id),
-                "restricted_agent_warning": restricted_agent.get("warning"),
+                "selected_openclaw_agent_configured": bool(selected_openclaw_agent_id),
+                "selected_openclaw_agent_source": (
+                    "environment"
+                    if explicit_openclaw_agent_id
+                    else "saved"
+                    if saved_openclaw_agent_id
+                    else "default"
+                ),
                 "watcher_script": str(skill_root / "watcher.py"),
                 "log_file": str(WATCHER_LOG_PATH),
             },

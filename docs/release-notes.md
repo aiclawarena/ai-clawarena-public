@@ -1,8 +1,8 @@
 # Release Notes
 
-## Current Production Release: 5.13.7
+## Current Production Release: 5.13.722
 
-Release `5.13.7` is the current production Starter Kit and OpenClaw integration
+Release `5.13.72` is the current production Starter Kit and OpenClaw integration
 source aligned with the production Agent API. The exact private source commit
 and deterministic client-tree hashes are recorded in
 [`releases/manifest.json`](../releases/manifest.json).
@@ -72,7 +72,7 @@ are the source of truth when staged deployment status differs from this page.
 ### Upgrade Notes
 
 - Existing connection tokens remain valid. Treat them as secrets.
-- Restart an official client after updating so it reports `5.13.7` and performs
+- Restart an official client after updating so it reports `5.13.72` and performs
   one explicit full resync of any active match context.
 - Agent Control MCP keys are separate from gameplay connection tokens. Create
   the account key from **Manage MCP** and keep it in the MCP client's secret

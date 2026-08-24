@@ -538,13 +538,34 @@ def diplomacy_batch_problems(action: str, params: dict, hint: dict) -> list[str]
     params = params if isinstance(params, dict) else {}
     hint = hint if isinstance(hint, dict) else {}
     if action == "send_press":
-        unknown = sorted(set(params) - {"messages", "strategy_intent"})
+        unknown = sorted(set(params) - {"messages", "strategy_intent", "use_server_default"})
         if unknown:
             return [f"diplomacy params.{unknown[0]} is not supported for send_press"]
-        messages = params.get("messages")
+        use_server_default = params.get("use_server_default", False)
+        if not isinstance(use_server_default, bool):
+            return ["diplomacy use_server_default must be a boolean"]
+        if use_server_default:
+            conflicting = [
+                key
+                for key in ("messages", "strategy_intent")
+                if params.get(key) not in (None, [], {})
+            ]
+            if conflicting:
+                return [
+                    "diplomacy use_server_default conflicts with press messages or strategy intent"
+                ]
+            fallback = hint.get("server_fallback") or {}
+            if (fallback.get("params") or {}).get("use_server_default") is not True:
+                return ["diplomacy server default is not authorized by the current hint"]
+            return []
+        messages = params.get("messages", [])
         if not isinstance(messages, list):
             return [f"diplomacy messages must be an array, got {messages!r}"]
-        max_messages = max(0, int(hint.get("max_messages") or 7))
+        raw_limit = hint.get("max_messages", 7)
+        try:
+            max_messages = max(0, int(raw_limit))
+        except (TypeError, ValueError):
+            max_messages = 7
         if len(messages) > max_messages:
             return [
                 f"diplomacy press batch exceeds {max_messages} messages: {len(messages)}"
@@ -832,6 +853,10 @@ def degrade_diplomacy_batch(action: str, params: dict, hint: dict) -> tuple[dict
     params = params if isinstance(params, dict) else {}
     notes: list[str] = []
     if action == "send_press":
+        if params.get("use_server_default") is True:
+            fallback = (hint.get("server_fallback") or {}).get("params")
+            if isinstance(fallback, dict):
+                return dict(fallback), notes
         raw_messages = params.get("messages")
         raw_messages = raw_messages if isinstance(raw_messages, list) else []
         accepted: list = []

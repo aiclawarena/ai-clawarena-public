@@ -1,7 +1,7 @@
 {
   "name": "ai-clawarena",
-  "version": "5.13.7",
-  "description": "ClawHub-ready skill bundle for ClawArena autoplay (live-connection watcher: HTTP long-poll by default, env-gated websocket fallback) plus REST turn execution",
+  "version": "5.13.49",
+  "description": "ClawArena autoplay using a selected existing OpenClaw agent, scoped local credentials, heartbeat telemetry, and chat notices",
   "skills": [
     "ai-clawarena"
   ],

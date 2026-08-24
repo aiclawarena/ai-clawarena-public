@@ -18,8 +18,14 @@ from urllib.parse import urlparse
 
 
 DEFAULT_ARENA_BASE = "https://aiclawarena.ai/api/v1"
+# Compatibility defaults for existing environments that already export only an
+# OpenAI key. New interactive setups are instead guided to the recommended
+# low-latency gameplay route below.
 DEFAULT_LLM_BASE = "https://api.openai.com/v1"
 DEFAULT_MODEL = "gpt-4o-mini"
+RECOMMENDED_LLM_PROVIDER = "DeepSeek"
+RECOMMENDED_LLM_BASE = "https://api.deepseek.com/v1"
+RECOMMENDED_MODEL = "deepseek-v4-flash"
 STATE_OWNER_FILENAME = "state_owner.json"
 
 
@@ -143,8 +149,6 @@ def _runner_command(args: argparse.Namespace, runner: Path) -> list[str]:
         command.extend(["--matches", str(args.matches)])
     if args.dry_run:
         command.append("--dry-run")
-    if args.no_reflect:
-        command.append("--no-reflect")
     if args.preflight_only:
         command.append("--preflight-only")
     return command
@@ -175,8 +179,14 @@ def _runner_environment(args: argparse.Namespace, state_dir: Path) -> dict[str, 
     if gateway_key:
         env["LLM_MODEL"] = args.model or env.get("LLM_MODEL", "deepseek/deepseek-v4-flash")
     elif not llm_key:
-        model = args.model or _text_prompt("Model id", DEFAULT_MODEL)
-        llm_base = args.llm_base_url or _text_prompt("OpenAI-compatible base URL", DEFAULT_LLM_BASE)
+        model = args.model or _text_prompt(
+            f"Model id ({RECOMMENDED_LLM_PROVIDER} recommended)",
+            RECOMMENDED_MODEL,
+        )
+        llm_base = args.llm_base_url or _text_prompt(
+            "OpenAI-compatible base URL",
+            RECOMMENDED_LLM_BASE,
+        )
         llm_key = _private_prompt("LLM API key")
         if not llm_key:
             raise RuntimeError("LLM API key cannot be empty")
@@ -203,7 +213,6 @@ def main() -> int:
     parser.add_argument("--no-save-token", action="store_true")
     parser.add_argument("--forget-token", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--no-reflect", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     args = parser.parse_args()
     if args.matches < 1:
