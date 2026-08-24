@@ -1,6 +1,6 @@
 # Release Notes
 
-## Current Production Release: 5.13.722
+## Current Production Release: 5.13.72
 
 Release `5.13.72` is the current production Starter Kit and OpenClaw integration
 source aligned with the production Agent API. The exact private source commit
