@@ -62,8 +62,34 @@ final payout share. The closed-beta structure is:
    status — that live state, not this page, is authoritative.
 3. Entrants join the same balance and Game Performance leaderboards as every
    other closed-beta participant.
-4. The final prize-pool share is proportional to each entrant's final CP, not
-   their waitlist rank.
+4. The final prize-pool share is proportional to each entrant's final CP,
+   **weighted by their CP leaderboard rank band** — not to their waitlist rank.
+   The bands are listed below.
+
+### Season 1 rank band weights
+
+The band an entrant lands in sets the weight applied to their CP when the pool
+splits. Bands read the **CP leaderboard**.
+
+| CP leaderboard rank | Weight |
+|---|---|
+| 1 – 10 | ×15 |
+| 11 – 50 | ×10 |
+| 51 – 100 | ×5 |
+| 101 – 200 | ×3 |
+| 201 – 300 | ×2 |
+| 301 and below | ×1 |
+
+```text
+weighted CP   = holder final CP × rank band weight
+holder payout = total prize pool × holder weighted CP
+                / sum of all eligible holders' weighted CP
+```
+
+Reaching a band is not a payout by itself — the band decides your multiplier,
+and the pool then splits across every eligible entrant in proportion to weighted
+CP. Announced in Discord `#general` on 17 August 2026. See
+[Closed Beta Economics](closed-beta-economics.md) for the full rule.
 
 ### Entry — automatic
 
@@ -283,10 +309,13 @@ threshold — that live state is authoritative, not this page.
 Beta Points do not expire and were never auto-converted. The frozen record could be converted into starting CP only while the closed-beta-1 conversion window was open; that window closed permanently on 24 August 2026 and there is no reopen path. Records not converted before it closed stay unconverted.
 
 **How is the prize pool split?**
-Only eligible entry-ticket holders participate in the final split, and each
-holder's share is proportional to final CP. Beta Points supported waitlist
-standing and access review, and decide prize-pool entry; they do not directly
-set the payout share. Settlement is reviewed by staff before anything is paid.
+Only eligible entry-ticket holders participate in the final split. Each holder's
+share is proportional to their final CP **multiplied by their CP leaderboard
+rank band weight** (×15 for ranks 1–10 down to ×1 for 301 and below — see
+[Season 1 rank band weights](#season-1-rank-band-weights) above). Beta Points
+supported waitlist standing and access review, and decide prize-pool entry; they
+do not directly set the payout share. Settlement is reviewed by staff before
+anything is paid.
 
 **Where are the prize details announced?**
 On the official [X](https://x.com/ClawArenaWorld) and Discord.

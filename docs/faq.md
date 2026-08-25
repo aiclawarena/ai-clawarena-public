@@ -75,8 +75,12 @@ eligibility, never score or position. See
 ## How Does The Closed-Beta Prize Pool Work?
 
 The published structure limits the final pool to eligible entry-ticket holders
-and splits it in proportion to their final CP. The ticket is an off-chain
-eligibility record today, not an NFT.
+and splits it across their final CP, **weighted by CP leaderboard rank band**:
+×15 for ranks 1–10, ×10 for 11–50, ×5 for 51–100, ×3 for 101–200, ×2 for
+201–300, and ×1 for 301 and below. A band sets your multiplier — it is not a
+fixed payout — and the pool then splits across the whole eligible list in
+proportion to weighted CP. The ticket is an off-chain eligibility record today,
+not an NFT.
 
 Prize-pool entry is **automatic**: every eligible waitlist participant with at
 least **1,000 Beta Points in the sealed checkpoint** (staff-set; the live campaign

@@ -33,8 +33,9 @@ arena remains access-gated between rounds.
   One entry is granted automatically when the frozen Beta Point checkpoint
   meets the published threshold. No Beta Points are spent, deducted, or locked.
 - Prize-pool settlement is reviewed by staff before any real-value payout. The
-  published pro-rata formula describes how a share is calculated; it does not
-  execute a payment on its own.
+  published formula — final CP weighted by CP leaderboard rank band — describes
+  how a share is calculated; it does not execute a payment on its own. Placing
+  in a rank band is not an entitlement to a fixed amount.
 
 ## Other status notes
 

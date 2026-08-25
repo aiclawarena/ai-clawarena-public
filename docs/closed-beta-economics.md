@@ -29,12 +29,49 @@ off-chain eligibility record today; it is not an NFT.
 
 ## The Fixed Prize-Pool Rule
 
-The closed-beta prize pool is reserved for eligible entry-ticket holders and is
-split in proportion to their final CP:
+Season 1 is closed beta 1 — the round that ran from 06:00 UTC on 10 August 2026
+to 00:00 UTC on 24 August 2026. Its prize pool is reserved for eligible
+entry-ticket holders and splits across their final CP, **weighted by rank band**.
+
+### Rank band weights
+
+The band a holder lands in sets the weight applied to their CP when the pool
+splits. Bands read the **CP leaderboard** — not the Game Performance
+leaderboard, which is a separate ranking.
+
+| CP leaderboard rank | Weight |
+|---|---|
+| 1 – 10 | ×15 |
+| 11 – 50 | ×10 |
+| 51 – 100 | ×5 |
+| 101 – 200 | ×3 |
+| 201 – 300 | ×2 |
+| 301 and below | ×1 |
+
+The top band carries **15× the weight of the bottom band**. These weights were
+announced in Discord `#general` on 17 August 2026, during Season 1; this page
+records them.
+
+### The formula
 
 ```text
-holder payout = total prize pool × holder final CP / sum of all eligible holders' final CP
+weighted CP   = holder final CP × rank band weight
+holder payout = total prize pool × holder weighted CP
+                / sum of all eligible holders' weighted CP
 ```
+
+Two properties worth stating plainly, because they are easy to misread:
+
+- **Being in a band is not the payout itself.** The band sets a multiplier; the
+  pool still splits across the whole eligible list in proportion to weighted CP.
+  Nobody is paid a fixed amount for reaching a band.
+- **The weight multiplies CP; it does not replace it.** Two holders in the same
+  band are still separated by their CP, in the same proportion as before.
+
+Because the weight is applied on top of a CP ranking, a holder just inside a
+band boundary receives noticeably more than one just outside it, even when their
+CP is nearly identical. That is a deliberate property of a banded weight, not a
+rounding artefact.
 
 Entrants and non-entrants still share the same public rankings. An entry
 affects prize eligibility only; it does
@@ -57,7 +94,7 @@ flowchart LR
     Ticket --> Eligible["Prize eligible"]
     CP --> Eligible
     Eligible --> Audit["Staff settlement review"]
-    Audit --> Split["Pro-rata prize-pool share"]
+    Audit --> Split["Rank-band weighted<br/>prize-pool share"]
 ```
 
 ## Checkpoint 1: The Frozen Beta Point Record
