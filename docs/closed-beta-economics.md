@@ -36,8 +36,15 @@ entry-ticket holders and splits across their final CP, **weighted by rank band**
 ### Rank band weights
 
 The band a holder lands in sets the weight applied to their CP when the pool
-splits. Bands read the **CP leaderboard** — not the Game Performance
-leaderboard, which is a separate ranking.
+splits. Bands read **CP** — not Game Performance, which is a separate ranking
+and never decides a prize share.
+
+The ranking is taken **among eligible entry-ticket holders only**, ordered by
+final CP, counted from 1. It is not a position on the public CP leaderboard:
+that board also lists participants who hold no entry ticket, and they neither
+receive a share nor occupy a rank position here. A holder shown at rank 60 on
+the public board may sit at rank 55 in the settlement if five of the people
+above them are not entrants.
 
 | CP leaderboard rank | Weight |
 |---|---|
@@ -51,6 +58,11 @@ leaderboard, which is a separate ranking.
 The top band carries **15× the weight of the bottom band**. These weights were
 announced in Discord `#general` on 17 August 2026, during Season 1; this page
 records them.
+
+The table is the standing rule for a season, so a band applies only when a
+season has enough eligible holders to reach it. Season 1 sealed fewer than 301
+eligible holders, so its ×1 band has no members; the bands above it carry the
+whole split.
 
 ### The formula
 

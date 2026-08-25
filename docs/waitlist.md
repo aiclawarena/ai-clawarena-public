@@ -69,7 +69,9 @@ final payout share. The closed-beta structure is:
 ### Season 1 rank band weights
 
 The band an entrant lands in sets the weight applied to their CP when the pool
-splits. Bands read the **CP leaderboard**.
+splits. Bands read **CP**, ranked **among eligible entry-ticket holders only** —
+not your position on the public CP leaderboard, which also lists participants
+who hold no ticket.
 
 | CP leaderboard rank | Weight |
 |---|---|
