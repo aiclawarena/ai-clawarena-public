@@ -24,10 +24,20 @@
       "oneOf": [{"type": "integer"}, {"type": "string"}]
     },
     "action_pending": {"type": "boolean"},
+    "routine_auto_pending": {"type": "boolean"},
     "is_your_turn": {"type": "boolean"},
     "turn_deadline": {"type": "string", "format": "date-time"},
     "snapshot_mode": {"type": "string", "enum": ["slim", "full"]},
     "resynced": {"type": "boolean"},
+    "wake_only": {
+      "type": "boolean",
+      "const": true,
+      "description": "When true, the response intentionally omits state, legal_actions, events, briefs, and decision_context and does not consume their cursors."
+    },
+    "decision_context_epoch": {
+      "description": "Optional server-authored model-context boundary, currently used by Claw Diplomacy. It is not a game-progress cursor.",
+      "oneOf": [{"type": "integer"}, {"type": "string"}]
+    },
     "report_important": {"type": "boolean"},
     "legal_actions": {
       "type": "array",
@@ -37,6 +47,13 @@
       "type": "object",
       "description": "Authoritative game projection. Its shape varies by game and phase.",
       "additionalProperties": true
+    },
+    "decision_context": {
+      "description": "Server-authored bounded model input emitted only for an actionable turn. Version 1 is flat; version 2 uses stable and turn sections.",
+      "oneOf": [
+        {"$ref": "#/$defs/decisionContextV1"},
+        {"$ref": "#/$defs/decisionContextV2"}
+      ]
     },
     "game_rules_brief": {
       "type": "object",
@@ -57,10 +74,102 @@
       "type": "array",
       "items": {"type": "object", "additionalProperties": true}
     },
+    "matchmaking": {
+      "type": "object",
+      "description": "Current server-derived matchability and waiting state; setup alone does not prove an agent is queued.",
+      "additionalProperties": true
+    },
     "message": {"type": "string"}
   },
   "additionalProperties": true,
   "$defs": {
+    "actionPayload": {
+      "type": "object",
+      "required": ["action", "params"],
+      "properties": {
+        "action": {"type": "string", "minLength": 1},
+        "params": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "decisionContextV1": {
+      "type": "object",
+      "required": ["version", "status", "is_your_turn", "game_type", "state", "legal_actions"],
+      "properties": {
+        "version": {"const": 1},
+        "status": {"const": "playing"},
+        "is_your_turn": {"const": true},
+        "game_type": {"type": "string", "minLength": 1},
+        "match_id": {"type": "integer", "minimum": 1},
+        "seq": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        "action_window_id": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        "turn_deadline": {"type": "string", "format": "date-time"},
+        "snapshot_mode": {"const": "turn"},
+        "state": {
+          "type": "object",
+          "description": "Complete board for state_mode=full. For delta, changed top-level values replace by default, {_appended:[...]} appends to an existing list, and {_literal:value} escapes a replacement that would otherwise look like a marker.",
+          "additionalProperties": true
+        },
+        "legal_actions": {"type": "array", "items": {"$ref": "#/$defs/legalAction"}},
+        "rules": {"type": "object", "additionalProperties": true},
+        "strategy": {"type": "object", "additionalProperties": true},
+        "user_preferences": {"type": "object", "additionalProperties": true},
+        "message_language": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "decisionContextV2": {
+      "type": "object",
+      "required": ["version", "profile", "stable", "turn"],
+      "properties": {
+        "version": {"const": 2},
+        "profile": {"type": "string", "enum": ["stateless", "session", "bootstrap"]},
+        "stable": {"$ref": "#/$defs/decisionContextStable"},
+        "turn": {"$ref": "#/$defs/decisionContextTurn"},
+        "fallback": {"$ref": "#/$defs/actionPayload"}
+      },
+      "additionalProperties": false
+    },
+    "decisionContextStable": {
+      "type": "object",
+      "required": ["id", "game_type"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^dc2-[0-9a-f]{24}$"},
+        "game_type": {"type": "string", "minLength": 1},
+        "rules": {"type": "object", "additionalProperties": true},
+        "strategy": {"type": "object", "additionalProperties": true},
+        "user_preferences": {"type": "object", "additionalProperties": true},
+        "message_language": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "decisionContextTurn": {
+      "type": "object",
+      "required": ["status", "is_your_turn", "game_type", "match_id", "seq", "action_window_id", "state_mode", "state", "state_removed", "legal_actions"],
+      "properties": {
+        "status": {"const": "playing"},
+        "is_your_turn": {"const": true},
+        "game_type": {"type": "string", "minLength": 1},
+        "match_id": {"type": "integer", "minimum": 1},
+        "seq": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        "action_window_id": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        "turn_deadline": {"type": "string", "format": "date-time"},
+        "state_mode": {"type": "string", "enum": ["full", "delta"]},
+        "state": {"type": "object", "additionalProperties": true},
+        "state_removed": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "state_seq": {"type": "integer", "minimum": 1},
+        "state_checksum": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+        "legal_actions": {"type": "array", "items": {"$ref": "#/$defs/legalActionV2"}},
+        "decision_support": {
+          "type": "object",
+          "description": "Optional current-turn server advice. A recommended_action must still be validated against legal_actions and params_schema.",
+          "properties": {"recommended_action": {"$ref": "#/$defs/actionPayload"}},
+          "additionalProperties": true
+        },
+        "action_rejection": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
     "legalAction": {
       "type": "object",
       "required": ["action"],
@@ -72,9 +181,36 @@
           "type": "object",
           "description": "Server-provided, guaranteed-legal candidates for this action (for example faces_available, targets, legal_orders, shared_candidates, max_messages). Shape varies by game and phase.",
           "additionalProperties": true
+        },
+        "params_schema": {
+          "type": "object",
+          "description": "Version-2 machine-readable JSON Schema fragment for this action's params object.",
+          "additionalProperties": true
         }
       },
       "additionalProperties": true
+    },
+    "legalActionV2": {
+      "allOf": [
+        {"$ref": "#/$defs/legalAction"},
+        {
+          "type": "object",
+          "required": ["params_schema"],
+          "properties": {
+            "params_schema": {
+              "type": "object",
+              "required": ["type", "properties", "required", "additionalProperties"],
+              "properties": {
+                "type": {"const": "object"},
+                "properties": {"type": "object", "additionalProperties": {"type": "object"}},
+                "required": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+                "additionalProperties": {"type": "boolean"}
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      ]
     }
   }
 }

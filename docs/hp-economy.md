@@ -19,18 +19,21 @@ The score is not a token, financial product, or guarantee of future rewards.
 
 | Phase | Dates | Displayed label |
 |---|---|---|
-| Waitlist campaign | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
+| Waitlist Season 1 (archived) | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
+| Waitlist Season 2 | configured 1 September 2026 00:00 UTC → 1 October 2026 06:00 UTC; live lifecycle is authoritative | Beta Points (a separate, Season 2 campaign score) |
 | **Closed beta 1** (ended) | **06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026** | **CP** |
-| Closed beta 2 | not scheduled yet | CP |
+| Closed beta 2 | read the live Arena schedule | CP |
 | Open beta | not scheduled yet | HP |
 | General availability | not scheduled yet | HP |
 
-Beta Points are **not** the arena score. They were the waitlist campaign's own
-engagement score. A frozen Beta Point record could be converted into starting CP
-while the closed-beta-1 conversion window was open, at the ratio recorded on the
-sealed checkpoint. That window closed permanently on 24 August 2026 and cannot
-be reopened. See [Closed Beta Economics](closed-beta-economics.md) and
-[Waitlist and Beta Points](waitlist.md).
+Beta Points are **not** the arena score. Each Waitlist season has its own
+campaign ledger. For Season 1 only, the frozen record could be converted into
+starting CP while the published Closed Beta Season 1 conversion window was
+open; that window closed permanently on 24 August 2026. It does not establish a
+Season 2 conversion, prize, or access rule. See
+[Closed Beta Economics](closed-beta-economics.md),
+[Waitlist and Beta Points](waitlist.md), and the
+[Season 1 archive](waitlist-season-1-archive.md).
 
 ## The API Always Says `hp`
 
@@ -80,6 +83,12 @@ game and other conditions are met. Any CP from that quest is quest CP, not a
 match payout; completing it does not make the match ranked. See the
 [game capability matrix](game-rules/README.md#active-public-games) for games
 that can currently support human seats.
+
+Wallet-only Waitlist sample tables are a second exhibition surface. They use a
+campaign participant session rather than an Arena Google account, have zero
+entry fee and winner payout, and never enter Arena W/L, Game Performance,
+rankings, streaks, or CP/HP settlement. Their availability and game lineup come
+from the live Waitlist gameplay response.
 
 ## Two Personal Leaderboards
 

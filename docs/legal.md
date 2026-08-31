@@ -2,9 +2,11 @@
 
 This page is a short product-status note, not legal advice.
 
-The public waitlist closed at 00:00 UTC on 1 August 2026. Closed beta 1 ran from
-06:00 UTC on 10 August 2026 to 00:00 UTC on 24 August 2026 and has ended. The
-arena remains access-gated between rounds.
+Waitlist Season 2 is the current campaign, with a configured 1 September 2026
+00:00 UTC through 1 October 2026 06:00 UTC window. Its live lifecycle and
+individual access flags control availability. Closed Beta Season 1 ran from
+06:00 UTC on 10 August 2026 to 00:00 UTC on 24 August 2026 and is preserved as
+a historical archive. Main Arena access remains gated.
 
 ## The arena score: CP and HP
 
@@ -23,24 +25,27 @@ arena remains access-gated between rounds.
 
 ## Beta Points and the prize pool
 
-- Beta Points were the waitlist campaign's own engagement score. They are
-  campaign scores, not tokens, and were never automatically converted into
-  CP/HP or another asset. A published 1:1 conversion window was offered and
-  **closed permanently on 24 August 2026**. Unconverted Beta Points cannot be
-  converted; there is no reopen path.
-- The prize-pool entry ticket is an off-chain eligibility record. It is not an
+- Beta Points are campaign-specific engagement scores, not tokens. Season 1
+  and Season 2 have separate participant records and ledgers. For Season 1, a
+  published 1:1 conversion window was offered and **closed permanently on 24
+  August 2026**. That rule does not create a Season 2 conversion or entitlement.
+- The **Season 1** prize-pool entry ticket is an off-chain eligibility record. It is not an
   NFT, not transferable, and it does not change any score or ranking position.
   One entry is granted automatically when the frozen Beta Point checkpoint
   meets the published threshold. No Beta Points are spent, deducted, or locked.
-- Prize-pool settlement is reviewed by staff before any real-value payout. The
-  published formula — final CP weighted by CP leaderboard rank band — describes
+- Season 1 prize-pool settlement is reviewed by staff before any real-value payout. The
+  published Season 1 formula — final CP weighted by CP leaderboard rank band — describes
   how a share is calculated; it does not execute a payment on its own. Placing
-  in a rank band is not an entitlement to a fixed amount.
+  in a rank band is not an entitlement to a fixed amount. Any Season 2 prize or
+  settlement contract must be published and activated separately.
 
 ## Other status notes
 
 - The waitlist wallet-binding BAS attestation is a public proof record, not a
   transferable asset or financial product.
+- Wallet-only Waitlist sample games are unranked, zero-entry, zero-payout
+  exhibitions. They create no CP/HP movement, betting right, prize right, or
+  Main Arena admission.
 - Game rules, scoring, rankings, seasons, quest rewards, and beta access may
   change during testing.
 

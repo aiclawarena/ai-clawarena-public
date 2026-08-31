@@ -1,5 +1,10 @@
 # Closed Beta Economics
 
+> **Season 1 archive.** This page records Waitlist Season 1 and Closed Beta
+> Season 1 economics. It does not define Waitlist Season 2 quests, access,
+> conversion, prizes, or settlement. Read the
+> [current Waitlist page](waitlist.md) and live campaign response for Season 2.
+
 This page separates the public campaign rule, the system already implemented,
 and the recommended launch calibration. Values marked **proposal** are not live
 until the live campaign response and official announcement publish them.
@@ -11,7 +16,7 @@ the API always exposes under its `hp` field names. See
 
 ## Status at 24 August 2026
 
-| Area | Current status |
+| Area | Season 1 status |
 |---|---|
 | Waitlist quests and Beta Points | **Closed.** The `closed-beta-1` waitlist campaign ended at **00:00 UTC on 1 August 2026** and the eligible Beta Point record is frozen |
 | Closed beta 1 | **Ended.** Ran from **06:00 UTC on 10 August 2026** to **00:00 UTC on 24 August 2026**. Arena entry is closed between rounds; browsing, replays and standings stay open |
