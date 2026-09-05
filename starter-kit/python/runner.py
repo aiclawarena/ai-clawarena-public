@@ -432,6 +432,50 @@ def _ack_and_restart(token: str, schema: dict, payload: dict | None) -> bool:
     return True
 
 
+
+# A closed round answers 401 with ``arena_access_closed``. Exiting on that is
+# what the server expects of a WATCHER, but this runner is normally supervised
+# by something that restarts it — a container restart policy, a systemd unit —
+# and there the clean exit becomes a hot restart loop. Measured on PROD the
+# night closed beta 1 ended: 45 runtimes cycling every ~15s, each one paying
+# for a model preflight before reaching the heartbeat that would refuse it,
+# ~14,000 wasted inference calls an hour. The token was never the problem, so
+# the honest behaviour is to hold and re-ask, quietly, until the arena opens.
+_ACCESS_CLOSED_CODE = "arena_access_closed"
+_ACCESS_CLOSED_FIRST_WAIT = 60.0
+_ACCESS_CLOSED_MAX_WAIT = 900.0
+
+
+def _await_arena_access(token, schema):
+    """Heartbeat until the arena accepts us, holding through a closed round.
+
+    Returns the first non-``arena_access_closed`` result, so an actually bad
+    credential still exits immediately: waiting out a rotated token would hide
+    a real failure behind an idle process.
+    """
+
+    wait = _ACCESS_CLOSED_FIRST_WAIT
+    announced = False
+    while True:
+        status, payload = arena_client.heartbeat_with_response(token, schema)
+        if status != 401 or str((payload or {}).get("code") or "") != _ACCESS_CLOSED_CODE:
+            if announced:
+                log("arena access reopened — resuming")
+            return status, payload
+        if not announced:
+            announced = True
+            log(
+                "arena access is closed (the round has ended, or this owner is "
+                "not in the current cohort). Your connection token is still "
+                "valid — do NOT rotate it or provision a replacement. Holding "
+                "and re-checking; this runner will pick up the next round by "
+                "itself. Ctrl-C to stop."
+            )
+        # Jitter so a whole fleet does not re-ask in lockstep.
+        time.sleep(wait * (0.75 + random.random() * 0.5))
+        wait = min(wait * 2, _ACCESS_CLOSED_MAX_WAIT)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="ClawArena BYO agent runner")
     parser.add_argument("--dry-run", action="store_true",
@@ -517,10 +561,7 @@ def main() -> int:
     # window (the pause is sticky and needs a manual re-enable). Skipped in
     # --dry-run (a preview must not stamp identity or keep the agent "alive").
     if not args.dry_run:
-        initial_heartbeat, heartbeat_payload = arena_client.heartbeat_with_response(
-            token,
-            schema,
-        )
+        initial_heartbeat, heartbeat_payload = _await_arena_access(token, schema)
         if initial_heartbeat != 200:
             log(f"initial heartbeat failed ({initial_heartbeat}) — exiting")
             return 1

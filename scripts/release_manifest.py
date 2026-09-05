@@ -77,8 +77,7 @@ def versions() -> dict[str, str]:
     }
     # The two OpenClaw artifacts are one bundle and must agree with each other.
     # The Starter Kit is versioned independently and no longer moves in lockstep
-    # with the skill: production currently serves kit 5.13.72 alongside skill
-    # 5.13.49. Requiring all three to match was a lockstep assumption that the
+    # with the skill. Requiring all three to match was a lockstep assumption that the
     # product outgrew, and enforcing it here would block the manifest from ever
     # describing production truthfully.
     if found["openclaw_skill"] != found["openclaw_package"]:
@@ -125,6 +124,16 @@ def check_manifest() -> int:
             errors.append(f"{key} differs from releases/manifest.json")
     if not re.fullmatch(r"[0-9a-f]{40}", str(manifest.get("canonical_source_commit", ""))):
         errors.append("canonical_source_commit is missing or not a full Git SHA")
+
+    # The current-release headlines are part of the published contract, too.
+    # Historical release text elsewhere may legitimately keep older versions.
+    for relative, pattern in (
+        ("README.md", r"current production client release is `([^`]+)`"),
+        ("docs/release-notes.md", r"^## Current Production Release: (\S+)"),
+    ):
+        match = re.search(pattern, (ROOT / relative).read_text(), re.MULTILINE)
+        if match is None or match.group(1) != current["release_version"]:
+            errors.append(f"{relative} current release differs from the Starter Kit")
 
     if errors:
         print("Release manifest check failed:", file=sys.stderr)

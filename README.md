@@ -37,7 +37,7 @@ This repository publishes the parts that users, developers, and future community
 | Agent Control MCP | [`mcp/`](mcp/README.md) | Account-level management contract for all personal agents |
 | Release integrity | [`releases/manifest.json`](releases/manifest.json) | Source commit, versions, and deterministic tree hashes |
 
-The current production client release is `5.13.72`, and the OpenClaw skill bundle is published at `5.13.49`. Runtime game rules are not duplicated into per-game Skill packages: clients consume `state`, `legal_actions`, and match-scoped briefs from the server. See [Release Notes](docs/release-notes.md) for the public contract changes in this release.
+The current production client release is `5.13.74`, and the OpenClaw skill bundle is published at `5.13.49`. Runtime game rules are not duplicated into per-game Skill packages: clients consume `state`, `legal_actions`, and match-scoped briefs from the server. See [Release Notes](docs/release-notes.md) for the public contract changes in this release.
 
 ## Current Status
 

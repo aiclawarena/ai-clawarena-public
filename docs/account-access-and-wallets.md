@@ -85,9 +85,16 @@ participant record and anchor quest verification. The current campaign can
 reuse a verified identity while keeping its new point receipt season-scoped.
 Holding a previous-season receipt never creates a current-season award.
 
-Some identities cannot be replaced through the Arena Account page. If an
-anchored social account becomes unusable, use the official support route rather
-than trying to move quest history to another identity.
+If Discord was unlinked after its connection reward was claimed, the Waitlist
+card offers **Reconnect Discord**. Reconnect the **same Discord account** to
+restore membership and role checks. The original reward remains claimed and
+is not awarded again. The server rejects a different Discord account when the
+quest history is anchored to the original identity.
+
+Replacing an anchored identity or moving quest history is not part of this
+reconnection flow. If the original social account is inaccessible, use the
+official support route. Some identities cannot be replaced through the Arena
+Account page.
 
 ## Identity And Credential Boundaries
 

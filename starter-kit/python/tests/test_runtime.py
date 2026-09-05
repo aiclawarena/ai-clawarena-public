@@ -958,7 +958,8 @@ class ProtocolTests(unittest.TestCase):
     def test_managed_hermes_defaults_to_low_reasoning(self):
         # managed_runtimes/ is server-side operational plumbing and is
         # deliberately outside the public boundary, so this file is absent in
-        # the published copy of this suite. Skip rather than fail.
+        # the published copy of this suite. Skip rather than fail: the suite is
+        # shipped and run by the public repo's own CI.
         entrypoint_path = REPO_DIR / "managed_runtimes" / "managed_hermes_entrypoint.sh"
         if not entrypoint_path.is_file():
             self.skipTest("managed_runtimes/ is not part of the public distribution")
@@ -8109,3 +8110,209 @@ class HermesMaxTurnsTests(unittest.TestCase):
                         self.assertGreaterEqual(module.HERMES_MAX_TURNS, 1)
                     finally:
                         importlib.reload(hermes_agent)
+
+
+class DecisionSalvageTests(unittest.TestCase):
+    """The salvage re-asks ONE window once, and only when that can help.
+
+    Every shape below is a verbatim reply captured from the PROD diagnostic
+    seats on 2026-08-17, which is why they are listed rather than invented: the
+    placeholder one in particular is the model telling us it believed a second
+    tool call was coming, which is what the scaffold change addresses.
+    """
+
+    STATE = {"game_type": "future_game", "_decision_budget_seconds": 120}
+    LEGAL = [{
+        "action": "choose",
+        "params": {"value": "int"},
+        "params_schema": {
+            "type": "object",
+            "properties": {"value": {"type": "integer"}},
+            "required": ["value"],
+            "additionalProperties": False,
+        },
+    }]
+    CAPTURED = (
+        "{}",
+        '{"action}": "challenge"}',
+        '{": ": [", "]}',
+        '{"action_bid": "break"}',
+        '{"action_placeholder": "deciding in next tool call"}',
+    )
+
+    def _pending(self, **over):
+        pending = {
+            "messages": [
+                {"role": "system", "content": "scaffold"},
+                {"role": "user", "content": "turn"},
+            ],
+            "finish_reason": "stop",
+            "max_completion_tokens": 4096,
+            "decision_tools": None,
+            "decision_deadline": time.monotonic() + 90,
+        }
+        pending.update(over)
+        return pending
+
+    def _salvage(self, pending, reply, raw):
+        calls = []
+
+        def fake_request(base, key, model, messages, **kwargs):
+            calls.append((messages, kwargs))
+            return raw
+
+        with mock.patch.object(llm_agent, "_chat_request", fake_request):
+            result = llm_agent._salvage_decision(
+                "http://base", "k", "m", self.STATE, pending, self.LEGAL,
+                failed_reply=reply, spent=1.0,
+            )
+        return result, calls
+
+    def test_every_captured_shape_is_recovered_by_one_more_ask(self):
+        for reply in self.CAPTURED:
+            with self.subTest(reply=reply):
+                result, calls = self._salvage(
+                    self._pending(),
+                    reply,
+                    {
+                        "text": '{"action":"choose","params":{"value":1}}',
+                        "finish_reason": "stop",
+                    },
+                )
+                self.assertIsNotNone(result, "salvage refused a recoverable reply")
+                _text, salvaged, move, diagnostics = result
+                self.assertEqual(move, {"action": "choose", "params": {"value": 1}})
+                self.assertEqual(diagnostics["salvage"], "recovered")
+                self.assertTrue(salvaged["salvaged"])
+                self.assertEqual(len(calls), 1, "a salvage is one extra call, never more")
+                messages = calls[0][0]
+                # The rejected reply is shown back so the correction names
+                # something concrete, and the instruction lands last.
+                self.assertEqual(messages[-2]["role"], "assistant")
+                self.assertEqual(messages[-2]["content"], reply)
+                self.assertEqual(messages[-1]["content"], llm_agent._SALVAGE_INSTRUCTION)
+                self.assertEqual(
+                    calls[0][1]["metadata"]["clawarena_stage"], "decision_salvage"
+                )
+
+    def test_a_length_stop_is_not_re_asked(self):
+        """It ran out of room; the same cap reproduces it at double the cost."""
+        result, calls = self._salvage(
+            self._pending(finish_reason="length"), "{}", {},
+        )
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_a_spent_budget_is_not_re_asked(self):
+        result, calls = self._salvage(
+            self._pending(decision_deadline=time.monotonic() + 3), "{}", {},
+        )
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_it_never_salvages_a_salvage(self):
+        result, calls = self._salvage(self._pending(salvaged=True), "{}", {})
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_the_operator_switch_turns_it_off(self):
+        with mock.patch.dict(
+            os.environ, {llm_agent._SALVAGE_ENV: "off"}, clear=False
+        ):
+            result, calls = self._salvage(self._pending(), "{}", {})
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_a_failing_salvage_costs_the_turn_nothing(self):
+        def boom(*_args, **_kwargs):
+            raise RuntimeError("provider down")
+
+        with mock.patch.object(llm_agent, "_chat_request", boom):
+            self.assertIsNone(
+                llm_agent._salvage_decision(
+                    "http://base", "k", "m", self.STATE, self._pending(), self.LEGAL,
+                    failed_reply="{}", spent=1.0,
+                )
+            )
+
+    def test_a_still_unusable_salvage_is_reported_as_such(self):
+        result, _calls = self._salvage(
+            self._pending(),
+            "{}",
+            {"text": "{}", "finish_reason": "stop"},
+        )
+        self.assertIsNotNone(result)
+        _text, _pending, move, diagnostics = result
+        self.assertIsNone(move)
+        self.assertEqual(diagnostics["salvage"], "still_unusable")
+
+    def test_the_scaffold_forbids_the_shapes_the_captures_showed(self):
+        scaffold = llm_agent.GAMEPLAY_SESSION_SCAFFOLD
+        self.assertIn("there is no later call in this window", scaffold)
+        self.assertIn("empty object", scaffold)
+        # The old sentence promised the client retried, which is what the
+        # placeholder capture was reading as permission to defer.
+        self.assertNotIn(
+            "idempotency, submission, and retries", scaffold
+        )
+
+
+class ArenaAccessHoldTests(unittest.TestCase):
+    """A closed round must park the runner, not restart it in a hot loop.
+
+    Measured on PROD the night closed beta 1 ended: exiting on the round-close
+    401 turned every supervised runtime into a ~15s restart cycle, and each
+    cycle paid for a model preflight before reaching the heartbeat that refused
+    it. The token was valid the whole time.
+    """
+
+    ACCESS_CLOSED = (401, {"code": "arena_access_closed", "message": "Arena access is closed"})
+
+    def _run(self, responses):
+        """Drive _await_arena_access over a scripted response sequence."""
+
+        pending = deque(responses)
+        slept: list[float] = []
+        with mock.patch.object(
+            runner.arena_client,
+            "heartbeat_with_response",
+            side_effect=lambda *_a, **_k: pending.popleft(),
+        ), mock.patch.object(runner.time, "sleep", side_effect=slept.append):
+            status, payload = runner._await_arena_access("token", {})
+        return status, payload, slept, pending
+
+    def test_it_holds_through_a_closed_round_and_resumes_on_its_own(self):
+        status, _payload, slept, pending = self._run([
+            self.ACCESS_CLOSED,
+            self.ACCESS_CLOSED,
+            (200, {"ok": True}),
+        ])
+        self.assertEqual(status, 200)
+        self.assertEqual(len(pending), 0)
+        # Two refusals, two waits — it never spun without sleeping.
+        self.assertEqual(len(slept), 2)
+        self.assertTrue(all(delay > 0 for delay in slept))
+
+    def test_the_wait_backs_off_instead_of_re_asking_at_a_fixed_rate(self):
+        _status, _payload, slept, _pending = self._run(
+            [self.ACCESS_CLOSED] * 5 + [(200, {})],
+        )
+        self.assertEqual(len(slept), 5)
+        # Jitter is ±25%, so consecutive waits are compared with that margin.
+        self.assertGreater(slept[-1], slept[0])
+        self.assertLessEqual(max(slept), runner._ACCESS_CLOSED_MAX_WAIT * 1.25)
+
+    def test_it_never_waits_out_a_credential_that_is_actually_bad(self):
+        """Holding on invalid_token would hide a real failure behind idleness."""
+
+        status, payload, slept, _pending = self._run([
+            (401, {"code": "invalid_token", "message": "Invalid token"}),
+        ])
+        self.assertEqual(status, 401)
+        self.assertEqual(payload["code"], "invalid_token")
+        self.assertEqual(slept, [])
+
+    def test_a_non_401_failure_is_returned_immediately(self):
+        status, _payload, slept, _pending = self._run([(500, {})])
+        self.assertEqual(status, 500)
+        self.assertEqual(slept, [])

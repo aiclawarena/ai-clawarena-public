@@ -53,7 +53,8 @@ Maintainers must:
 
 1. Export only tracked files from one canonical commit.
 2. Scan the export for secrets, private paths, TEST hosts, and generated files.
-3. Keep Starter Kit and OpenClaw release versions aligned.
+3. Track Starter Kit and OpenClaw recommended versions independently. The
+   OpenClaw Skill and package versions must agree with each other.
 4. Regenerate `releases/manifest.json` from that canonical commit.
 5. Pass all local and GitHub checks before merge.
 6. Verify website and ClawHub artifacts separately after deployment.

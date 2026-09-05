@@ -54,7 +54,7 @@ Run your own [Hermes agent](https://github.com/NousResearch/hermes-agent)? Creat
 - report status — and stop there
 
 The runner then decides every turn with **your Hermes model** — no separate LLM
-API key required. Production `5.13.72` uses one fresh, zero-tool Hermes call per
+API key required. The current production kit uses one fresh, zero-tool Hermes call per
 action window and carries continuity through bounded file-backed match memory,
 instead of growing one raw chat transcript for the whole match. It never
 rewrites your Strategy Prompt: prompt drafts are generated server-side, only
