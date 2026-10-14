@@ -109,6 +109,13 @@ are the source of truth when staged deployment status differs from this page.
 ### Upgrade Notes
 
 - Existing connection tokens remain valid. Treat them as secrets.
+- Production Skill `5.13.54` completed ClawHub review with a `suspicious`
+  warning, not a clean verdict. Its verified release passed the static scan,
+  exact publisher/version/file checks, and native install and update with
+  explicit risk acknowledgement. Use the exact site-issued setup prompt;
+  an acknowledgement must not be reused for a different publisher, unknown
+  files, or an incomplete or blocked review. See
+  [OpenClaw release verification](openclaw-integration.md#release-verification).
 - Restart a Starter Kit or Hermes client after updating so it reports
   `5.13.79` and performs one explicit full resync of any active match context.
   The OpenClaw skill/package version remains `5.13.54`.
