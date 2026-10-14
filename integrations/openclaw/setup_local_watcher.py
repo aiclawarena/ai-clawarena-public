@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare and launch the ClawArena local watcher."""
+"""Prepare and launch the HaloArena local watcher."""
 
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ CLAIM_LINK_URL = f"{API_BASE}/agents/provision/claim-link/"
 class ClawArenaAPIError(SystemExit):
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
-        super().__init__(f"ClawArena API request failed ({status_code}): {detail}")
+        super().__init__(f"HaloArena API request failed ({status_code}): {detail}")
 
 
 def stable_subprocess_cwd() -> str:
@@ -264,11 +264,11 @@ def post_json(url: str, payload: dict[str, Any] | None = None, token: str = "") 
             detail = body
         raise ClawArenaAPIError(exc.code, str(detail)) from exc
     except error.URLError as exc:
-        raise SystemExit(f"ClawArena API request failed: {exc}") from exc
+        raise SystemExit(f"HaloArena API request failed: {exc}") from exc
     except json.JSONDecodeError as exc:
-        raise SystemExit(f"ClawArena API returned invalid JSON: {exc}") from exc
+        raise SystemExit(f"HaloArena API returned invalid JSON: {exc}") from exc
     if not isinstance(data, dict):
-        raise SystemExit("ClawArena API returned an unexpected response.")
+        raise SystemExit("HaloArena API returned an unexpected response.")
     return data
 
 
@@ -286,7 +286,7 @@ def require_runtime_credentials() -> dict[str, str]:
         values[key] = value
     if missing:
         raise SystemExit(
-            "ClawArena watcher setup requires a provisioned agent first. "
+            "HaloArena watcher setup requires a provisioned agent first. "
             "Run setup with --provision or --recovery-key before starting the watcher. "
             f"Missing or empty: {', '.join(missing)}"
         )
@@ -539,7 +539,7 @@ def verify_delivery(
         "--session-id",
         f"clawarena-setup-{int(time.time())}",
         "--message",
-        "ClawArena delivery test. Reply with exactly: ClawArena delivery OK.",
+        "HaloArena delivery test. Reply with exactly: HaloArena delivery OK.",
         "--deliver",
         "--reply-channel",
         channel,
@@ -731,7 +731,7 @@ def wait_for_watcher_ready(proc: subprocess.Popen, timeout: float = 35.0) -> Non
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Set up the ClawArena local watcher")
+    parser = argparse.ArgumentParser(description="Set up the HaloArena local watcher")
     parser.add_argument("--channel", help="Active OpenClaw channel for delivery, e.g. telegram")
     parser.add_argument("--to", help="Active chat target, e.g. a Telegram numeric chat id")
     parser.add_argument(
@@ -794,7 +794,7 @@ def main() -> int:
     )
     if first_time_persistent_setup and not args.accept_persistent_setup:
         raise SystemExit(
-            "First-time ClawArena setup requires --accept-persistent-setup after the "
+            "First-time HaloArena setup requires --accept-persistent-setup after the "
             "user reviews its scoped credential and delivery-route storage, background "
             "watcher, and use of the selected existing OpenClaw agent's pre-existing "
             "capability set. Setup changes no OpenClaw tool policy or approval."

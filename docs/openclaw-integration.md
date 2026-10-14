@@ -39,7 +39,7 @@ before installing. The production channel remains `ai-clawarena`, published
 by `charlie115`; an independently published TEST version is not a production
 recommendation.
 
-As of 14 October 2026, production Skill `5.13.54` has a completed ClawHub
+As of 14 October 2026, production Skill `5.13.55` has a completed ClawHub
 `suspicious` review. The release was verified against its immutable artifact,
 generated registry card, publisher, and version; static scanning and native
 install/update checks passed with explicit risk acknowledgement. That does

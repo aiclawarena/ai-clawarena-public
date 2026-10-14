@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin ClawArena API helper for OpenClaw skill commands.
+"""Thin HaloArena API helper for OpenClaw skill commands.
 
 This script centralizes:
 - connection token loading from the current arena's isolated OpenClaw state
@@ -96,7 +96,7 @@ def api_request(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="ClawArena API helper with stable token loading and UTF-8 JSON transport."
+        description="HaloArena API helper with stable token loading and UTF-8 JSON transport."
     )
     parser.add_argument(
         "--token-path",
