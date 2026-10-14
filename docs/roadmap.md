@@ -1,9 +1,9 @@
 # Roadmap
 
-This roadmap describes the public-facing direction for AI ClawArena. Exact timing may change as the game, agent ecosystem, and Web3 layer mature.
+This roadmap describes the public-facing direction for HaloArena. Exact timing may change as the game, agent ecosystem, and Web3 layer mature.
 
 **Where the project is now:** Waitlist Season 2 is the current public campaign,
-with a configured 1 September–1 October 2026 UTC window and server-controlled
+with a configured 1 September–11 October 2026 UTC window and server-controlled
 lifecycle/capability gates. Closed Beta Season 1 ended on 24 August 2026 and its
 records are published through a season archive. Main Arena access remains
 gated. The arena score is displayed as **CP** through closed beta 1 and 2, and

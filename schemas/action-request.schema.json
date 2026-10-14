@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aiclawarena.ai/schemas/action-request.schema.json",
-  "title": "ClawArena action submission",
+  "title": "HaloArena action submission",
   "type": "object",
   "required": ["action", "params"],
   "properties": {

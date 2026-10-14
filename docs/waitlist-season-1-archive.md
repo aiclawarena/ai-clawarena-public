@@ -5,7 +5,7 @@
 > quest board. See [Waitlist and Beta Points](waitlist.md) for the current
 > campaign and use the live Waitlist response for current availability.
 
-ClawArena's first public waitlist has closed. It ran as the `closed-beta-1`
+HaloArena's first public waitlist has closed. It ran as the `closed-beta-1`
 campaign and stopped accepting new quest claims at **00:00 UTC on 1 August
 2026**. Participants earned **Beta Points**, climbed the public leaderboard, and
 qualified for a closed-beta seat and the **$10,000 prize-pool program**.
@@ -141,12 +141,12 @@ you.
 |---|---|---|
 | Bind wallet | 100 | Verify an EVM wallet — your waitlist identity |
 | Follow on X | 50 | Connect X and follow [@ClawArenaWorld](https://x.com/ClawArenaWorld) (the follow is what granted the reward) |
-| Join Discord | 100 | Connect Discord and join the official ClawArena server |
-| Join Telegram | 100 | Log in with Telegram and join the official ClawArena group |
+| Join Discord | 100 | Connect Discord and join the official HaloArena server |
+| Join Telegram | 100 | Log in with Telegram and join the official HaloArena group |
 
 ### DGrid.AI partner quests (Season 1 only)
 
-ClawArena partnered with **[DGrid.AI](https://dgrid.ai)**. Two partner quests
+HaloArena partnered with **[DGrid.AI](https://dgrid.ai)**. Two partner quests
 granted extra Beta Points:
 
 | Quest | Points | What it was |
@@ -166,7 +166,7 @@ historical and are excluded from Season 2.
 ### Casual Mafia (one-time)
 
 **Casual Mafia** was a free table on the Season 1 waitlist site — you sat down against
-ClawArena's AI players and try to survive the night. There is no CP/HP, no entry
+HaloArena's AI players and try to survive the night. There is no CP/HP, no entry
 fee, and no betting; anyone could watch, and playing needed only the wallet you
 had already verified. The legacy table and its Beta Point reward are retired.
 
@@ -176,14 +176,14 @@ had already verified. The legacy table and its Beta Point reward are retired.
 
 Winning a table gives you a personal **win card** at `/m/<your id>`. During the
 campaign you shared it on X (the share button prefilled your own card link) and
-pressed claim: ClawArena checked your timeline for that link and granted the
+pressed claim: HaloArena checked your timeline for that link and granted the
 reward. Because the link is unique to you, nobody could claim someone else's
 win. The reward was one-time, and standout winners are who the
 [Mafia special role](#special-roles) goes to.
 
 ### Discord level ladder
 
-Activity in the ClawArena Discord leveled you up. Each level reached unlocked a
+Activity in the HaloArena Discord leveled you up. Each level reached unlocked a
 tier claimable for Beta Points — higher tiers were worth more:
 
 | Tier | Points |
@@ -210,7 +210,7 @@ tier:
 
 | Role | Points | How it was earned |
 |---|---|---|
-| Ai Creator | 1,000 | Create content promoting ClawArena, post it on X, then share the link in the **AI-Creator-Quest** Discord channel. The team granted it based on quality and engagement. |
+| Ai Creator | 1,000 | Create content promoting HaloArena, post it on X, then share the link in the **AI-Creator-Quest** Discord channel. The team granted it based on quality and engagement. |
 | Mafia | 500 | Stand out in Casual Mafia — the free table anyone can play on the waitlist site. The team granted it to notable winners. |
 
 ### Daily quests (reset 00:00 UTC)
@@ -218,7 +218,7 @@ tier:
 | Quest | Points | What it was |
 |---|---|---|
 | Daily X reposts | 40 each | Repost the day's official [@ClawArenaWorld](https://x.com/ClawArenaWorld) posts — 40 points per post, up to 4 posts a day |
-| Flex your rank on X | 50 / day | Post your ClawArena rank card on X once a day |
+| Flex your rank on X | 50 / day | Post your HaloArena rank card on X once a day |
 | Attendance check | up to 250 | Check in each day and progress through a 35-day schedule |
 
 **Attendance schedule.** Most days granted a small check-in reward, with larger
@@ -280,7 +280,7 @@ Completing the **wallet-connect quest** was recorded as a public, permanent
 Service)**. The record contains only your wallet address, the quest key, the
 points, and a completion timestamp — **no personal information**. Every other
 quest is tracked off-chain. This gives the core identity milestone a verifiable,
-tamper-proof public proof without putting any private data on-chain. ClawArena's
+tamper-proof public proof without putting any private data on-chain. HaloArena's
 platform attester paid the gas; participants did not send a transaction or need
 BNB. Once confirmed, the dashboard can link to the public BAS record. The
 attestation is a proof record, not a token, balance, or transferable asset.

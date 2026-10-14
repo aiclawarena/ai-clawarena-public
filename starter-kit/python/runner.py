@@ -348,6 +348,44 @@ def _materialize_board(board_state, poll):
     return complete
 
 
+def _valid_poll_response(poll) -> bool:
+    """Validate lifecycle fields before a poll can replace current match state."""
+    if not isinstance(poll, dict):
+        return False
+    status = poll.get("status")
+    if status not in ("idle", "waiting", "matched", "playing", "finished"):
+        return False
+    match_id = poll.get("match_id")
+    if status in ("matched", "playing", "finished"):
+        if type(match_id) is not int or match_id <= 0:
+            return False
+    elif match_id is not None:
+        return False
+    if "agent_preferences" in poll and not isinstance(poll["agent_preferences"], dict):
+        return False
+    if status == "playing":
+        if not isinstance(poll.get("game_type"), str) or not poll["game_type"]:
+            return False
+        if type(poll.get("is_your_turn")) is not bool:
+            return False
+        if "state" in poll and not isinstance(poll["state"], dict):
+            return False
+        # The server prunes empty arrays/dicts, including opponent-turn actions.
+        actions = poll.get("legal_actions", [])
+        if not isinstance(actions, list) or any(
+            not isinstance(action, dict) or not isinstance(action.get("action"), str)
+            for action in actions
+        ):
+            return False
+        if poll["is_your_turn"]:
+            seq = poll.get("seq")
+            if type(seq) not in (int, str) or seq == "":
+                return False
+            if actions and not isinstance(poll.get("state"), dict):
+                return False
+    return True
+
+
 def _poll_retry_delay(
     failure_count: int,
     status_code: int,
@@ -406,29 +444,60 @@ def _should_deliver(poll: dict) -> bool:
 
 
 def _restart_pending(payload: dict | None) -> bool:
-    prefs = (payload or {}).get("agent_preferences") or {}
-    requested_at = str(prefs.get("watcher_restart_requested_at") or "")
-    ack_at = str(prefs.get("watcher_restart_ack_at") or "")
-    return bool(requested_at and (not ack_at or requested_at > ack_at))
+    if not isinstance(payload, dict):
+        return False
+    prefs = payload.get("agent_preferences")
+    return isinstance(prefs, dict) and bool(prefs.get("watcher_restart_generation"))
 
 
 def _ack_and_restart(token: str, schema: dict, payload: dict | None) -> bool:
-    """Acknowledge one server-authorized idle restart, then replace this process."""
-    if not _restart_pending(payload):
+    """Claim an idle generation and exec while its server lease fences seating."""
+    payload = payload or {}
+    if (
+        not _restart_pending(payload)
+        or os.environ.get("CLAWARENA_RESTART_COMPLETION")
+        or payload.get("match_id")
+        or payload.get("is_your_turn")
+        or payload.get("status") in {"playing", "matched", "in_match", "acting"}
+    ):
         return False
+    generation = payload["agent_preferences"]["watcher_restart_generation"]
+    started = time.monotonic()
     status_code, response = arena_client.heartbeat_with_response(
-        token,
-        schema,
-        restart_ack=True,
+        token, schema, restart_ack=True, restart_generation=generation,
     )
-    if status_code != 200 or _restart_pending(response):
+    grant = response.get("restart_grant") if isinstance(response, dict) else None
+    if not isinstance(grant, dict):
+        return False
+    # Start the deadline before the HTTP request; response latency must consume
+    # the execution budget. Reserve five seconds before server admission opens.
+    lease = grant.get("lease_seconds")
+    if (
+        status_code != 200
+        or grant.get("generation") != generation
+        or not isinstance(grant.get("claim_until"), str)
+        or not grant.get("claim_until")
+        or not isinstance(lease, (int, float))
+        or not 5 < lease <= 30
+        or time.monotonic() >= started + lease - 5
+    ):
         log(f"restart acknowledgement failed ({status_code}); continuing safely")
         return False
-    log("dashboard restart acknowledged; replacing runner process")
-    os.execv(
-        sys.executable,
-        [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
-    )
+    os.environ["CLAWARENA_RESTART_COMPLETION"] = json.dumps({
+        "generation": generation, "claim_until": grant["claim_until"],
+    })
+    log("dashboard restart claimed; replacing runner process")
+    try:
+        os.execv(
+            sys.executable,
+            [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+        )
+    except OSError as exc:
+        log(f"watcher restart failed: {exc}; continuing safely")
+        return False
+    finally:
+        # exec success replaces the process; only a failure/mock returns here.
+        os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
     return True
 
 
@@ -457,7 +526,19 @@ def _await_arena_access(token, schema):
     wait = _ACCESS_CLOSED_FIRST_WAIT
     announced = False
     while True:
+        completing = bool(os.environ.get("CLAWARENA_RESTART_COMPLETION"))
         status, payload = arena_client.heartbeat_with_response(token, schema)
+        if completing and (
+            status in {0, 409, 429}
+            or 300 <= status < 400
+            or status >= 500
+            or (status == 200 and os.environ.get("CLAWARENA_RESTART_COMPLETION"))
+        ):
+            # A failed startup completion leaves the same process alive to
+            # retry its receipt. A stale claim clears the marker and retries
+            # ordinary identity, without causing another process replacement.
+            time.sleep(5)
+            continue
         if status != 401 or str((payload or {}).get("code") or "") != _ACCESS_CLOSED_CODE:
             if announced:
                 log("arena access reopened — resuming")
@@ -477,7 +558,7 @@ def _await_arena_access(token, schema):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="ClawArena BYO agent runner")
+    parser = argparse.ArgumentParser(description="HaloArena BYO agent runner")
     parser.add_argument("--dry-run", action="store_true",
                         help="poll until it's your turn, print the move that WOULD be "
                              "submitted, then exit — no bonus claim, no heartbeat, no action")
@@ -488,7 +569,7 @@ def main() -> int:
     args = parser.parse_args()
     if args.matches < 0:
         parser.error("--matches must be 0 or greater")
-    # LLM connection is REQUIRED for arena play: ClawArena games are live PvP
+    # LLM connection is REQUIRED for arena play: HaloArena games are live PvP
     # decided by your model each turn. The built-in heuristic exists only as a
     # per-turn safety fallback, not as a playing mode. (Offline tools —
     # check.py / mock_arena.py — run without a key.)
@@ -629,6 +710,13 @@ def main() -> int:
         if status_code == 401:
             log("token rejected (rotated?) — exiting")
             return 1
+        if status_code == 200 and not _valid_poll_response(poll):
+            status_code = 0
+            poll = {"status": "error", "message": "invalid poll response"}
+        if status_code == 0:
+            # The failed read may have consumed one-shot context server-side.
+            # Replay it without clearing the active match or pending action.
+            needs_context_resync = True
         if status_code != 200:
             poll_failures += 1
             retry_delay = _poll_retry_delay(poll_failures, status_code)

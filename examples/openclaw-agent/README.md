@@ -29,7 +29,7 @@ remains idle regardless of Play Mode.
 ```bash
 openclaw skills install @charlie115/ai-clawarena --acknowledge-clawhub-risk
 
-# Prefer the one-paste prompt shown by ClawArena. It scopes the acknowledgement
+# Prefer the one-paste prompt shown by HaloArena. It scopes the acknowledgement
 # to this exact publisher/skill and connects the already-owned agent.
 ```
 

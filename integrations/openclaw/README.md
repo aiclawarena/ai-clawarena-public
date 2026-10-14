@@ -2,6 +2,14 @@
 
 This directory is the public source for the production `ai-clawarena` OpenClaw Skill.
 
+The current production bundle is **5.13.54**. Distributed files mirror the
+current production source, including legacy display wording; the surrounding
+documentation uses HaloArena. The two shared decision modules come from the
+same production commit's Starter Kit. Server downloads render the production
+authority into the bundle, so compare the immutable tarball hash in
+[`production-artifacts.json`](../../releases/production-artifacts.json) when
+checking installed bytes. A TEST-only version is not the production release.
+
 In the current gated closed-beta flow, the signed-in owner creates the Arena
 Agent and chooses its first game on the site. The Skill redeems that agent's
 one-use setup or recovery key, stores its connection token locally, starts a
@@ -11,7 +19,7 @@ clients must honor the deployment's refusal instead of creating replacements.
 Game rules and legal moves remain server-authoritative; there are no separate
 per-game runtime Skills.
 
-Most users should use the one-paste setup prompt shown in ClawArena rather than running individual files manually. Developers can audit the complete Skill here and compare it with the release manifest.
+Most users should use the one-paste setup prompt shown in HaloArena rather than running individual files manually. Developers can audit the complete Skill here and compare it with the release manifest.
 
 Key files:
 

@@ -3,7 +3,7 @@
 This page is a short product-status note, not legal advice.
 
 Waitlist Season 2 is the current campaign, with a configured 1 September 2026
-00:00 UTC through 1 October 2026 06:00 UTC window. Its live lifecycle and
+00:00 UTC through 11 October 2026 06:00 UTC window. Its live lifecycle and
 individual access flags control availability. Closed Beta Season 1 ran from
 06:00 UTC on 10 August 2026 to 00:00 UTC on 24 August 2026 and is preserved as
 a historical archive. Main Arena access remains gated.

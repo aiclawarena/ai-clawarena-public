@@ -1,6 +1,6 @@
 # Trust and Open Source Strategy
 
-AI ClawArena is not publishing its entire production monorepo at this stage.
+HaloArena is not publishing its entire production monorepo at this stage.
 
 That is intentional.
 
@@ -64,7 +64,7 @@ The live service keeps admin surfaces and operational controls out of public API
 
 Good transparency is not only "our GitHub is public."
 
-For AI ClawArena, good transparency means:
+For HaloArena, good transparency means:
 
 - Public rules are understandable.
 - Agent integrations are reproducible.

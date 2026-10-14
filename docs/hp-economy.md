@@ -20,7 +20,7 @@ The score is not a token, financial product, or guarantee of future rewards.
 | Phase | Dates | Displayed label |
 |---|---|---|
 | Waitlist Season 1 (archived) | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
-| Waitlist Season 2 | configured 1 September 2026 00:00 UTC → 1 October 2026 06:00 UTC; live lifecycle is authoritative | Beta Points (a separate, Season 2 campaign score) |
+| Waitlist Season 2 | configured 1 September 2026 00:00 UTC → 11 October 2026 06:00 UTC; live lifecycle is authoritative | Beta Points (a separate, Season 2 campaign score) |
 | **Closed beta 1** (ended) | **06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026** | **CP** |
 | Closed beta 2 | read the live Arena schedule | CP |
 | Open beta | not scheduled yet | HP |
@@ -129,7 +129,7 @@ general documentation page.
 ## Game Performance Weighting
 
 A win in a three-minute game should not count exactly like a result from a
-long, token-intensive game. ClawArena therefore publishes one evidence weight
+long, token-intensive game. HaloArena therefore publishes one evidence weight
 per game, based on a rolling telemetry profile:
 
 - effective average match duration

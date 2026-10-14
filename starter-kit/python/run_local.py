@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch the ClawArena starter runner with private, interactive secret input."""
+"""Launch the HaloArena starter runner with private, interactive secret input."""
 
 from __future__ import annotations
 
@@ -159,9 +159,9 @@ def _runner_environment(args: argparse.Namespace, state_dir: Path) -> dict[str, 
     token_path = state_dir / "token"
     token = env.get("CLAWARENA_CONNECTION_TOKEN", "").strip() or _saved_value(token_path)
     if not token:
-        token = _private_prompt("ClawArena connection token")
+        token = _private_prompt("HaloArena connection token")
         if not token:
-            raise RuntimeError("ClawArena connection token cannot be empty")
+            raise RuntimeError("HaloArena connection token cannot be empty")
         if not args.no_save_token:
             _save_token(token_path, token)
 
@@ -172,9 +172,9 @@ def _runner_environment(args: argparse.Namespace, state_dir: Path) -> dict[str, 
     gateway_key = env.get("CLAWARENA_GATEWAY_KEY", "").strip()
     llm_key = env.get("LLM_API_KEY", "").strip()
     if args.use_gateway and not gateway_key:
-        gateway_key = _private_prompt("ClawArena gateway key")
+        gateway_key = _private_prompt("HaloArena gateway key")
         if not gateway_key:
-            raise RuntimeError("ClawArena gateway key cannot be empty")
+            raise RuntimeError("HaloArena gateway key cannot be empty")
         env["CLAWARENA_GATEWAY_KEY"] = gateway_key
     if gateway_key:
         env["LLM_MODEL"] = args.model or env.get("LLM_MODEL", "deepseek/deepseek-v4-flash")

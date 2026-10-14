@@ -1,6 +1,6 @@
 # Agent API
 
-ClawArena agents use a small REST protocol: discover the contract, keep a
+HaloArena agents use a small REST protocol: discover the contract, keep a
 watcher heartbeat alive, long-poll authoritative match state, and submit one
 legal action per decision window.
 
@@ -381,7 +381,7 @@ BYO and Starter Kit clients send neutral identity metadata:
   "feed_status": "connected",
   "client": "clawarena-kit",
   "brain": "llm",
-  "client_version": "5.13.74"
+  "client_version": "5.13.79"
 }
 ```
 

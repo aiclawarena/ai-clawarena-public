@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import base64
 import copy
+import email.message
 import functools
 import hashlib
+import http.client
 import importlib.util
 import io
 import inspect
@@ -21,6 +23,9 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.error
+import urllib.request
+import urllib.response
 import warnings
 from collections import deque
 from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -52,6 +57,244 @@ import runner  # noqa: E402
 import run_local  # noqa: E402
 import setup_local_runner  # noqa: E402
 import setup_starter_kit  # noqa: E402
+import migrate_arena_authority  # noqa: E402
+
+
+class AuthorityMigrationTests(unittest.TestCase):
+    OLD = "https://aiclawarena.ai/api/v1"
+    NEW = "https://haloarena.ai/api/v1"
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.home = Path(self.temporary.name) / "client"
+        self.home.mkdir(mode=0o700)
+        self.token = base64.urlsafe_b64encode(json.dumps({"a": 42, "t": "private-fixture-token"}).encode()).decode()
+        (self.home / "token").write_text(self.token + "\n")
+        (self.home / "agent_id").write_text("42\n")
+        (self.home / "arena_base").write_text(self.OLD + "\n")
+        (self.home / "memory.json").write_text('{"strategy": "keep this unchanged"}')
+        self.owner = {"schema_version": 1, "arena_base": self.OLD, "runtime_kind": "hermes"}
+        (self.home / "state_owner.json").write_text(json.dumps(self.owner))
+
+    def test_dry_run_is_read_only_and_does_not_disclose_credentials(self):
+        before = {p.name: p.read_bytes() for p in self.home.iterdir()}
+        plan, _, _ = migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        self.assertEqual(plan["status"], "dry_run")
+        self.assertNotIn(self.token, json.dumps(plan))
+        self.assertNotIn("private-fixture-token", json.dumps(plan))
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.home.iterdir()})
+
+    def test_test_pair_supports_reviewed_forward_reverse_without_credential_changes(self):
+        old_test = "https://dev-arenaclaw.halochain.xyz/api/v1"
+        new_test = "https://dev.haloarena.ai/api/v1"
+        self.owner["arena_base"] = old_test
+        (self.home / "state_owner.json").write_text(json.dumps(self.owner))
+        (self.home / "arena_base").write_text(old_test + "\n")
+        untouched = {name: (self.home / name).read_bytes() for name in ("token", "agent_id", "memory.json")}
+        for from_base, to_base in ((old_test, new_test), (new_test, old_test)):
+            with self.subTest(from_base=from_base, to_base=to_base):
+                before = {path.name: path.read_bytes() for path in self.home.iterdir() if path.is_file()}
+                plan, _, _ = migrate_arena_authority.migration_plan(self.home, from_base, to_base, 42)
+                self.assertEqual(plan["status"], "dry_run")
+                self.assertEqual(before, {path.name: path.read_bytes() for path in self.home.iterdir() if path.is_file()})
+                with self.assertRaisesRegex(ValueError, "agent ID"):
+                    migrate_arena_authority.migration_plan(self.home, from_base, to_base, 43)
+                applied = migrate_arena_authority.apply_migration(
+                    self.home, from_base, to_base, 42, plan["plan_sha256"], confirm_stopped=True)
+                self.assertEqual(applied["status"], "applied")
+                self.assertEqual((self.home / "arena_base").read_text(), to_base + "\n")
+                self.assertEqual(json.loads((self.home / "state_owner.json").read_text())["arena_base"], to_base)
+                self.assertEqual(untouched, {name: (self.home / name).read_bytes() for name in untouched})
+                self.assertEqual(migrate_arena_authority.apply_migration(
+                    self.home, from_base, to_base, 42, plan["plan_sha256"], confirm_stopped=True)["status"], "already_applied")
+
+    def test_all_cross_environment_pairs_and_lookalike_authorities_are_rejected(self):
+        prod = (self.OLD, self.NEW)
+        test = ("https://dev-arenaclaw.halochain.xyz/api/v1", "https://dev.haloarena.ai/api/v1")
+        before = {path.name: path.read_bytes() for path in self.home.iterdir()}
+        for prod_base in prod:
+            for test_base in test:
+                for from_base, to_base in ((prod_base, test_base), (test_base, prod_base)):
+                    with self.subTest(from_base=from_base, to_base=to_base), self.assertRaisesRegex(ValueError, "TEST is separate"):
+                        migrate_arena_authority.migration_plan(self.home, from_base, to_base, 42)
+        for invalid in (
+            "http://dev.haloarena.ai/api/v1", "https://dev.haloarena.ai.evil.example/api/v1",
+            "https://user@dev.haloarena.ai/api/v1", "https://dev.haloarena.ai:444/api/v1",
+            "https://dev.dev.haloarena.ai/api/v1", "https://dev.haloarena.ai/api/v1?secret=fixture",
+        ):
+            with self.subTest(to_base=invalid), self.assertRaisesRegex(ValueError, "explicit old/new pair"):
+                migrate_arena_authority.migration_plan(self.home, test[0], invalid, 42)
+        self.assertEqual(before, {path.name: path.read_bytes() for path in self.home.iterdir()})
+
+    def test_test_migration_keeps_private_home_and_stopped_process_guards(self):
+        old_test = "https://dev-arenaclaw.halochain.xyz/api/v1"
+        new_test = "https://dev.haloarena.ai/api/v1"
+        self.owner["arena_base"] = old_test
+        (self.home / "state_owner.json").write_text(json.dumps(self.owner))
+        (self.home / "arena_base").write_text(old_test + "\n")
+        (self.home / "runner.pid").write_text(str(os.getpid()))
+        with self.assertRaisesRegex(ValueError, "Stop the existing"):
+            migrate_arena_authority.migration_plan(self.home, old_test, new_test, 42)
+        (self.home / "runner.pid").unlink()
+        self.home.chmod(0o755)
+        with self.assertRaisesRegex(ValueError, "private permissions"):
+            migrate_arena_authority.migration_plan(self.home, old_test, new_test, 42)
+        self.home.chmod(0o700)
+        plan, _, _ = migrate_arena_authority.migration_plan(self.home, old_test, new_test, 42)
+        with self.assertRaisesRegex(ValueError, "confirm-stopped"):
+            migrate_arena_authority.apply_migration(self.home, old_test, new_test, 42, plan["plan_sha256"], confirm_stopped=False)
+        self.assertFalse((self.home / "setup.lock").exists())
+
+    def test_apply_preserves_identity_memory_and_private_recoverable_backup(self):
+        for runtime in ("hermes", "openclaw", "starter-kit"):
+            with self.subTest(runtime=runtime):
+                self.owner["runtime_kind"] = runtime
+                (self.home / "state_owner.json").write_text(json.dumps(self.owner))
+                (self.home / "arena_base").write_text(self.OLD + "\n")
+                before_owner = (self.home / "state_owner.json").read_bytes()
+                plan, _, _ = migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+                applied = migrate_arena_authority.apply_migration(
+                    self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=True)
+                self.assertEqual(applied["status"], "applied")
+                self.assertEqual((self.home / "token").read_text(), self.token + "\n")
+                self.assertEqual((self.home / "agent_id").read_text(), "42\n")
+                self.assertEqual((self.home / "memory.json").read_text(), '{"strategy": "keep this unchanged"}')
+                self.assertEqual((self.home / "arena_base").read_text(), self.NEW + "\n")
+                backup = Path(applied["backup"])
+                self.assertEqual((backup / "state_owner.json").read_bytes(), before_owner)
+                self.assertEqual(stat.S_IMODE(backup.stat().st_mode), 0o700)
+                self.assertEqual(stat.S_IMODE((backup / "state_owner.json").stat().st_mode), 0o600)
+                self.assertFalse((backup / "token").exists())
+                repeated = migrate_arena_authority.apply_migration(
+                    self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=True)
+                self.assertEqual(repeated["status"], "already_applied")
+
+    def test_changed_identity_or_wrong_agent_invalidates_reviewed_plan(self):
+        plan, _, _ = migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        with self.assertRaisesRegex(ValueError, "agent ID"):
+            migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 43)
+        (self.home / "token").write_text(base64.urlsafe_b64encode(json.dumps({"a": 42, "t": "rotated"}).encode()).decode())
+        with self.assertRaisesRegex(ValueError, "plan changed"):
+            migrate_arena_authority.apply_migration(
+                self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=True)
+        self.assertEqual(json.loads((self.home / "state_owner.json").read_text()), self.owner)
+
+    def test_refuses_test_authority_live_process_and_missing_stop_confirmation(self):
+        with self.assertRaisesRegex(ValueError, "TEST is separate"):
+            migrate_arena_authority.migration_plan(self.home, self.OLD, "https://dev-arenaclaw.halochain.xyz/api/v1", 42)
+        (self.home / "runner.pid").write_text(str(os.getpid()))
+        with self.assertRaisesRegex(ValueError, "Stop the existing"):
+            migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        (self.home / "runner.pid").unlink()
+        plan, _, _ = migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        with self.assertRaisesRegex(ValueError, "confirm-stopped"):
+            migrate_arena_authority.apply_migration(
+                self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=False)
+        self.assertFalse((self.home / "setup.lock").exists())
+
+    def test_refuses_symlink_token_and_rolls_back_partial_metadata_write(self):
+        token_file = self.home / "token"
+        token_file.rename(self.home / "other-token")
+        token_file.symlink_to(self.home / "other-token")
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        token_file.unlink()
+        (self.home / "other-token").rename(token_file)
+        plan, _, _ = migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        original_write = migrate_arena_authority._atomic_write
+
+        def fail_arena_update(path, data):
+            if path == self.home / "arena_base" and data == self.NEW.encode() + b"\n":
+                raise OSError("fixture write failure")
+            original_write(path, data)
+
+        with mock.patch.object(migrate_arena_authority, "_atomic_write", side_effect=fail_arena_update):
+            with self.assertRaisesRegex(OSError, "fixture write failure"):
+                migrate_arena_authority.apply_migration(
+                    self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=True)
+        self.assertEqual(json.loads((self.home / "state_owner.json").read_text()), self.owner)
+        self.assertEqual((self.home / "arena_base").read_text(), self.OLD + "\n")
+        applied = migrate_arena_authority.apply_migration(
+            self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=True)
+        self.assertEqual(applied["status"], "applied")
+        self.assertEqual(len(list(self.home.glob(".authority-backup-*"))), 2)
+
+    def test_one_turn_client_reuses_migrated_home_and_checks_owner_before_token(self):
+        self.owner["runtime_kind"] = "starter-kit"
+        (self.home / "state_owner.json").write_text(json.dumps(self.owner))
+        plan, _, _ = migrate_arena_authority.migration_plan(self.home, self.OLD, self.NEW, 42)
+        migrate_arena_authority.apply_migration(
+            self.home, self.OLD, self.NEW, 42, plan["plan_sha256"], confirm_stopped=True)
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(turn_player._resolve_token(self.NEW, save=False, state_dir=self.home), self.token)
+            with mock.patch.object(run_local, "_saved_value") as read_token:
+                with self.assertRaisesRegex(SystemExit, "another arena"):
+                    turn_player._resolve_token(self.OLD, save=False, state_dir=self.home)
+                read_token.assert_not_called()
+
+
+class APITransportBoundaryTests(unittest.TestCase):
+    def test_client_and_setup_reject_redirects_without_forwarding_secrets(self):
+        for module in (arena_client, setup_local_runner):
+            for status in (301, 302, 303, 307, 308):
+                for method in ("GET", "POST"):
+                    for destination in ("https://other.example/receive", "http://other.example/receive", "https://arena.example/other"):
+                        with self.subTest(module=module.__name__, status=status, method=method, destination=destination):
+                            seen = []
+
+                            class WireFixture(urllib.request.HTTPHandler, urllib.request.HTTPSHandler):
+                                def http_open(self, req):
+                                    seen.append(req)
+                                    headers = email.message.Message()
+                                    headers["Location"] = destination
+                                    result = urllib.response.addinfourl(io.BytesIO(b'{}'), headers, req.full_url, status)
+                                    result.msg = "Redirect fixture"
+                                    return result
+
+                                https_open = http_open
+
+                            opener = urllib.request.build_opener(WireFixture(), module._NoAPIRedirect())
+                            with (
+                                mock.patch.object(module, "_API_OPENER", opener),
+                                mock.patch.dict(os.environ, {"CLAWARENA_BASE": "https://arena.example/api/v1"}),
+                            ):
+                                if module is arena_client:
+                                    actual, _ = module.request(method, "/agents/action/", token="dummy-token", payload={"recovery_key": "dummy-key"} if method == "POST" else None)
+                                    self.assertEqual(actual, status)
+                                else:
+                                    with self.assertRaises(module.ClawArenaAPIError) as raised:
+                                        module._post("https://arena.example/api/v1/agents/provision/", {"recovery_key": "dummy-key"}, token="dummy-token")
+                                    self.assertEqual(raised.exception.status_code, status)
+                            self.assertEqual(len(seen), 1)
+                            self.assertEqual(seen[0].host, "arena.example")
+
+    def test_api_base_validation_preserves_loopback_and_rejects_unsafe_origins(self):
+        for module in (arena_client, setup_local_runner):
+            for base in ("https://arena.example/api/v1", "http://127.0.0.1:8234/api/v1", "http://[::1]:8234/api/v1", "http://localhost:8234/api/v1"):
+                with self.subTest(module=module.__name__, base=base):
+                    self.assertEqual(module.validated_api_base(base), base)
+            for base in ("http://foreign.example/api/v1", "https://user:secret@arena.example/api/v1", "https://arena.example:bad/api/v1", "https://arena.example:99999/api/v1", "https://arena.example/api/v1?x=y", "https://arena.example/api/v1#x", "https://arena.example\\@other.example/api/v1"):
+                with self.subTest(module=module.__name__, base=base), self.assertRaises(ValueError):
+                    module.validated_api_base(base)
+
+    def test_legacy_hermes_credentials_are_never_probed_without_matching_ownership(self):
+        base = "https://arena.example/api/v1"
+        for owner in (None, {}, {"arena_base": "https://other.example/api/v1", "runtime_kind": "hermes"}, {"arena_base": base, "runtime_kind": "openclaw"}):
+            with self.subTest(owner=owner), tempfile.TemporaryDirectory() as tmp:
+                legacy = Path(tmp) / "legacy"
+                legacy.mkdir()
+                (legacy / "token").write_text("dummy-old-token")
+                if owner is not None:
+                    (legacy / "state_owner.json").write_text(json.dumps(owner))
+                with (
+                    mock.patch.object(setup_local_runner, "_legacy_homes", return_value=[legacy]),
+                    mock.patch.object(setup_local_runner, "_post") as post,
+                    mock.patch.object(setup_local_runner, "_saved_text", side_effect=AssertionError("must not read old credentials")),
+                ):
+                    self.assertEqual(setup_local_runner._adopt_valid_legacy_home(base, Path(tmp) / "target"), (None, None))
+                post.assert_not_called()
+                self.assertEqual((legacy / "token").read_text(), "dummy-old-token")
 
 
 class DecisionContextContractTests(unittest.TestCase):
@@ -530,7 +773,7 @@ class CodingAgentTurnViewTests(unittest.TestCase):
             result = turn_player.main()
 
         self.assertEqual(result, 0)
-        resolve.assert_called_once_with(run_local.DEFAULT_ARENA_BASE, save=True)
+        resolve.assert_called_once_with(run_local.DEFAULT_ARENA_BASE, save=True, state_dir=None)
         fetch_schema.assert_not_called()
         poll.assert_not_called()
         self.assertEqual(emitted, [{
@@ -544,6 +787,34 @@ class CodingAgentTurnViewTests(unittest.TestCase):
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_invalid_success_body_is_retryable_without_exposing_bytes(self):
+        for body in (b"", b"null", b"[]", b"123", b"<html>private response</html>", b"\xff"):
+            with self.subTest(body=body):
+                response = mock.MagicMock(status=200)
+                response.__enter__.return_value = response
+                response.read.return_value = body
+                with mock.patch.object(arena_client, "api_urlopen", return_value=response):
+                    status, payload = arena_client.request("GET", "/agents/game/")
+                self.assertEqual(status, 0)
+                self.assertEqual(payload["status"], "error")
+                self.assertNotIn("private response", str(payload))
+
+    def test_truncated_success_body_is_retryable(self):
+        response = mock.MagicMock(status=200)
+        response.__enter__.return_value = response
+        response.read.side_effect = http.client.IncompleteRead(b"private partial", 50)
+        with mock.patch.object(arena_client, "api_urlopen", return_value=response):
+            status, payload = arena_client.request("POST", "/agents/action/", payload={"idempotency_key": "same"})
+        self.assertEqual(status, 0)
+        self.assertNotIn("private partial", str(payload))
+
+    def test_action_requires_explicit_success_ack(self):
+        for payload in ({}, {"status": "error"}, {"message": "proxy"}):
+            with self.subTest(payload=payload), mock.patch.object(arena_client, "request", return_value=(200, payload)):
+                self.assertEqual(arena_client.act("token", {"idempotency_key": "same"})[0], 0)
+        with mock.patch.object(arena_client, "request", return_value=(200, {"status": "ok"})):
+            self.assertEqual(arena_client.act("token", {})[0], 200)
+
     def test_vegas_invalid_model_face_is_normalized_to_best_current_legal_face(self):
         state = {
             "game_type": "las_vegas",
@@ -1379,45 +1650,97 @@ class ProtocolTests(unittest.TestCase):
         self.assertNotIn("skill_slug", payload)
 
     def test_runner_acknowledges_pending_restart_before_exec(self):
-        requested = "2026-08-01T10:00:00+00:00"
+        generation = "2026-08-01T10:00:00+00:00"
+        grant = {"generation": generation, "claim_until": "2026-08-01T10:00:30+00:00", "lease_seconds": 30}
+        markers = []
         with (
-            mock.patch.object(
-                runner.arena_client,
-                "heartbeat_with_response",
-                return_value=(200, {
-                    "agent_preferences": {
-                        "watcher_restart_requested_at": requested,
-                        "watcher_restart_ack_at": "2026-08-01T10:00:01+00:00",
-                    },
-                }),
-            ) as heartbeat,
-            mock.patch.object(runner.os, "execv") as execv,
+            mock.patch.object(runner.arena_client, "heartbeat_with_response", return_value=(200, {"restart_grant": grant})) as heartbeat,
+            mock.patch.object(runner.os, "execv", side_effect=lambda *a: markers.append(json.loads(os.environ["CLAWARENA_RESTART_COMPLETION"]))) as execv,
             mock.patch.object(sys, "argv", ["runner.py"]),
         ):
-            runner._ack_and_restart("token", {}, {
-                "agent_preferences": {"watcher_restart_requested_at": requested},
-            })
-
-        heartbeat.assert_called_once_with("token", {}, restart_ack=True)
-        execv.assert_called_once()
-        self.assertEqual(execv.call_args.args[1][-1], str(Path(runner.__file__).resolve()))
-
-    def test_runner_does_not_exec_when_restart_ack_is_not_persisted(self):
-        requested = "2026-08-01T10:00:00+00:00"
-        with (
-            mock.patch.object(
-                runner.arena_client,
-                "heartbeat_with_response",
-                return_value=(200, {
-                    "agent_preferences": {"watcher_restart_requested_at": requested},
-                }),
-            ),
-            mock.patch.object(runner.os, "execv") as execv,
-        ):
-            self.assertFalse(runner._ack_and_restart("token", {}, {
-                "agent_preferences": {"watcher_restart_requested_at": requested},
+            self.assertTrue(runner._ack_and_restart("token", {}, {
+                "status": "idle", "agent_preferences": {"watcher_restart_generation": generation},
             }))
-        execv.assert_not_called()
+        heartbeat.assert_called_once_with("token", {}, restart_ack=True, restart_generation=generation)
+        execv.assert_called_once()
+        self.assertEqual(markers, [{"generation": generation, "claim_until": grant["claim_until"]}])
+        self.assertTrue("CLAWARENA_RESTART_COMPLETION" not in os.environ)
+
+    def test_runner_defers_active_and_legacy_restart_payloads(self):
+        for extra in ({"status": "playing"}, {"status": "matched"}, {"match_id": 42}, {"is_your_turn": True}):
+            with self.subTest(extra=extra), mock.patch.object(runner.arena_client, "heartbeat_with_response") as heartbeat:
+                self.assertFalse(runner._ack_and_restart("token", {}, {
+                    "agent_preferences": {"watcher_restart_generation": "generation"}, **extra,
+                }))
+                heartbeat.assert_not_called()
+        self.assertFalse(runner._ack_and_restart("token", {}, {
+            "agent_preferences": {"watcher_restart_requested_at": "legacy"},
+        }))
+
+    def test_runner_requires_a_matching_timely_grant_and_handles_exec_failure(self):
+        generation = "generation"
+        good = {"generation": generation, "claim_until": "until", "lease_seconds": 30}
+        for response, elapsed, error in (
+            ({}, 0, None), ({"restart_grant": []}, 0, None),
+            ({"restart_grant": {**good, "claim_until": 123}}, 0, None),
+            ({"restart_grant": {**good, "generation": "newer"}}, 0, None),
+            ({"restart_grant": good}, 26, None),
+            ({"restart_grant": good}, 0, OSError("exec unavailable")),
+        ):
+            with (
+                self.subTest(response=response, elapsed=elapsed),
+                mock.patch.object(runner.arena_client, "heartbeat_with_response", return_value=(200, response)),
+                mock.patch.object(runner.time, "monotonic", side_effect=[0, elapsed]),
+                mock.patch.object(runner.os, "execv", side_effect=error) as execv,
+            ):
+                self.assertFalse(runner._ack_and_restart("token", {}, {
+                    "agent_preferences": {"watcher_restart_generation": generation},
+                }))
+                self.assertEqual(execv.call_count, 1 if error else 0)
+        self.assertTrue("CLAWARENA_RESTART_COMPLETION" not in os.environ)
+
+    def test_startup_completion_retries_after_transient_heartbeat_failure(self):
+        schema = {"heartbeat": {"body_template": {"status": "idle"}}}
+        marker = json.dumps({"generation": "generation", "claim_until": "until"})
+        with (
+            mock.patch.dict(os.environ, {"CLAWARENA_RESTART_COMPLETION": marker}),
+            mock.patch.object(arena_client, "request", side_effect=[
+                (503, {}), (200, {}),
+                (200, {"restart_completed": {"generation": "generation", "claim_until": "until"}}),
+            ]) as request_call,
+        ):
+            self.assertEqual(arena_client.heartbeat_with_response("token", schema)[0], 503)
+            self.assertEqual(os.environ["CLAWARENA_RESTART_COMPLETION"], marker)
+            with mock.patch.object(runner.os, "execv") as execv:
+                self.assertFalse(runner._ack_and_restart("token", {}, {
+                    "agent_preferences": {"watcher_restart_generation": "generation"},
+                }))
+                execv.assert_not_called()
+            self.assertEqual(arena_client.heartbeat_with_response("token", schema)[0], 200)
+            self.assertEqual(os.environ["CLAWARENA_RESTART_COMPLETION"], marker)
+            self.assertEqual(arena_client.heartbeat_with_response("token", schema)[0], 200)
+            self.assertTrue("CLAWARENA_RESTART_COMPLETION" not in os.environ)
+        for call in request_call.call_args_list:
+            self.assertEqual(call.kwargs["payload"]["restart_completed_generation"], "generation")
+            self.assertEqual(call.kwargs["payload"]["restart_claim_until"], "until")
+
+    def test_initial_heartbeat_retries_completion_failure_or_stale_claim(self):
+        schema = {"heartbeat": {"body_template": {"status": "idle"}}}
+        marker = json.dumps({"generation": "generation", "claim_until": "until"})
+        for first_status in (0, 503, 409, 200):
+            receipt = {"status": "ok", "restart_completed": {"generation": "generation", "claim_until": "until"}}
+            with (
+                self.subTest(first_status=first_status),
+                mock.patch.dict(os.environ, {"CLAWARENA_RESTART_COMPLETION": marker}),
+                mock.patch.object(arena_client, "request", side_effect=[(first_status, {}), (200, receipt)]) as request_call,
+                mock.patch.object(runner.time, "sleep") as sleep,
+            ):
+                self.assertEqual(runner._await_arena_access("token", schema), (200, receipt))
+                self.assertEqual(request_call.call_count, 2)
+                sleep.assert_called_once_with(5)
+                self.assertTrue("CLAWARENA_RESTART_COMPLETION" not in os.environ)
+                if first_status == 409:
+                    self.assertNotIn("restart_completed_generation", request_call.call_args.kwargs["payload"])
 
     def test_first_poll_can_request_an_automatic_context_resync(self):
         with mock.patch.object(arena_client, "request", return_value=(200, {})) as request_call:
@@ -6783,7 +7106,7 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(json.loads(output.getvalue()), {
                 "status": "setup_in_progress",
                 "home": tmp,
-                "note": "Another ClawArena setup/update is already running.",
+                "note": "Another HaloArena setup/update is already running.",
             })
 
     def test_atomic_credentials_are_private(self):
@@ -6932,6 +7255,9 @@ class SetupTests(unittest.TestCase):
             (legacy_kit / "runner.py").write_text("legacy-runner")
             (legacy / "runner.pid").write_text("4321")
             (legacy / "token").write_text("legacy-token")
+            (legacy / "state_owner.json").write_text(json.dumps(
+                setup_local_runner._state_owner("https://arena.example/api/v1")
+            ))
             target = Path(tmp) / "target"
             stopped = []
             output = io.StringIO()
@@ -6988,6 +7314,9 @@ class SetupTests(unittest.TestCase):
             (legacy_kit / "runner.py").write_text("legacy-runner")
             (legacy / "runner.pid").write_text("4321")
             (legacy / "token").write_text("legacy-token")
+            (legacy / "state_owner.json").write_text(json.dumps(
+                setup_local_runner._state_owner("https://arena.example/api/v1")
+            ))
             target = Path(tmp) / "target"
             stopped = []
             output = io.StringIO()
@@ -7608,6 +7937,53 @@ class RunnerLoopTests(unittest.TestCase):
         self.assertEqual(retry_attempts, [(1, 502), (2, 404), (1, 503)])
         self.assertEqual(actions, [])
         self.assertEqual(moves, [])
+
+    def test_invalid_poll_preserves_active_match_and_accumulates_backoff(self):
+        opponent_turn = {**self.playing(12345, 1), "is_your_turn": False}
+        invalid = [None, [], {}, {"status": "error"}, {"status": "playing"},
+                   {**opponent_turn, "is_your_turn": "false"},
+                   {"status": "finished"}, {"status": "idle", "match_id": 12345}]
+        with (
+            mock.patch.object(runner, "_poll_retry_delay", return_value=0) as retry,
+            mock.patch.object(runner, "log") as log,
+        ):
+            result, actions, moves = self.run_loop(
+                [(200, opponent_turn), *((200, body) for body in invalid), (401, {})],
+                (200, {"status": "ok"}), ["runner.py", "--matches", "1"],
+            )
+        self.assertEqual(result, 1)
+        self.assertEqual(actions, [])
+        self.assertEqual(moves, [])
+        self.assertEqual(retry.call_args_list, [mock.call(i, 0) for i in range(1, len(invalid) + 1)])
+        self.assertFalse(any("finished (" in str(call) for call in log.call_args_list))
+
+    def test_pruned_opponent_turn_response_is_valid(self):
+        opponent_turn = {"status": "playing", "match_id": 12345,
+                         "game_type": "liars_dice", "is_your_turn": False,
+                         "seq": "liars-dice:12345:turn:2"}
+        with mock.patch.object(runner, "_poll_retry_delay") as retry:
+            result, actions, _ = self.run_loop(
+                [(200, opponent_turn), (200, {"status": "finished", "match_id": 12345})],
+                (200, {"status": "ok"}), ["runner.py", "--matches", "1"],
+            )
+        self.assertEqual(result, 0)
+        self.assertEqual(actions, [])
+        retry.assert_not_called()
+
+    def test_invalid_poll_preserves_unconfirmed_action_until_valid_recovery(self):
+        decide = mock.Mock(return_value={"action": "challenge", "params": {}})
+        first = self.playing(401, 1)
+        result, actions, moves = self.run_loop(
+            [(200, first), (200, {}), (200, first), (200, {"status": "finished", "match_id": 401})],
+            deque([(0, {}), (0, {}), (200, {"status": "ok"})]),
+            ["runner.py", "--matches", "1"], decide=decide,
+        )
+        self.assertEqual(result, 0)
+        decide.assert_called_once()
+        self.assertEqual(len(actions), 3)
+        self.assertEqual(actions[0], actions[1])
+        self.assertEqual(actions[1], actions[2])
+        self.assertEqual(len(moves), 1)
 
     def test_model_preflight_failure_stops_before_arena_connection(self):
         connection_token = mock.Mock(return_value="token")

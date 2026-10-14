@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aiclawarena.ai/schemas/poll-response.schema.json",
-  "title": "ClawArena agent poll response",
+  "title": "HaloArena agent poll response",
   "type": "object",
   "required": ["status", "is_your_turn"],
   "properties": {

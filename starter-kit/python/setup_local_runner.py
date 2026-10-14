@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""ClawArena setup for a Hermes host — the Hermes analog of OpenClaw's
+"""HaloArena setup for a Hermes host — the Hermes analog of OpenClaw's
 setup_local_watcher.py.
 
 A user pastes ONE prompt into their own Hermes agent; the agent runs THIS script
-with its terminal tool, and it: adopts a ClawArena agent (redeeming the one-use
+with its terminal tool, and it: adopts a HaloArena agent (redeeming the one-use
 setup key the site issued, or reusing a saved token), fetches the
 zero-dependency kit, and launches runner.py as a DETACHED background process
 (start_new_session — survives this call AND Hermes exit, but must be relaunched
@@ -40,6 +40,7 @@ import urllib.request
 from pathlib import Path
 
 KIT_FILES = ["arena_client.py", "runner.py", "decision_context.py", "decision_policy.py", "agent.py", "llm_agent.py",
+             "migrate_arena_authority.py",
              # runner imports match_state at module level.
              "match_state.py",
              "hermes_agent.py", "helpers.py", "memory.py",
@@ -60,6 +61,42 @@ HERMES_GAMEPLAY_MODEL_ENV = "CLAWARENA_HERMES_GAMEPLAY_MODEL"
 HERMES_GAMEPLAY_BASE_URL_ENV = "CLAWARENA_HERMES_GAMEPLAY_BASE_URL"
 
 
+class _NoAPIRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # The Agent API has no redirect contract. Preserve the original HTTP
+        # error/status without forwarding either authorization or secret bodies.
+        return None
+
+
+_API_OPENER = urllib.request.build_opener(_NoAPIRedirect())
+
+
+def api_urlopen(req, *, timeout):
+    return _API_OPENER.open(req, timeout=timeout)
+
+
+def validated_api_base(api_base: str) -> str:
+    value = str(api_base or "").strip().rstrip("/")
+    try:
+        parsed = urllib.parse.urlparse(value)
+        valid = (
+            bool(parsed.hostname)
+            and parsed.username is None and parsed.password is None
+            and not parsed.query and not parsed.fragment and not parsed.params
+            and not any(character.isspace() or ord(character) < 32 for character in value)
+            and "\\" not in value
+            and (parsed.scheme == "https" or (
+                parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "::1", "localhost"}
+            ))
+        )
+        parsed.port  # Reject malformed/out-of-range ports before reading credentials.
+    except ValueError:
+        valid = False
+    if not valid:
+        raise ValueError("HaloArena API base must be an HTTPS URL without userinfo, query, or fragment (HTTP is allowed only on loopback).")
+    return value
+
+
 def _gameplay_max_tokens(env: dict[str, str] | None = None) -> int:
     values = os.environ if env is None else env
     try:
@@ -73,7 +110,7 @@ def _gameplay_max_tokens(env: dict[str, str] | None = None) -> int:
 
 
 def _gameplay_route(env: dict[str, str] | None = None) -> dict[str, str]:
-    """Return an optional, complete ClawArena-only Hermes provider route."""
+    """Return an optional, complete HaloArena-only Hermes provider route."""
     values = os.environ if env is None else env
     provider = str(values.get(HERMES_GAMEPLAY_PROVIDER_ENV) or "").strip()
     model = str(values.get(HERMES_GAMEPLAY_MODEL_ENV) or "").strip()
@@ -95,7 +132,7 @@ def _gameplay_route(env: dict[str, str] | None = None) -> dict[str, str]:
 class ClawArenaAPIError(RuntimeError):
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
-        super().__init__(f"ClawArena API rejected setup ({status_code}): {detail}")
+        super().__init__(f"HaloArena API rejected setup ({status_code}): {detail}")
 
 
 def _normalized_base(base: str) -> str:
@@ -130,7 +167,7 @@ def _validate_state_owner(home: Path, base: str) -> None:
         or owner.get("runtime_kind") != "hermes"
     ):
         raise RuntimeError(
-            f"ClawArena state directory {home} belongs to "
+            f"HaloArena state directory {home} belongs to "
             f"{owner.get('runtime_kind') if isinstance(owner, dict) else 'another runtime'} "
             f"at {owner.get('arena_base') if isinstance(owner, dict) else 'another arena'}. "
             "Use the generated default path or choose a different --home."
@@ -148,7 +185,7 @@ def _saved_owner_base(home: Path) -> str:
 
 
 def _serialized_setup(function):
-    """Allow only one setup/update/stop operation per ClawArena home."""
+    """Allow only one setup/update/stop operation per HaloArena home."""
     @functools.wraps(function)
     def wrapped():
         pre_parser = argparse.ArgumentParser(add_help=False)
@@ -168,7 +205,7 @@ def _serialized_setup(function):
                 print(json.dumps({
                     "status": "setup_in_progress",
                     "home": str(home),
-                    "note": "Another ClawArena setup/update is already running.",
+                    "note": "Another HaloArena setup/update is already running.",
                 }))
                 return 0
             os.ftruncate(lock_fd, 0)
@@ -191,7 +228,7 @@ def _post(url, data=None, token: str | None = None):
         url, data=json.dumps(data or {}).encode(),
         headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with api_urlopen(req, timeout=20) as r:
             return json.loads(r.read().decode())
     except urllib.error.HTTPError as exc:
         body = exc.read().decode(errors="replace")
@@ -306,7 +343,7 @@ def _stop_runner(pid: int, pidfile: Path, grace_seconds: float = 4.0) -> None:
     if not _wait_for_exit(pid, grace_seconds):
         _signal_runner(pid, signal.SIGKILL)
         if not _wait_for_exit(pid, 2.0):
-            raise RuntimeError(f"ClawArena game client {pid} did not stop")
+            raise RuntimeError(f"HaloArena game client {pid} did not stop")
     pidfile.unlink(missing_ok=True)
 
 
@@ -543,7 +580,7 @@ def _validate_gameplay_home(
 def _prepare_gameplay_home(
     home: Path, hermes_bin: str, env: dict[str, str] | None = None,
 ) -> Path:
-    """Create a private ClawArena-only Hermes profile with low reasoning.
+    """Create a private HaloArena-only Hermes profile with low reasoning.
 
     The user's normal profile may deliberately use ``reasoning_effort: max``
     for chat. Gameplay has a hard action clock, so inheriting that global
@@ -792,6 +829,17 @@ def _adopt_valid_legacy_home(base: str, target: Path) -> tuple[Path | None, dict
     if (target / "token").exists():
         return None, None
     for legacy in _legacy_homes(target):
+        # Check ownership before even reading the legacy secret, never by
+        # probing a potentially different server with that secret.
+        try:
+            owner = json.loads((legacy / STATE_OWNER_FILENAME).read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(owner, dict) or any(
+            owner.get(key) != _state_owner(base)[key]
+            for key in ("arena_base", "runtime_kind")
+        ):
+            continue
         token = _saved_text(legacy / "token") or ""
         if not token:
             continue
@@ -847,7 +895,7 @@ def main():
     configured_base = _normalized_base(args.base)
     if not configured_base and args.home:
         configured_base = _saved_owner_base(Path(args.home))
-    base = configured_base or DEFAULT_ARENA_BASE
+    base = validated_api_base(configured_base or DEFAULT_ARENA_BASE)
     if args.token and args.recovery_key:
         ap.error("--token and --recovery-key are mutually exclusive")
     home = Path(args.home or _default_home(base))
@@ -1002,17 +1050,17 @@ def main():
                     rollback_note = "The previous kit and runner were restored."
                 except Exception as rollback_error:
                     raise RuntimeError(
-                        f"ClawArena update failed ({replacement_error}); rollback also "
+                        f"HaloArena update failed ({replacement_error}); rollback also "
                         f"failed ({rollback_error})."
                     ) from replacement_error
             raise RuntimeError(
-                f"ClawArena update failed ({replacement_error}). {rollback_note}"
+                f"HaloArena update failed ({replacement_error}). {rollback_note}"
             ) from replacement_error
 
     agent_id = _saved_text(home / "agent_id")
     if was_running:
         note = (
-            "Updated the local ClawArena kit and restarted the existing runner. "
+            "Updated the local HaloArena kit and restarted the existing runner. "
             "The same agent and claim state were preserved."
         )
     elif agent_claimed:

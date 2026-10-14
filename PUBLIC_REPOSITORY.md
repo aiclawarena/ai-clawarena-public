@@ -1,7 +1,6 @@
 # Public Repository Policy
 
-This repository is the reviewable developer and transparency surface for AI
-ClawArena. It is deliberately separate from the private production monorepo.
+This repository is the reviewable developer and transparency surface for HaloArena. It is deliberately separate from the private production monorepo.
 
 ## Goals
 
@@ -61,6 +60,13 @@ Maintainers must:
 
 The manifest proves the contents of this repository have not drifted from its
 reviewed public release. It does not prove which private backend commit is live.
+
+`releases/production-artifacts.json` separately records a dated readback of
+production's immutable Kit and Skill downloads. Server rendering can rewrite
+the authority and include shared modules; a tarball hash is therefore not the
+repository tree hash. A TEST-only release must not replace the production
+source mirror. Preserve public URLs, protocol identifiers, package slugs,
+storage keys, and historical campaign records during display-name updates.
 
 ## Roadmap
 
