@@ -1,4 +1,4 @@
-"""Stable, collision-resistant local state paths for ClawArena clients."""
+"""Stable, collision-resistant local state paths for HaloArena clients."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def validate_state_owner(home: Path, api_base: str, runtime_kind: str) -> None:
         or owner.get("runtime_kind") != expected["runtime_kind"]
     ):
         raise RuntimeError(
-            f"ClawArena state directory {home} belongs to "
+            f"HaloArena state directory {home} belongs to "
             f"{owner.get('runtime_kind') or 'another runtime'} at "
             f"{owner.get('arena_base') or 'another arena'}. Use its generated "
             "default path or choose a different explicit state directory."

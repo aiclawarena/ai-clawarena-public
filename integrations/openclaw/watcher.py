@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""ClawArena local turn watcher.
+"""HaloArena local turn watcher.
 
-Holds a live connection to ClawArena — an HTTP long-poll by default, or a
+Holds a live connection to HaloArena — an HTTP long-poll by default, or a
 websocket under CLAWARENA_TRANSPORT=ws — and launches one local OpenClaw turn
 only when the Arena Agent has an actionable turn.
 """
@@ -381,7 +381,7 @@ def _auth_rejection_message(code: object = "", detail: str = "") -> str:
     advice sends people in circles.
     """
 
-    head = f"ClawArena refused this watcher ({code})" if code else "ClawArena refused this watcher"
+    head = f"HaloArena refused this watcher ({code})" if code else "HaloArena refused this watcher"
     body = f": {detail[:300]}" if detail else "."
     return (
         f"{head}{body} Arena: {API_BASE}. If that is not the arena this agent "
@@ -1022,13 +1022,13 @@ class Watcher:
             if _auth_http_error(exc):
                 raise WatcherAuthPermanentError(_http_auth_rejection(exc)) from exc
             detail = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"ClawArena API returned HTTP {exc.code}: {detail[:300]}") from exc
+            raise RuntimeError(f"HaloArena API returned HTTP {exc.code}: {detail[:300]}") from exc
         try:
             result = json.loads(response_body)
         except json.JSONDecodeError as exc:
-            raise RuntimeError("ClawArena API returned invalid JSON") from exc
+            raise RuntimeError("HaloArena API returned invalid JSON") from exc
         if not isinstance(result, dict):
-            raise RuntimeError("ClawArena API returned a non-object JSON response")
+            raise RuntimeError("HaloArena API returned a non-object JSON response")
         return result
 
     def submit_action(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
@@ -1292,17 +1292,17 @@ class Watcher:
         )
         prompt = (
             f"After reviewing the exact {CLAWHUB_SKILL_REF} release, update my "
-            f"ClawArena skill by running `{command}`, "
-            "then restart my ClawArena watcher if it has not restarted after the update."
+            f"HaloArena skill by running `{command}`, "
+            "then restart my HaloArena watcher if it has not restarted after the update."
         )
         if required:
             lead = (
-                f"ClawArena skill update required before your next match. Installed: "
+                f"HaloArena skill update required before your next match. Installed: "
                 f"{installed}. Latest verified: {latest}. Any active match remains safe."
             )
         else:
             lead = (
-                f"A verified ClawArena skill update is available. Installed: {installed}. "
+                f"A verified HaloArena skill update is available. Installed: {installed}. "
                 f"Latest: {latest}. You can keep playing and update when convenient."
             )
         return (
@@ -1326,7 +1326,7 @@ class Watcher:
             cmd.extend(["--reply-account", str(reply_account)])
 
     def send_restart_notice(self) -> None:
-        message = "ClawArena watcher restarted successfully."
+        message = "HaloArena watcher restarted successfully."
         try:
             delivery = self.load_delivery_config()
         except Exception as exc:  # noqa: BLE001
@@ -1346,13 +1346,13 @@ class Watcher:
             # OpenClaw 2026.6.x defaults `openclaw agent` to gateway mode, which
             # requires OpenClaw gateway credentials before opening a websocket and
             # fails with GatewayCredentialsRequiredError. The runner drives the
-            # EMBEDDED agent (models.providers -> ClawArena LLM gateway), so pin
+            # EMBEDDED agent (models.providers -> HaloArena LLM gateway), so pin
             # --local explicitly instead of relying on the (changed) default mode.
             "--local",
             "--session-id",
             f"clawarena-watcher-restart-agent-{agent_id}-{session_fragment}",
             "--message",
-            f"Send this exact ClawArena maintenance notice to the user and nothing else: {message}",
+            f"Send this exact HaloArena maintenance notice to the user and nothing else: {message}",
             "--json",
         ]
         self._append_delivery_args(cmd, delivery)
@@ -1414,13 +1414,13 @@ class Watcher:
             # OpenClaw 2026.6.x defaults `openclaw agent` to gateway mode, which
             # requires OpenClaw gateway credentials before opening a websocket and
             # fails with GatewayCredentialsRequiredError. The runner drives the
-            # EMBEDDED agent (models.providers -> ClawArena LLM gateway), so pin
+            # EMBEDDED agent (models.providers -> HaloArena LLM gateway), so pin
             # --local explicitly instead of relying on the (changed) default mode.
             "--local",
             "--session-id",
             f"clawarena-skill-update-agent-{agent_id}-{session_fragment}",
             "--message",
-            f"Send this exact ClawArena maintenance notice to the user and nothing else: {message}",
+            f"Send this exact HaloArena maintenance notice to the user and nothing else: {message}",
             "--json",
         ]
         self._append_delivery_args(cmd, delivery)
@@ -1584,7 +1584,7 @@ class Watcher:
             separators=(",", ":"),
         )
         return (
-            "Decide exactly one ClawArena gameplay action for the authoritative envelope below. "
+            "Decide exactly one HaloArena gameplay action for the authoritative envelope below. "
             "Do not call tools, execute commands, inspect files or environment variables, poll APIs, "
             "or submit the action yourself; the trusted watcher validates and submits your returned "
             "decision exactly once. "
@@ -2366,8 +2366,8 @@ class Watcher:
         report_sent = False
         if accepted and should_deliver and delivery is not None:
             action_name = str(payload.get("action") or "action")
-            game_label = str(current.get("game_type") or "ClawArena").replace("_", " ").title()
-            report_text = report or f"ClawArena {game_label} {action_name} submitted."
+            game_label = str(current.get("game_type") or "HaloArena").replace("_", " ").title()
+            report_text = report or f"HaloArena {game_label} {action_name} submitted."
             try:
                 report_sent, delivery_error = self._deliver_gameplay_report(
                     delivery,
@@ -2434,7 +2434,7 @@ class Watcher:
         """Deliver one already-rendered gameplay notice without another LLM call."""
         report = " ".join(str(report or "").split())[:300]
         if not report:
-            report = "ClawArena gameplay action submitted."
+            report = "HaloArena gameplay action submitted."
         cmd = [
             openclaw_binary(),
             "message",
@@ -2648,7 +2648,7 @@ class Watcher:
         except error.HTTPError as exc:
             if _auth_http_error(exc):
                 raise WatcherAuthPermanentError(
-                    "ClawArena rejected this connection token. Reconnect with a recovery key."
+                    "HaloArena rejected this connection token. Reconnect with a recovery key."
                 ) from exc
             return exc.code, {}
 
@@ -2905,7 +2905,7 @@ def acquire_lock() -> Any:
     try:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        print("Another ClawArena watcher is already running.", file=sys.stderr)
+        print("Another HaloArena watcher is already running.", file=sys.stderr)
         sys.exit(1)
     handle.write(str(os.getpid()))
     handle.flush()
@@ -2913,7 +2913,7 @@ def acquire_lock() -> Any:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="ClawArena local turn watcher")
+    parser = argparse.ArgumentParser(description="HaloArena local turn watcher")
     parser.add_argument(
         "--once",
         action="store_true",
@@ -2949,15 +2949,15 @@ def main() -> int:
                 idle_reason=watcher.current_idle_reason,
             )
         except Exception as exc:  # noqa: BLE001 - setup needs one clear failure boundary
-            print(f"ClawArena watcher preflight failed: {exc}", file=sys.stderr)
+            print(f"HaloArena watcher preflight failed: {exc}", file=sys.stderr)
             return 1
         if not READY_PATH.exists():
             print(
-                "ClawArena watcher preflight failed: server status report did not succeed.",
+                "HaloArena watcher preflight failed: server status report did not succeed.",
                 file=sys.stderr,
             )
             return 1
-        print("ClawArena watcher preflight complete.")
+        print("HaloArena watcher preflight complete.")
         return 0
     _lock = acquire_lock()
     watcher.save_state(pid=os.getpid(), started_at=watcher.state.get("started_at") or utc_now())

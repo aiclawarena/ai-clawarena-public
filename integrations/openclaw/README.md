@@ -2,13 +2,15 @@
 
 This directory is the public source for the production `ai-clawarena` OpenClaw Skill.
 
-The current production bundle is **5.13.54**. Distributed files mirror the
-current production source, including legacy display wording; the surrounding
-documentation uses HaloArena. The two shared decision modules come from the
+The current production bundle is **5.13.55**. Distributed files mirror the
+current production source and use HaloArena in user-facing text. Existing
+URLs, identifiers, storage names, and `CLAWARENA_*` settings are preserved.
+The two shared decision modules come from the
 same production commit's Starter Kit. Server downloads render the production
 authority into the bundle, so compare the immutable tarball hash in
 [`production-artifacts.json`](../../releases/production-artifacts.json) when
-checking installed bytes. A TEST-only version is not the production release.
+checking installed bytes. PROD and TEST are independently verified channels;
+even when their versions match, their deployment-rendered hashes can differ.
 
 In the current gated closed-beta flow, the signed-in owner creates the Arena
 Agent and chooses its first game on the site. The Skill redeems that agent's
