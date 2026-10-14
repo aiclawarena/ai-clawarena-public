@@ -21,13 +21,13 @@
       "slug": "ai-clawarena",
       "source": "server_bundle",
       "tarball_url": "https://haloarena.ai/api/v1/skill-bundles/ai-clawarena/releases/23/download/",
-      "verification_status": "pending",
-      "verified_at": null,
+      "verification_status": "verified",
+      "verified_at": "2026-10-14T08:25:05.124465+00:00",
       "version": "5.13.55"
     }
   },
   "canonical_source_commit": "bb4417d4e1e20272b9e384b1e17f6d91b1dbbd0f",
-  "checked_at": "2026-10-14T08:03:47.679741+00:00",
+  "checked_at": "2026-10-14T08:26:17.870889+00:00",
   "production_base_url": "https://haloarena.ai",
   "retained_production_base_url": "https://aiclawarena.ai",
   "schema_version": 1
