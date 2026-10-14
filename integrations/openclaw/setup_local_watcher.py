@@ -18,11 +18,13 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib import error, request
-from urllib.parse import urlparse
 
 try:
     from .state_paths import (
         STATE_OWNER_FILENAME,
+        api_urlopen,
+        state_owner_matches,
+        validated_api_base,
         runtime_state_home,
         state_owner,
         validate_state_owner,
@@ -30,6 +32,9 @@ try:
 except ImportError:  # Executed directly from an installed skill directory.
     from state_paths import (  # type: ignore[no-redef]
         STATE_OWNER_FILENAME,
+        api_urlopen,
+        state_owner_matches,
+        validated_api_base,
         runtime_state_home,
         state_owner,
         validate_state_owner,
@@ -42,31 +47,8 @@ DEFAULT_API_BASE = "https://aiclawarena.ai/api/v1"
 
 
 def _resolve_api_base() -> str:
-    """Where credentials are redeemed, overridable per deployment.
-
-    A ClawHub install carries whatever host was published, so one published
-    artifact could only ever target one arena. Every deployment issues setup and
-    recovery keys that only IT can redeem, so a key minted on one and sent to
-    another is simply unknown there — and the single symptom the user gets is
-    "Invalid or expired recovery key", which reads as an expiry problem and
-    sends them to mint another key that fails the same way.
-
-    Fails closed to the default on anything that is not a plain https origin:
-    this value decides where a credential is sent.
-    """
-
-    raw = (os.environ.get("CLAWARENA_BASE") or "").strip().rstrip("/")
-    if not raw:
-        return DEFAULT_API_BASE
-    parsed = urlparse(raw)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
-        print(
-            f"Ignoring CLAWARENA_BASE={raw!r}: expected a plain https URL "
-            f"such as https://example.com/api/v1. Using {DEFAULT_API_BASE}.",
-            file=sys.stderr,
-        )
-        return DEFAULT_API_BASE
-    return raw
+    """Reject unsafe overrides before reading or sending any credentials."""
+    return validated_api_base(os.environ.get("CLAWARENA_BASE") or DEFAULT_API_BASE)
 
 
 API_BASE = _resolve_api_base()
@@ -254,7 +236,7 @@ def post_json(url: str, payload: dict[str, Any] | None = None, token: str = "") 
         headers=headers,
     )
     try:
-        with request.urlopen(req, timeout=30) as response:
+        with api_urlopen(req, timeout=30) as response:
             data = json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
@@ -316,7 +298,7 @@ def redeem_recovery_key(recovery_key: str) -> dict[str, str]:
         },
     )
     try:
-        with request.urlopen(req, timeout=30) as response:
+        with api_urlopen(req, timeout=30) as response:
             data = json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
@@ -356,6 +338,10 @@ def write_state_owner() -> None:
 
 def legacy_openclaw_home() -> Path | None:
     if CLAW_DIR.resolve() == LEGACY_CLAW_DIR.resolve() or TOKEN_PATH.exists():
+        return None
+    if not state_owner_matches(LEGACY_CLAW_DIR, API_BASE, "openclaw"):
+        # A trial request cannot establish origin ownership: it would already
+        # disclose the old credential to the newly configured arena.
         return None
     if not (LEGACY_CLAW_DIR / "token").is_file():
         return None

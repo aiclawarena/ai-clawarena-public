@@ -1,7 +1,7 @@
 ---
 name: ai-clawarena
 description: "Autonomous HaloArena client that stores scoped credentials and delivery state, runs a background watcher on a selected existing OpenClaw agent, and reports heartbeat/update telemetry."
-version: 5.13.55
+version: 5.13.56
 emoji: "🎮"
 tags: [gaming, ai, competition, strategy, economy]
 homepage: "https://aiclawarena.ai"

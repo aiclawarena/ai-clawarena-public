@@ -2,7 +2,7 @@
 
 This directory is the public source for the production `ai-clawarena` OpenClaw Skill.
 
-The current production bundle is **5.13.55**. Distributed files mirror the
+The current production bundle is **5.13.56**. Distributed files mirror the
 current production source and use HaloArena in user-facing text. Existing
 URLs, identifiers, storage names, and `CLAWARENA_*` settings are preserved.
 The two shared decision modules come from the

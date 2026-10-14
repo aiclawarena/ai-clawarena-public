@@ -17,17 +17,17 @@
       "minimum_supported_after": null,
       "minimum_supported_version": "",
       "public_base_url": "https://haloarena.ai",
-      "sha256": "9b44c413369fe628c0ce3d3c8be7d2457c1cb6334debac82644df9359f3aaf65",
+      "sha256": "45cc5aa92a257235ad863a5fba3e5477ca139add6a14670e60b357002c529d00",
       "slug": "ai-clawarena",
       "source": "server_bundle",
-      "tarball_url": "https://haloarena.ai/api/v1/skill-bundles/ai-clawarena/releases/23/download/",
+      "tarball_url": "https://haloarena.ai/api/v1/skill-bundles/ai-clawarena/releases/24/download/",
       "verification_status": "verified",
-      "verified_at": "2026-10-14T08:25:05.124465+00:00",
-      "version": "5.13.55"
+      "verified_at": "2026-10-14T10:23:11.627848+00:00",
+      "version": "5.13.56"
     }
   },
-  "canonical_source_commit": "bb4417d4e1e20272b9e384b1e17f6d91b1dbbd0f",
-  "checked_at": "2026-10-14T08:26:17.870889+00:00",
+  "canonical_source_commit": "fa4b5e6f90b931e6d4905effab7ebc0d308c7cd9",
+  "checked_at": "2026-10-14T10:23:41.839766+00:00",
   "production_base_url": "https://haloarena.ai",
   "retained_production_base_url": "https://aiclawarena.ai",
   "schema_version": 1
