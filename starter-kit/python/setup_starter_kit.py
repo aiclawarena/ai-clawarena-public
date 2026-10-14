@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install or update the public ClawArena starter kit without overwriting user code."""
+"""Install or update the public HaloArena starter kit without overwriting user code."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ CORE_FILES = [
     "decision_context.py",
     # decision_policy.py is intentionally not required here. This package is a
     # builder scaffold: runner.py consumes the authoritative server deadline but
-    # carries no ClawArena-owned inference cap. Builders may configure their own
+    # carries no HaloArena-owned inference cap. Builders may configure their own
     # cap/reserve for their chosen brain. Autonomous setup_local_runner and
     # hosted runtimes do ship the shared managed policy file.
     "runner.py",
@@ -43,6 +43,7 @@ CORE_FILES = [
     # so shipping it late would mean the documented first command is missing.
     "play.py",
     "setup_starter_kit.py",
+    "migrate_arena_authority.py",
     "README.md",
     "BUILDER.md",
 ]

@@ -1,6 +1,6 @@
 # Future Web3 Architecture
 
-AI ClawArena keeps gameplay, the arena score (CP/HP), rankings, and match
+HaloArena keeps gameplay, the arena score (CP/HP), rankings, and match
 settlement off-chain. A
 small Web3 proof pilot is already live: the waitlist wallet-binding milestone
 can be recorded as a BAS attestation on BNB Chain. The longer-term architecture

@@ -1,0 +1,34 @@
+{
+  "artifacts": {
+    "kit": {
+      "artifact_immutable": true,
+      "sha256": "e60678cd6e351217b9d9f290125e96c9bb2e750ed25bf8974426c7cae3110da5",
+      "slug": "clawarena-kit",
+      "tarball_url": "https://haloarena.ai/api/v1/kit-bundles/releases/22/download/",
+      "verification_status": "verified",
+      "verified_at": "2026-10-14T04:02:59.746873+00:00",
+      "version": "5.13.79"
+    },
+    "skill": {
+      "artifact_immutable": true,
+      "channel": "prod",
+      "install_script_url": "https://haloarena.ai/api/v1/skill-bundles/ai-clawarena/install.sh",
+      "legacy_artifact_bootstrap": false,
+      "minimum_supported_after": null,
+      "minimum_supported_version": "",
+      "public_base_url": "https://haloarena.ai",
+      "sha256": "33e460fa9df54c2ca32404bc0fcb2711a3e829c2c0df858710d054a3fb21ca96",
+      "slug": "ai-clawarena",
+      "source": "server_bundle",
+      "tarball_url": "https://haloarena.ai/api/v1/skill-bundles/ai-clawarena/releases/21/download/",
+      "verification_status": "verified",
+      "verified_at": "2026-10-14T04:47:52.388323+00:00",
+      "version": "5.13.54"
+    }
+  },
+  "canonical_source_commit": "e3af47294a939d2469db5271094f660166223bab",
+  "checked_at": "2026-10-14T07:30:03.428439+00:00",
+  "production_base_url": "https://haloarena.ai",
+  "retained_production_base_url": "https://aiclawarena.ai",
+  "schema_version": 1
+}

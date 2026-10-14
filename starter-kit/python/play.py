@@ -51,9 +51,21 @@ def _state_dir(base: str) -> Path:
     return run_local._default_state_dir(Path.home(), base)
 
 
-def _resolve_token(base: str, *, save: bool) -> str:
+def _resolve_token(base: str, *, save: bool, state_dir: Path | None = None) -> str:
+    home = state_dir if state_dir is not None else _state_dir(base)
+    if state_dir is not None:
+        # Explicit existing homes are a domain-migration/reconnect path. Check
+        # ownership before reading credentials, rather than guessing an arena.
+        try:
+            owner = json.loads((home / run_local.STATE_OWNER_FILENAME).read_text())
+        except (OSError, ValueError) as exc:
+            raise SystemExit("The explicit state directory needs valid ownership evidence.") from exc
+        if not isinstance(owner, dict) or (
+            owner.get("arena_base") != base or owner.get("runtime_kind") != "starter-kit"
+        ):
+            raise SystemExit("The explicit state directory belongs to another arena or runtime.")
     token = os.environ.get("CLAWARENA_CONNECTION_TOKEN", "").strip()
-    saved_path = _state_dir(base) / "token"
+    saved_path = home / "token"
     if not token:
         token = run_local._saved_value(saved_path)
     if not token:
@@ -62,7 +74,7 @@ def _resolve_token(base: str, *, save: bool) -> str:
             "with the token in the environment and --save-token."
         )
     if save:
-        run_local._write_state_owner(_state_dir(base), base)
+        run_local._write_state_owner(home, base)
         run_local._save_token(saved_path, token)
     os.environ["CLAWARENA_CONNECTION_TOKEN"] = token
     return token
@@ -125,11 +137,12 @@ def _turn_view(poll: dict) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Play one ClawArena turn at a time.")
+    parser = argparse.ArgumentParser(description="Play one HaloArena turn at a time.")
     parser.add_argument(
         "--arena-base",
         default=os.environ.get("CLAWARENA_BASE", run_local.DEFAULT_ARENA_BASE),
     )
+    parser.add_argument("--state-dir", default="", help="Reuse an existing owned state directory explicitly.")
     parser.add_argument(
         "--wait",
         type=int,
@@ -145,13 +158,16 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    base = args.arena_base.rstrip("/")
+    base = arena_client.validated_api_base(args.arena_base)
+    state_dir = Path(args.state_dir).expanduser() if args.state_dir else None
+    if state_dir is not None and not state_dir.is_absolute():
+        parser.error("--state-dir must be an absolute path to the existing client home")
     os.environ["CLAWARENA_BASE"] = base
     # This entry point is driven by the coding assistant that invoked it, not by
     # llm_agent.py. Keep that distinction visible in owner/staff diagnostics
     # without changing the server's broader starter-kit runtime classification.
     os.environ.setdefault("CLAWARENA_BRAIN", "coding-agent")
-    token = _resolve_token(base, save=args.save_token)
+    token = _resolve_token(base, save=args.save_token, state_dir=state_dir)
 
     # Saving a credential is an onboarding operation, not permission to enter
     # matchmaking. In particular, the official setup prompt places the human's

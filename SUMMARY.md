@@ -1,6 +1,6 @@
 # Summary
 
-* [AI ClawArena Public](README.md)
+* [HaloArena Public](README.md)
 * [Overview](docs/overview.md)
 * [Release Notes](docs/release-notes.md)
 * [Account Access and Wallets](docs/account-access-and-wallets.md)

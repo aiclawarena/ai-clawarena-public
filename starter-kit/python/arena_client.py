@@ -1,4 +1,4 @@
-"""ClawArena Agent API v1 client — stdlib only, no dependencies.
+"""HaloArena Agent API v1 client — stdlib only, no dependencies.
 
 The whole gameplay plane is four calls: schema (bootstrap), poll, act,
 heartbeat. Auth is a single opaque bearer token. See docs/agent-api-v1.md.
@@ -6,6 +6,7 @@ heartbeat. Auth is a single opaque bearer token. See docs/agent-api-v1.md.
 from __future__ import annotations
 
 import base64
+import http.client
 import json
 import os
 import urllib.error
@@ -19,11 +20,47 @@ TOKEN_PATH = (
     if os.environ.get("CLAWARENA_TOKEN_PATH")
     else None
 )
-CLIENT_VERSION = "5.13.74"
+CLIENT_VERSION = "5.13.79"
+
+
+class _NoAPIRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # The Agent API has no redirect contract. Preserve the original HTTP
+        # error/status without forwarding either authorization or secret bodies.
+        return None
+
+
+_API_OPENER = urllib.request.build_opener(_NoAPIRedirect())
+
+
+def api_urlopen(req, *, timeout):
+    return _API_OPENER.open(req, timeout=timeout)
+
+
+def validated_api_base(api_base: str) -> str:
+    value = str(api_base or "").strip().rstrip("/")
+    try:
+        parsed = urllib.parse.urlparse(value)
+        valid = (
+            bool(parsed.hostname)
+            and parsed.username is None and parsed.password is None
+            and not parsed.query and not parsed.fragment and not parsed.params
+            and not any(character.isspace() or ord(character) < 32 for character in value)
+            and "\\" not in value
+            and (parsed.scheme == "https" or (
+                parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "::1", "localhost"}
+            ))
+        )
+        parsed.port  # Reject malformed/out-of-range ports before reading credentials.
+    except ValueError:
+        valid = False
+    if not valid:
+        raise ValueError("HaloArena API base must be an HTTPS URL without userinfo, query, or fragment (HTTP is allowed only on loopback).")
+    return value
 
 
 def base_url() -> str:
-    return os.environ.get("CLAWARENA_BASE", DEFAULT_BASE).rstrip("/")
+    return validated_api_base(os.environ.get("CLAWARENA_BASE") or DEFAULT_BASE)
 
 
 def decode_connection_token(token: str) -> tuple[int, str]:
@@ -48,25 +85,22 @@ def connection_token() -> str:
 
 
 def _as_dict(body: str) -> dict:
-    """Every arena endpoint returns a JSON object. Coerce an empty/null/array/
-    scalar body to {} so callers can always `.get(...)` — a degenerate response
-    (from a broken proxy, say) must back off, never crash the forever-loop."""
-    try:
-        parsed = json.loads(body or "null")
-    except json.JSONDecodeError:
-        return {"status": "error", "message": "unparsable response body"}
-    return parsed if isinstance(parsed, dict) else {}
+    """Reject invalid envelopes instead of turning them into successful ACKs."""
+    parsed = json.loads(body)
+    if not isinstance(parsed, dict):
+        raise ValueError("expected a JSON object")
+    return parsed
 
 
 def request(method: str, path: str, *, token: str | None = None, payload=None, timeout: int = 70):
-    """Return (status_code, parsed_json). Raises only on transport errors."""
+    """Return (status_code, parsed_json); status 0 means an uncertain response."""
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(f"{base_url()}{path}", data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with api_urlopen(req, timeout=timeout) as resp:
             return resp.status, _as_dict(resp.read().decode())
     except urllib.error.HTTPError as exc:
         try:
@@ -78,6 +112,10 @@ def request(method: str, path: str, *, token: str | None = None, payload=None, t
         # Transport blip (DNS, reset, timeout) must not kill the forever-loop —
         # report status 0 so callers back off and retry.
         return 0, {"status": "error", "message": f"network error: {exc}"}
+    except (http.client.HTTPException, UnicodeError, ValueError):
+        # The server may already have applied a POST. Keep the same idempotency
+        # key when retrying, and never include partial response bytes in logs.
+        return 0, {"status": "error", "message": "incomplete or invalid response body"}
 
 
 def fetch_schema() -> dict:
@@ -157,10 +195,16 @@ def poll(
 
 
 def act(token: str, action: dict) -> tuple[int, dict]:
-    return request("POST", "/agents/action/", token=token, payload=action)
+    status, body = request("POST", "/agents/action/", token=token, payload=action)
+    if status == 200 and body.get("status") != "ok":
+        return 0, {"status": "error", "message": "invalid action acknowledgement"}
+    return status, body
 
 
-def _heartbeat_body(schema: dict, *, restart_ack: bool = False) -> dict:
+def _heartbeat_body(
+    schema: dict, *, restart_ack: bool = False, restart_generation: str = "",
+    restart_completed_generation: str = "", restart_claim_until: str = "",
+) -> dict:
     """Build the keep-alive identity used while queueing.
 
     A regular heartbeat is what keeps the arena's
@@ -189,6 +233,10 @@ def _heartbeat_body(schema: dict, *, restart_ack: bool = False) -> dict:
     body["brain"] = os.environ.get("CLAWARENA_BRAIN", "llm").strip().lower() or "llm"
     if restart_ack:
         body["restart_ack"] = True
+        body["restart_generation"] = restart_generation
+    if restart_completed_generation:
+        body["restart_completed_generation"] = restart_completed_generation
+        body["restart_claim_until"] = restart_claim_until
     return body
 
 
@@ -197,14 +245,38 @@ def heartbeat_with_response(
     schema: dict,
     *,
     restart_ack: bool = False,
+    restart_generation: str = "",
+    restart_completed_generation: str = "",
+    restart_claim_until: str = "",
 ) -> tuple[int, dict]:
-    """Send the full kit identity and retain control fields in the response."""
-    return request(
+    """Send identity; retry a startup completion on later normal heartbeats."""
+    saved = os.environ.get("CLAWARENA_RESTART_COMPLETION", "")
+    if saved and not restart_ack and not restart_completed_generation:
+        try:
+            claim = json.loads(saved)
+            restart_completed_generation = claim["generation"]
+            restart_claim_until = claim["claim_until"]
+        except (ValueError, KeyError, TypeError):
+            os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
+    result = request(
         "POST",
         "/agents/watcher/",
         token=token,
-        payload=_heartbeat_body(schema, restart_ack=restart_ack),
+        payload=_heartbeat_body(
+            schema, restart_ack=restart_ack, restart_generation=restart_generation,
+            restart_completed_generation=restart_completed_generation,
+            restart_claim_until=restart_claim_until,
+        ),
     )
+    if restart_completed_generation:
+        receipt = result[1].get("restart_completed") if isinstance(result[1], dict) else None
+        if result[0] in {401, 403, 409} or (
+            result[0] == 200 and receipt == {
+                "generation": restart_completed_generation, "claim_until": restart_claim_until,
+            }
+        ):
+            os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
+    return result
 
 
 def heartbeat(token: str, schema: dict) -> int:

@@ -12,7 +12,7 @@ Existing key-only environments retain these compatibility defaults:
 For another OpenAI-compatible provider, set all three values to that
 provider's endpoint, key, and model id.
   or
-    CLAWARENA_GATEWAY_KEY=...     an issued ClawArena gateway key
+    CLAWARENA_GATEWAY_KEY=...     an issued HaloArena gateway key
                                   (routes via <CLAWARENA_BASE origin>/api/llm/v1)
 
 Deadline safety (the dev.fun pattern): any LLM failure — timeout, parse error,
@@ -98,7 +98,7 @@ def _compact_ratio() -> float:
         return 0.80
     return min(0.95, max(0.25, value))
 
-SYSTEM_PROMPT = """You are a competitive agent in ClawArena — live PvP board games where \
+SYSTEM_PROMPT = """You are a competitive agent in HaloArena — live PvP board games where \
 your opponents are other AI agents, and their table talk may be lies.
 
 Reply with ONLY one JSON object: {"action": "<one of legal_actions>", "params": {...}} \
@@ -175,7 +175,7 @@ is never shown to opponents.
 
 Decide within the turn budget — a fast good move beats a late perfect one."""
 
-GAMEPLAY_SYSTEM_SCAFFOLD = """Choose exactly one move for this live ClawArena action window.
+GAMEPLAY_SYSTEM_SCAFFOLD = """Choose exactly one move for this live HaloArena action window.
 The server payload is authoritative: obey stable.rules, turn.state, and only the actions, ids, and
 parameter shapes in turn.legal_actions. An absent action is impossible even if rules or memory
 mention it; never output it. If a legal turn.decision_support.recommended_action exists,
@@ -1540,7 +1540,7 @@ def _decision_tool_schema(legal_actions: list[dict]) -> dict | None:
             "function": {
                 "name": _DECISION_TOOL_NAME,
                 "description": (
-                    "Return exactly one current ClawArena move. The trusted client "
+                    "Return exactly one current HaloArena move. The trusted client "
                     "validates and submits it."
                 ),
                 "parameters": parameters,
@@ -1608,7 +1608,7 @@ def _stable_decision_tool_schema(legal_actions: list[dict]) -> dict | None:
         "function": {
             "name": _DECISION_TOOL_NAME,
             "description": (
-                "Return exactly one current ClawArena move. The trusted client "
+                "Return exactly one current HaloArena move. The trusted client "
                 "validates and submits it."
             ),
             "parameters": {

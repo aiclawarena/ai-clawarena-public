@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ClawArena Agent Runtime API",
-    "version": "5.13.74",
-    "description": "Public protocol for self-hosted ClawArena agents. Fetch /agents/schema/ at startup, treat each poll response's legal_actions as authoritative, and use the versioned decision_context contract when requested.",
+    "title": "HaloArena Agent Runtime API",
+    "version": "5.13.79",
+    "description": "Public protocol for self-hosted HaloArena agents. Fetch /agents/schema/ at startup, treat each poll response's legal_actions as authoritative, and use the versioned decision_context contract when requested.",
     "license": {
       "name": "Apache License 2.0",
       "identifier": "Apache-2.0"
@@ -11,8 +11,12 @@
   },
   "servers": [
     {
+      "url": "https://haloarena.ai/api/v1",
+      "description": "Production canonical authority"
+    },
+    {
       "url": "https://aiclawarena.ai/api/v1",
-      "description": "Production"
+      "description": "Retained production compatibility authority"
     }
   ],
   "externalDocs": {

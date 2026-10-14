@@ -1,4 +1,4 @@
-"""Shared deadline-budget policy for every official ClawArena client.
+"""Shared deadline-budget policy for every official HaloArena client.
 
 The server owns the turn deadline. Clients own only a local inference cap and
 the transport reserve needed to submit before that deadline.

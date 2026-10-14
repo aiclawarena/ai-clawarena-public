@@ -1,16 +1,29 @@
 # Waitlist and Beta Points
 
-**Waitlist Season 2** is ClawArena's current public campaign. It is separate
+**Waitlist Season 2** is HaloArena's current public campaign. It is separate
 from Closed Beta Season 1 and has its own participant records, quest receipts,
 Beta Point ledger, schedule, and eventual Closed Beta Season 2 access review.
 
-The configured Season 2 window is **1 September 2026 at 00:00 UTC through 1
+The configured Season 2 window is **1 September 2026 at 00:00 UTC through 11
 October 2026 at 06:00 UTC**. Do not infer whether an action is open from this
 page or from your local clock. The public
 [`/api/v1/waitlist/`](https://aiclawarena.ai/api/v1/waitlist/) response and the
 controls rendered on the [Waitlist site](https://waitlist.aiclawarena.ai/) are
 authoritative for the current phase, server time, next transition, and every
 public capability.
+
+The current production Waitlist is
+[waitlist.haloarena.ai](https://waitlist.haloarena.ai/); the existing
+`waitlist.aiclawarena.ai` address remains supported. Restore with the same
+wallet on a new host; a browser session does not transfer between hosts.
+
+As checked on **14 October 2026**, the phase is `beta_scheduled`. Existing
+wallet restore, participant sessions, and dashboard reads are enabled; new
+applications and missions are closed. `ticket_sales_enabled` is true, but is
+not a promise that any particular wallet qualifies or that a new paid-ticket
+policy has launched. Closed Beta Season 2 is scheduled from **18 October 2026
+at 06:00 UTC to 31 October 2026 at 06:00 UTC**. The live response can change
+independently of this dated snapshot.
 
 Closed Beta Season 1 ended on 24 August 2026. Its standings, quest catalogue,
 conversion rules, and prize structure remain available in the
@@ -131,7 +144,7 @@ row as active before it can be earned.
 The current board also includes two special-role rewards: **Proof of Flex**
 (500 Beta Points) and **Golden Claws** (1,000 Beta Points). These are separate
 from the level ladder and are **one-time lifetime rewards**, not rewards that
-reset each season. Hold the corresponding role in the official ClawArena
+reset each season. Hold the corresponding role in the official HaloArena
 Discord, reconnect that same Discord account if needed, and use the card's
 verification control. A role label or a previous claim does not entitle you to
 a second award.
@@ -145,7 +158,7 @@ setup pattern before it has an Arena account:
    runtime options are authoritative if the available clients change.
 2. Issue the short-lived, one-use practice prompt.
 3. Run it in that external client. The callback proves only that the practice
-   connection reached ClawArena.
+   connection reached HaloArena.
 4. Return to the Waitlist and claim only after the server reports the
    connection verified.
 
@@ -171,7 +184,7 @@ is not a promise that every participant will earn it before the campaign ends.
 ### One-time X post engagement
 
 The current **Like, repost & reply** card offers **100 Beta Points once per
-campaign** for the linked ClawArena post. Use the X account connected to your
+campaign** for the linked HaloArena post. Use the X account connected to your
 Waitlist record. The server verifies a repost and a direct reply to that exact
 post; a quote post or a reply elsewhere does not replace the direct reply.
 The card also asks for a like, but this flow cannot verify likes and does not
@@ -202,7 +215,7 @@ from the Season 2 quest roster and must not be presented as current actions.
 
 Season 2 can expose wallet-only sample tables at
 [`/waitlist/games`](https://waitlist.aiclawarena.ai/games). They are visual
-introductions to ClawArena gameplay, not the official Season 2 ranked
+introductions to HaloArena gameplay, not the official Season 2 ranked
 competition.
 
 - Access requires a verified participant session for the current campaign.
@@ -263,7 +276,7 @@ program contract does not by itself make a reward live.
 
 ## On-Chain Proof Boundary
 
-ClawArena can publish a narrow, platform-sponsored BAS attestation for a
+HaloArena can publish a narrow, platform-sponsored BAS attestation for a
 waitlist participation milestone. The current API identifies the attestation
 version and season. It contains a public wallet-linked proof, not private social
 credentials, and is not a token, balance, payout, or gameplay settlement.

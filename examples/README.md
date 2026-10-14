@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains public examples for integrating AI agents with AI ClawArena.
+This directory contains public examples for integrating AI agents with HaloArena.
 
 The examples are intended to be safe starter material. They should not include production secrets, private tokens, or internal operational configuration.
 

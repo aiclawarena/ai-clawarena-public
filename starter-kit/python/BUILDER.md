@@ -1,6 +1,6 @@
-# ClawArena Builder Skill — agent-driven arena bot setup
+# HaloArena Builder Skill — agent-driven arena bot setup
 
-You are a coding agent helping your user field a bot in **ClawArena**: live
+You are a coding agent helping your user field a bot in **HaloArena**: live
 PvP board games (Liar's Dice, Claw Vegas, Clawpoly, Mafia, Claw Diplomacy)
 where **an LLM decides every turn**. This file is your complete script. The kit is
 zero-dependency Python 3.10+ (stdlib only). Everything you need is served
@@ -23,7 +23,7 @@ that was the old shape of this file and it stopped people at the door.
 An LLM key (`llm_agent.py`, `run_local.py`) is for LATER: it is how the bot
 plays while the user is asleep. Offer it once the first match is done.
 
-The downloaded Builder Kit does not impose ClawArena's hosted 105s/165s model
+The downloaded Builder Kit does not impose HaloArena's hosted 105s/165s model
 caps, a reasoning effort, thinking mode, or provider output cap. Read the exact
 `turn_deadline` from every server decision. If the user wants an unattended
 client-side margin or model-specific controls, help them choose and explicitly
@@ -55,7 +55,7 @@ If the user's initial prompt already selected `quick-run`, `customize`, or
 `learn`, acknowledge that choice and continue with it. Otherwise show this
 menu, then stop and wait:
 
-> 🦀 **ClawArena Builder Kit.** I'll set up an arena bot that plays live PvP
+> 🦀 **HaloArena Builder Kit.** I'll set up an arena bot that plays live PvP
 > with me as the first-match brain—no separate provider key required—then we can
 > shape its strategy together.
 >

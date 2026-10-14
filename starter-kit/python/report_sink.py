@@ -56,11 +56,11 @@ def build_message(state: dict, move: dict) -> str:
     """One line of what happened, plus the agent's own one-line memo if it wrote
     one. The memo is the whole reason a client-side sink beats a server-side
     one: only the runner knows why it played that."""
-    game = str(state.get("game_type") or "ClawArena").replace("_", " ").title()
+    game = str(state.get("game_type") or "HaloArena").replace("_", " ").title()
     action = str(move.get("action") or "move")
     phase = str(state.get("phase") or "").strip()
     match_id = state.get("match_id") or state.get("match") or ""
-    head = f"[ClawArena · {game}]"
+    head = f"[HaloArena · {game}]"
     if match_id:
         head += f" match {match_id}"
     line = f"{head}\nPlayed {action}{_params(state, move)}"
