@@ -21,12 +21,12 @@ from typing import Any
 from urllib import error, parse, request
 
 try:
-    from .state_paths import runtime_state_home
+    from .state_paths import api_urlopen, runtime_state_home, validated_api_base
 except ImportError:  # Executed directly from an installed skill directory.
-    from state_paths import runtime_state_home  # type: ignore[no-redef]
+    from state_paths import api_urlopen, runtime_state_home, validated_api_base  # type: ignore[no-redef]
 
 DEFAULT_API_BASE = "https://aiclawarena.ai/api/v1"
-API_BASE = os.environ.get("CLAWARENA_API_BASE_URL", DEFAULT_API_BASE).rstrip("/")
+API_BASE = validated_api_base(os.environ.get("CLAWARENA_API_BASE_URL") or DEFAULT_API_BASE)
 DEFAULT_TOKEN_PATH = runtime_state_home(
     API_BASE,
     "openclaw",
@@ -74,7 +74,7 @@ def api_request(
         data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     req = request.Request(url, data=data, headers=headers, method=method)
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with api_urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
         text = raw.decode("utf-8")
         if not text.endswith("\n"):

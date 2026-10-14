@@ -7,10 +7,47 @@ import json
 import os
 import re
 from pathlib import Path
+from urllib import request
 from urllib.parse import urlparse
 
 
 STATE_OWNER_FILENAME = "state_owner.json"
+
+
+class _NoAPIRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # The Agent API has no redirect contract. Preserve the original HTTP
+        # error/status without forwarding either authorization or secret bodies.
+        return None
+
+
+_API_OPENER = request.build_opener(_NoAPIRedirect())
+
+
+def api_urlopen(req, *, timeout):
+    return _API_OPENER.open(req, timeout=timeout)
+
+
+def validated_api_base(api_base: str) -> str:
+    value = normalized_arena_base(api_base)
+    try:
+        parsed = urlparse(value)
+        valid = (
+            bool(parsed.hostname)
+            and parsed.username is None and parsed.password is None
+            and not parsed.query and not parsed.fragment and not parsed.params
+            and not any(character.isspace() or ord(character) < 32 for character in value)
+            and "\\" not in value
+            and (parsed.scheme == "https" or (
+                parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "::1", "localhost"}
+            ))
+        )
+        parsed.port  # Reject malformed/out-of-range ports before reading credentials.
+    except ValueError:
+        valid = False
+    if not valid:
+        raise ValueError("HaloArena API base must be an HTTPS URL without userinfo, query, or fragment (HTTP is allowed only on loopback).")
+    return value
 
 
 def normalized_arena_base(api_base: str) -> str:
@@ -77,3 +114,10 @@ def validate_state_owner(home: Path, api_base: str, runtime_kind: str) -> None:
             f"{owner.get('arena_base') or 'another arena'}. Use its generated "
             "default path or choose a different explicit state directory."
         )
+
+
+def state_owner_matches(home: Path, api_base: str, runtime_kind: str) -> bool:
+    """Require positive local ownership evidence before migrating credentials."""
+    owner = read_state_owner(home)
+    expected = state_owner(api_base, runtime_kind)
+    return bool(owner) and all(owner.get(key) == expected[key] for key in ("arena_base", "runtime_kind"))

@@ -17,6 +17,7 @@ import os
 import random
 import re
 import select
+import signal
 import shutil
 import socket
 import ssl
@@ -34,9 +35,9 @@ from typing import Any
 from urllib import error, parse, request
 
 try:
-    from .state_paths import runtime_state_home
+    from .state_paths import api_urlopen, runtime_state_home, validated_api_base
 except ImportError:  # Executed directly from an installed skill directory.
-    from state_paths import runtime_state_home  # type: ignore[no-redef]
+    from state_paths import api_urlopen, runtime_state_home, validated_api_base  # type: ignore[no-redef]
 
 try:
     from decision_policy import (
@@ -84,24 +85,8 @@ DEFAULT_API_BASE = "https://aiclawarena.ai/api/v1"
 
 
 def _resolve_api_base() -> str:
-    """Which arena this watcher talks to. Fails closed to the default.
-
-    Only a plain https origin is accepted: this value decides where a scoped
-    credential is sent.
-    """
-
-    raw = (os.environ.get("CLAWARENA_BASE") or "").strip().rstrip("/")
-    if not raw:
-        return DEFAULT_API_BASE
-    parsed = parse.urlparse(raw)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
-        print(
-            f"Ignoring CLAWARENA_BASE={raw!r}: expected a plain https URL "
-            f"such as https://example.com/api/v1. Using {DEFAULT_API_BASE}.",
-            file=sys.stderr,
-        )
-        return DEFAULT_API_BASE
-    return raw
+    """Reject unsafe overrides before reading or sending any credentials."""
+    return validated_api_base(os.environ.get("CLAWARENA_BASE") or DEFAULT_API_BASE)
 
 
 API_BASE = _resolve_api_base()
@@ -990,7 +975,7 @@ class Watcher:
             },
         )
         try:
-            with request.urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+            with api_urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
                 body = resp.read().decode("utf-8")
         except error.HTTPError as exc:
             if _auth_http_error(exc):
@@ -1016,7 +1001,7 @@ class Watcher:
             body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         req = request.Request(url, data=body, headers=headers, method=method)
         try:
-            with request.urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+            with api_urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
                 response_body = resp.read().decode("utf-8")
         except error.HTTPError as exc:
             if _auth_http_error(exc):
@@ -1049,7 +1034,7 @@ class Watcher:
             method="POST",
         )
         try:
-            with request.urlopen(req, timeout=ACTION_HTTP_TIMEOUT_SECONDS) as resp:
+            with api_urlopen(req, timeout=ACTION_HTTP_TIMEOUT_SECONDS) as resp:
                 status = int(getattr(resp, "status", 200))
                 response_body = resp.read().decode("utf-8")
         except error.HTTPError as exc:
@@ -1080,12 +1065,29 @@ class Watcher:
 
     def post_status(self, *, status: str, idle_reason: str = "", error_message: str = "",
                     action_taken: bool = False, report_sent: bool = False,
-                    restart_ack: bool = False) -> dict[str, Any]:
+                    restart_ack: bool = False, restart_generation: str = "",
+                    restart_completed_generation: str = "",
+                    restart_claim_until: str = "") -> dict[str, Any]:
+        saved = os.environ.get("CLAWARENA_RESTART_COMPLETION", "")
+        if saved and not restart_ack and not restart_completed_generation:
+            try:
+                claim = json.loads(saved)
+                restart_completed_generation = claim["generation"]
+                restart_claim_until = claim["claim_until"]
+            except (ValueError, KeyError, TypeError):
+                os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
+        if restart_completed_generation:
+            now_mono = time.monotonic()
+            last_try = self.state.get("restart_completion_try_at")
+            if last_try is not None and now_mono - last_try < 5:
+                return {}
+            self.state["restart_completion_try_at"] = now_mono
         last_posted_at = self.state.get("last_posted_at")
         should_send = (
             action_taken
             or report_sent
             or restart_ack
+            or restart_completed_generation
             or bool(error_message)
             or not READY_PATH.exists()
         )
@@ -1116,6 +1118,9 @@ class Watcher:
                     "action_taken": action_taken,
                     "report_sent": report_sent,
                     "restart_ack": restart_ack,
+                    "restart_generation": restart_generation,
+                    "restart_completed_generation": restart_completed_generation,
+                    "restart_claim_until": restart_claim_until,
                     "watcher_protocol_version": WATCHER_PROTOCOL_VERSION,
                     "skill_slug": SKILL_SLUG,
                     "skill_version": load_skill_version(),
@@ -1133,12 +1138,18 @@ class Watcher:
                 },
             )
             try:
-                with request.urlopen(req, timeout=15) as resp:
+                with api_urlopen(req, timeout=15) as resp:
                     payload = json.loads(resp.read().decode("utf-8"))
             except error.HTTPError as exc:
+                if restart_completed_generation and exc.code in {401, 403, 409}:
+                    os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
                 if _auth_http_error(exc):
                     raise WatcherAuthPermanentError(_http_auth_rejection(exc)) from exc
                 raise
+            if restart_completed_generation and isinstance(payload, dict) and payload.get("restart_completed") == {
+                "generation": restart_completed_generation, "claim_until": restart_claim_until,
+            }:
+                os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
             watcher = payload.get("watcher", {})
             self.current_prefs = payload.get("agent_preferences") or self.current_prefs
             self.save_state(
@@ -1212,24 +1223,67 @@ class Watcher:
         )
 
     def maybe_restart_if_requested(self, data: dict[str, Any]) -> None:
-        prefs = data.get("agent_preferences") or data or {}
-        requested = prefs.get("watcher_restart_requested_at")
-        acked = prefs.get("watcher_restart_ack_at")
-        if not requested:
+        if not isinstance(data, dict) or os.environ.get("CLAWARENA_RESTART_COMPLETION"):
             return
-        if acked and acked >= requested:
+        prefs = data.get("agent_preferences")
+        if not isinstance(prefs, dict):
             return
-
-        os.execv(
-            sys.executable,
-            [
-                sys.executable,
-                str(Path(__file__)),
-                "--wait-seconds",
-                str(self.wait_seconds),
-                "--ack-restart",
-            ],
+        generation = prefs.get("watcher_restart_generation")
+        active_statuses = {"playing", "matched", "in_match", "acting"}
+        if (
+            not generation
+            or data.get("match_id")
+            or data.get("is_your_turn")
+            or data.get("status") in active_statuses
+            or self.current_status in active_statuses
+        ):
+            return
+        started = time.monotonic()
+        response = self.post_status(
+            status="idle", restart_ack=True, restart_generation=generation,
         )
+        grant = response.get("restart_grant") if isinstance(response, dict) else None
+        if not isinstance(grant, dict):
+            return
+        lease = grant.get("lease_seconds")
+        if (
+            grant.get("generation") != generation
+            or not isinstance(grant.get("claim_until"), str)
+            or not grant.get("claim_until")
+            or not isinstance(lease, (int, float))
+            or not 5 < lease <= 30
+            or time.monotonic() >= started + lease - 5
+        ):
+            return
+        os.environ["CLAWARENA_RESTART_COMPLETION"] = json.dumps({
+            "generation": generation, "claim_until": grant["claim_until"],
+        })
+        try:
+            os.execv(
+                sys.executable,
+                [sys.executable, str(Path(__file__)), "--wait-seconds", str(self.wait_seconds)],
+            )
+        except OSError:
+            return
+        finally:
+            os.environ.pop("CLAWARENA_RESTART_COMPLETION", None)
+
+    def complete_restart(self) -> None:
+        saved = os.environ.get("CLAWARENA_RESTART_COMPLETION", "")
+        if not saved:
+            return
+        try:
+            claim = json.loads(saved)
+            response = self.post_status(
+                status="idle",
+                idle_reason="Watcher restarted from Command Center request.",
+                restart_completed_generation=claim["generation"],
+                restart_claim_until=claim["claim_until"],
+            )
+        except (ValueError, KeyError, TypeError):
+            return
+        if response:
+            self.send_restart_notice()
 
     def _skill_update_notice_from_payload(self, data: dict[str, Any]) -> dict[str, Any] | None:
         prefs = data.get("agent_preferences") or {}
@@ -1898,16 +1952,41 @@ class Watcher:
         *,
         timeout: float,
     ) -> subprocess.CompletedProcess[str]:
-        """Run one model turn in an isolated process group."""
-        return subprocess.run(  # noqa: S603
+        """Bound the entire model-turn process group, including CLI children."""
+        process = subprocess.Popen(  # noqa: S603
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout,
-            check=False,
             cwd=stable_subprocess_cwd(),
             start_new_session=True,
         )
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # The group ID is the PID of our new session leader. The leader may
+            # exit on TERM while descendants ignore it or still hold our pipes.
+            for sig in (signal.SIGTERM, signal.SIGKILL):
+                try:
+                    os.killpg(process.pid, sig)
+                except ProcessLookupError:
+                    pass
+                if sig == signal.SIGTERM:
+                    # Keep the leader unreaped until the last group signal so
+                    # its PID cannot be reused for an unrelated process group.
+                    time.sleep(1)
+            try:
+                process.communicate(timeout=1)
+            except subprocess.TimeoutExpired:
+                pass
+            # An escaped descendant can retain a pipe; do not let that defeat
+            # the deadline after killing the owned group. Reap our direct child.
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    stream.close()
+            process.wait(timeout=1)
+            raise
+        return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
     def _session_id_for_turn(self, wake: dict[str, Any], current: dict[str, Any]) -> str:
         game_type = str(current.get("game_type") or wake.get("game_type") or "game").strip().lower()
@@ -2643,7 +2722,7 @@ class Watcher:
             headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         )
         try:
-            with request.urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+            with api_urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
                 return resp.status, json.loads(resp.read().decode("utf-8"))
         except error.HTTPError as exc:
             if _auth_http_error(exc):
@@ -2961,13 +3040,7 @@ def main() -> int:
         return 0
     _lock = acquire_lock()
     watcher.save_state(pid=os.getpid(), started_at=watcher.state.get("started_at") or utc_now())
-    if args.ack_restart:
-        watcher.post_status(
-            status="idle",
-            idle_reason="Watcher restarted from Command Center request.",
-            restart_ack=True,
-        )
-        watcher.send_restart_notice()
+    watcher.complete_restart()
     if args.once:
         return watcher.run_once()
     # Transport selector (poll is the default since v5.9.0): CLAWARENA_TRANSPORT=ws
