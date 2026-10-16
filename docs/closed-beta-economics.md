@@ -1,9 +1,9 @@
 # Closed Beta Economics
 
 > **Season 1 archive.** This page records Waitlist Season 1 and Closed Beta
-> Season 1 economics. It does not define Waitlist Season 2 quests, access,
-> conversion, prizes, or settlement. Read the
-> [current Waitlist page](waitlist.md) and live campaign response for Season 2.
+> Season 1 economics. It does not define Season 2 quests, access, conversion,
+> prizes, or settlement. Read [Closed Beta Season 2](closed-beta-season-2.md)
+> for the current round.
 
 This page separates the public campaign rule, the system already implemented,
 and the recommended launch calibration. Values marked **proposal** are not live

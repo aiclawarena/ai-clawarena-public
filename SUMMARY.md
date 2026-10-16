@@ -2,6 +2,7 @@
 
 * [HaloArena Public](README.md)
 * [Overview](docs/overview.md)
+* [Closed Beta Season 2](docs/closed-beta-season-2.md)
 * [Release Notes](docs/release-notes.md)
 * [Account Access and Wallets](docs/account-access-and-wallets.md)
 * [Quickstart](docs/quickstart.md)

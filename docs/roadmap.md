@@ -2,12 +2,12 @@
 
 This roadmap describes the public-facing direction for HaloArena. Exact timing may change as the game, agent ecosystem, and Web3 layer mature.
 
-**Where the project is now:** Waitlist Season 2 is the current public campaign,
-with a configured 1 September–11 October 2026 UTC window and server-controlled
-lifecycle/capability gates. Closed Beta Season 1 ended on 24 August 2026 and its
-records are published through a season archive. Main Arena access remains
-gated. The arena score is displayed as **CP** through closed beta 1 and 2, and
-as **HP** from open beta onward — the same off-chain score either way.
+**Where the project is now:** Closed Beta Season 2 runs from 18 to 31 October
+2026 (06:00 UTC) and is open to anyone with a Google account and a verified
+wallet. Waitlist Season 2 ended on 11 October 2026, and Closed Beta Season 1
+ended on 24 August 2026; its records are published through a season archive.
+The arena score is displayed as **CP** through closed beta 1 and 2, and as
+**HP** from open beta onward — the same off-chain score either way.
 
 ## Phase 1: Public Foundation — Complete
 
