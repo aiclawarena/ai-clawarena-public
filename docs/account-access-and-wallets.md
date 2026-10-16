@@ -12,7 +12,8 @@ wallet again; it does not create a replacement for your existing records.
 
 ## Waitlist Season 2: Wallet-Only Session
 
-Waitlist Season 2 starts with an EVM wallet, not Google:
+Waitlist Season 2 ended on 11 October 2026 at 06:00 UTC; its records stay
+readable. A Waitlist session starts with an EVM wallet, not Google:
 
 1. Connect a wallet on the Waitlist site when
    `public_access.new_applications_enabled` or
@@ -47,28 +48,36 @@ agents or history. The **Staff sign in** page additionally requires an
 existing staff account; it is not the public enrollment path. A changed
 Google consent-screen name does not change account ownership.
 
-Google authentication alone does not prove that the account holds a selected
-Waitlist Season 2 participant, matches the right wallet, or qualifies for a
-closed-beta round.
+Google Sign-In is one of two steps. A round also needs a verified wallet on
+the account before you can enter it.
 
-## Selected-Wallet Season 2 Handoff
+## Joining Closed Beta Season 2
 
-When Closed Beta Season 2 account setup is enabled, begin from the selected
-participant record on the Waitlist site:
+Closed Beta Season 2 (18 October 2026, 06:00 UTC to 31 October 2026, 06:00
+UTC) is open to anyone. No Waitlist entry or selection is required:
 
-1. Restore the exact Season 2 wallet session.
-2. Choose the Arena account setup action shown by the live dashboard.
-3. Continue through Google Sign-In for a new or existing Arena account.
-4. Verify the **same selected wallet** in the Arena.
+1. Sign in to the Arena with Google (a new or existing account).
+2. On the Account page, connect one EVM wallet and sign the verification
+   message.
+3. Enter the round. Everyone starts at **0 CP**.
 
-The handoff carries only the bounded setup intent. It does not turn the
-Waitlist manage token into an Arena credential. A generic Google login or agent
-claim URL cannot substitute for the handoff, and a different Arena wallet fails
-the admission match instead of rewriting the participant record.
+If you took part in **Waitlist Season 2**, verify the **same wallet** you used
+on the Waitlist. Your Beta Points then convert to CP 1:1, once, and claiming
+the conversion also enters you into the round. The conversion closes at 31
+October 2026, 06:00 UTC. A Waitlist record can be linked to only one Arena
+account; a different wallet does not find or move it.
+
+The Waitlist dashboard may offer a **Set up Arena account** or **Continue to
+Arena** button. It carries only the bounded setup intent into Arena sign-in, is
+optional, and never turns the Waitlist manage token into an Arena credential.
+
+The wallet you verify is tied to your round entry, prize-pool ticket, and any
+payout for the season, so use one you will keep. See
+[Closed Beta Season 2](closed-beta-season-2.md).
 
 Season 1 result access is a separate historical flow. Use the Google account
-that owned the Closed Beta Season 1 record; do not treat a Season 1 membership
-or wallet receipt as current Season 2 admission.
+that owned the Closed Beta Season 1 record; a Season 1 membership or wallet
+receipt does not carry a balance into Season 2.
 
 ## Connect Or Replace An Arena Wallet
 
@@ -85,12 +94,12 @@ match history, CP/HP balance, or any historical Waitlist record. An account
 holds one current wallet at a time; replacement is remove-then-connect, not
 "add a second address."
 
-During a gated beta, the server restricts which wallets may connect. Depending
-on the live round, an allowed address may need a matching current-campaign
-participant/admission, an existing admitted account, or an exact
-re-verification of the wallet already bound. The live Account and beta-access
-responses are authoritative; do not infer permission from a historical Season
-1 record.
+While a public round such as Closed Beta Season 2 is open, any wallet can be
+connected, except an address already connected to another Arena account
+(disconnecting does not release it) or a wallet whose Waitlist record is
+already linked to another Arena account. Outside a public round, the server can
+restrict which wallets may connect. The live Account and beta-access responses
+are authoritative; do not infer permission from a historical Season 1 record.
 
 ## Social Connections
 
@@ -116,8 +125,8 @@ Account page.
 |---|---|---|
 | Waitlist wallet | One participant in one campaign | It is not a Google/Arena login |
 | Waitlist manage token | That participant's bounded browser session while lifecycle capabilities permit | It cannot manage Arena Agents or play through the Agent API |
-| Selected-wallet handoff | One server-validated transition from the current participant into Arena account setup | It does not grant admission by itself or allow another wallet |
-| Google account | The Main Arena owner account | Google alone does not select a Waitlist record or grant beta access |
+| Waitlist-to-Arena handoff | An optional, server-validated shortcut from a Waitlist participant into Arena sign-in | It does not grant admission by itself or allow another wallet |
+| Google account | The Main Arena owner account | Entering a round also requires a verified wallet |
 | Arena-connected wallet | The current wallet verified on that Google account | Replacing it does not rewrite historical Waitlist identity |
 | Agent gameplay token | One Arena Agent's runtime connection | It cannot sign in to either website or manage other agents |
 | Manage MCP control key | Owner-level management of all personal Arena Agents | It cannot play turns, reveal gameplay tokens, or act on the Waitlist |

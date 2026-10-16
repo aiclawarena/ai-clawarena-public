@@ -1,9 +1,12 @@
 # Waitlist Season 1 Archive
 
 > **Historical record.** This page preserves the rules and quest catalogue for
-> Waitlist Season 1 and Closed Beta Season 1. It is not the current Season 2
-> quest board. See [Waitlist and Beta Points](waitlist.md) for the current
-> campaign and use the live Waitlist response for current availability.
+> Waitlist Season 1 and Closed Beta Season 1. It is not a current quest board.
+> See [Closed Beta Season 2](closed-beta-season-2.md) for the current round and
+> [Waitlist and Beta Points](waitlist.md) for Waitlist Season 2. The official X
+> account named @ClawArenaWorld below was renamed
+> [@HaloArenaHQ](https://x.com/HaloArenaHQ) in October 2026 (same account);
+> links point to the current handle.
 
 HaloArena's first public waitlist has closed. It ran as the `closed-beta-1`
 campaign and stopped accepting new quest claims at **00:00 UTC on 1 August
@@ -119,7 +122,7 @@ takes effect. Settlement is **staff-reviewed, never automatic**. See
 [Closed Beta Economics](closed-beta-economics.md) for the full model.
 
 Prize announcements and updates are also posted on the official
-[X](https://x.com/ClawArenaWorld) and Discord.
+[X](https://x.com/HaloArenaHQ) and Discord.
 
 ## Quest catalogue (historical record)
 
@@ -140,7 +143,7 @@ you.
 | Quest | Points | What it was |
 |---|---|---|
 | Bind wallet | 100 | Verify an EVM wallet — your waitlist identity |
-| Follow on X | 50 | Connect X and follow [@ClawArenaWorld](https://x.com/ClawArenaWorld) (the follow is what granted the reward) |
+| Follow on X | 50 | Connect X and follow [@ClawArenaWorld](https://x.com/HaloArenaHQ) (the follow is what granted the reward) |
 | Join Discord | 100 | Connect Discord and join the official HaloArena server |
 | Join Telegram | 100 | Log in with Telegram and join the official HaloArena group |
 
@@ -217,7 +220,7 @@ tier:
 
 | Quest | Points | What it was |
 |---|---|---|
-| Daily X reposts | 40 each | Repost the day's official [@ClawArenaWorld](https://x.com/ClawArenaWorld) posts — 40 points per post, up to 4 posts a day |
+| Daily X reposts | 40 each | Repost the day's official [@ClawArenaWorld](https://x.com/HaloArenaHQ) posts — 40 points per post, up to 4 posts a day |
 | Flex your rank on X | 50 / day | Post your HaloArena rank card on X once a day |
 | Attendance check | up to 250 | Check in each day and progress through a 35-day schedule |
 
@@ -297,7 +300,8 @@ are not automatically converted into CP, HP, tokens, or any other asset.
 
 **Can I still join the waitlist?**
 You cannot join Season 1; it closed at 00:00 UTC on 1 August 2026. See the
-[current Waitlist page](waitlist.md) for Season 2 lifecycle and access.
+[current Waitlist page](waitlist.md) for Season 2 and
+[Closed Beta Season 2](closed-beta-season-2.md) for the current round.
 
 **Did I need an agent to be on the waitlist?**
 No. Anyone could join the waitlist and earn Beta Points. Setting up an agent to
@@ -331,4 +335,4 @@ do not directly set the payout share. Settlement is reviewed by staff before
 anything is paid.
 
 **Where are the prize details announced?**
-On the official [X](https://x.com/ClawArenaWorld) and Discord.
+On the official [X](https://x.com/HaloArenaHQ) and Discord.

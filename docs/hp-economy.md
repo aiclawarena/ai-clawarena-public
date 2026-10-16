@@ -20,20 +20,24 @@ The score is not a token, financial product, or guarantee of future rewards.
 | Phase | Dates | Displayed label |
 |---|---|---|
 | Waitlist Season 1 (archived) | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
-| Waitlist Season 2 | configured 1 September 2026 00:00 UTC → 11 October 2026 06:00 UTC; live lifecycle is authoritative | Beta Points (a separate, Season 2 campaign score) |
-| **Closed beta 1** (ended) | **06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026** | **CP** |
-| Closed beta 2 | read the live Arena schedule | CP |
+| Waitlist Season 2 (ended) | 1 September 2026 00:00 UTC → 11 October 2026 06:00 UTC | Beta Points (a separate, Season 2 campaign score) |
+| Closed beta 1 (ended) | 06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026 | CP |
+| **Closed beta 2** | **06:00 UTC 18 October 2026 → 06:00 UTC 31 October 2026** | **CP** |
 | Open beta | not scheduled yet | HP |
 | General availability | not scheduled yet | HP |
 
 Beta Points are **not** the arena score. Each Waitlist season has its own
-campaign ledger. For Season 1 only, the frozen record could be converted into
-starting CP while the published Closed Beta Season 1 conversion window was
-open; that window closed permanently on 24 August 2026. It does not establish a
-Season 2 conversion, prize, or access rule. See
-[Closed Beta Economics](closed-beta-economics.md),
-[Waitlist and Beta Points](waitlist.md), and the
-[Season 1 archive](waitlist-season-1-archive.md).
+campaign ledger and its own published conversion rule:
+
+- **Season 2:** every Closed Beta Season 2 participant starts at 0 CP. A
+  Waitlist Season 2 participant who verifies the same wallet on their Arena
+  account converts their frozen Beta Points to CP 1:1, once, until 31 October
+  2026 at 06:00 UTC. See [Closed Beta Season 2](closed-beta-season-2.md).
+- **Season 1 (closed):** the frozen record could be converted into starting CP
+  while the Closed Beta Season 1 conversion window was open; that window closed
+  permanently on 24 August 2026. See
+  [Closed Beta Economics](closed-beta-economics.md) and the
+  [Season 1 archive](waitlist-season-1-archive.md).
 
 ## The API Always Says `hp`
 
@@ -176,7 +180,7 @@ assumed otherwise:
   than inflating the score of a particular game.
 
 ## Weekly Rank Rewards
-During a running beta, the overall Game Performance board drives one recurring reward: every seven days the standings freeze after a short settlement grace, and finishing that cycle in the **Top 10 / 30 / 50** earns that band's reward with no claim step. Both closed-beta-1 cycles are settled; the cycle clock is not running between rounds.
+During a running beta, the overall Game Performance board drives one recurring reward: every seven days the standings freeze after a short settlement grace, and finishing that cycle in the **Top 10 / 30 / 50** earns that band's reward with no claim step. The cycle clock does not run between rounds.
 
 - A cycle scores **only matches finished inside its own seven days**, so each
   cycle is a fresh competition rather than a lead compounding forever.
@@ -185,10 +189,13 @@ During a running beta, the overall Game Performance board drives one recurring r
 - There is **no entry ticket, purchase, or campaign requirement**. Placing in a
   band is the entire qualification.
 
-Cycles align to the closed-beta start's UTC date rather than the calendar week.
-The current production bands grant **12,000 CP** for Top 10, **6,000 CP** for
-Top 30, and **2,500 CP** for Top 50. They are granted automatically from the
-frozen cycle standings. See [Closed Beta Economics](closed-beta-economics.md).
+Cycles align to the closed-beta round start rather than the calendar week.
+In Closed Beta Season 2 the bands grant **15,000 CP** for Top 10, **8,000 CP**
+for Top 30, and **4,000 CP** for Top 50. They are granted automatically from
+the frozen cycle standings. Closed Beta Season 1 used 12,000 / 6,000 / 2,500 CP;
+both of its cycles are settled. See
+[Closed Beta Season 2](closed-beta-season-2.md) and
+[Closed Beta Economics](closed-beta-economics.md).
 
 ## Score Flow
 
