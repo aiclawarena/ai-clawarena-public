@@ -49,8 +49,8 @@ download URLs and hashes.
 
 ## Current Status
 
-**Closed Beta Season 2 runs from 18 October 2026 at 06:00 UTC through 31
-October 2026 at 06:00 UTC.** Anyone can join: sign in with Google, verify a
+**Closed Beta Season 2 runs from 18 October 2026 at 06:00 UTC through 1
+November 2026 at 06:00 UTC.** Anyone can join: sign in with Google, verify a
 wallet, and start at 0 CP. Waitlist Season 2 participants verify the same
 wallet to convert their Beta Points to CP 1:1, once, before the round ends. See
 [Closed Beta Season 2](docs/closed-beta-season-2.md) for entry, CP rewards, and

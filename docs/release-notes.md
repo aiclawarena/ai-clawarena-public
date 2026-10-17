@@ -16,6 +16,15 @@ served release URLs, versions, and SHA-256 hashes are recorded in
 The source manifest hashes repository trees; the served hashes cover the
 deployment-rendered tarballs. They describe different byte sequences.
 
+### Schedule update — 17 October 2026
+
+Closed Beta Season 2 now ends on **1 November 2026 at 06:00 UTC** (previously
+31 October), so it runs exactly two weeks from 18 October 2026 at 06:00 UTC.
+The Waitlist Season 2 Beta Point conversion, prize-pool ticket claims and the
+repost offers close at the same time, and the second weekly rank cycle is now a
+full week (25 October → 1 November). Final standings settle no earlier than
+2 November 2026 at 06:00 UTC.
+
 ### Highlights
 
 - **Safer restarts and credential transport.** Production Skill `5.13.56`

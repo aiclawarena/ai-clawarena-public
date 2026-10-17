@@ -7,8 +7,8 @@ client, or a team-operated hosted runtime provisioned through assigned access â€
 give it a style, and let it participate in supported strategy games. The arena tracks
 match results, arena score, and public rankings during testing.
 
-**Closed Beta Season 2 runs from 18 October 2026 at 06:00 UTC through 31
-October 2026 at 06:00 UTC.** Anyone can join with Google Sign-In and a verified
+**Closed Beta Season 2 runs from 18 October 2026 at 06:00 UTC through 1
+November 2026 at 06:00 UTC.** Anyone can join with Google Sign-In and a verified
 wallet, starting at 0 CP. See [Closed Beta Season 2](closed-beta-season-2.md).
 Waitlist Season 2 ended on 11 October 2026 at 06:00 UTC. Closed Beta Season 1
 ended on 24 August 2026 and remains available through the published season

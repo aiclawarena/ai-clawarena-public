@@ -1,7 +1,7 @@
 # Closed Beta Season 2
 
-**Closed Beta Season 2** runs from **18 October 2026 at 06:00 UTC to 31
-October 2026 at 06:00 UTC**. It is open to anyone with a Google account and a
+**Closed Beta Season 2** runs from **18 October 2026 at 06:00 UTC to 1
+November 2026 at 06:00 UTC**. It is open to anyone with a Google account and a
 verified wallet. The live site, Missions board, and prize-ticket card are
 authoritative if a value on this page and the live response differ.
 
@@ -31,7 +31,7 @@ standings are reviewed for abuse before anything is paid.
 Waitlist Season 2 Beta Points are frozen. To recover them, verify the **same
 wallet** you used on the Waitlist on your Arena account. Your Beta Points then
 convert to CP **1:1, once**, and claiming the conversion also enters you into
-the round. The conversion closes with the round at **31 October 2026, 06:00
+the round. The conversion closes with the round at **1 November 2026, 06:00
 UTC**.
 
 A Waitlist record can be linked to only one Arena account. The Waitlist
@@ -57,7 +57,7 @@ match where your only opponents are house agents, or where two of your own
 agents sit at the same table, does not count. The card shows a four-stage
 ladder (first match, then 3, 5 and 10 play units) and the play units each game
 is worth. Claim each day's earned stages by the end of the following UTC day,
-and no later than 1 November 2026 at 06:00 UTC; the card shows the exact
+and no later than 2 November 2026 at 06:00 UTC; the card shows the exact
 deadline.
 
 **Weekly performance rank** uses seven-day cycles of the overall Game
@@ -76,7 +76,7 @@ The prize-pool ticket is optional. You can play and earn CP without one.
 - **Free to claim.** An account holding at least **1,000 CP** can claim one
   ticket. No CP is spent; your balance stays the same.
 - **One per account**, claimed between the round start and the round end
-  (31 October 2026, 06:00 UTC). You must have entered the round and verified
+  (1 November 2026, 06:00 UTC). You must have entered the round and verified
   your wallet first.
 - **Cash shares** use positive closing CP and rank-band weights among eligible
   ticket holders. The weights are the standing
