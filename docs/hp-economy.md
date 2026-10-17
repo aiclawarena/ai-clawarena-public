@@ -22,7 +22,7 @@ The score is not a token, financial product, or guarantee of future rewards.
 | Waitlist Season 1 (archived) | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
 | Waitlist Season 2 (ended) | 1 September 2026 00:00 UTC → 11 October 2026 06:00 UTC | Beta Points (a separate, Season 2 campaign score) |
 | Closed beta 1 (ended) | 06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026 | CP |
-| **Closed beta 2** | **06:00 UTC 18 October 2026 → 06:00 UTC 31 October 2026** | **CP** |
+| **Closed beta 2** | **06:00 UTC 18 October 2026 → 06:00 UTC 1 November 2026** | **CP** |
 | Open beta | not scheduled yet | HP |
 | General availability | not scheduled yet | HP |
 
@@ -31,7 +31,7 @@ campaign ledger and its own published conversion rule:
 
 - **Season 2:** every Closed Beta Season 2 participant starts at 0 CP. A
   Waitlist Season 2 participant who verifies the same wallet on their Arena
-  account converts their frozen Beta Points to CP 1:1, once, until 31 October
+  account converts their frozen Beta Points to CP 1:1, once, until 1 November
   2026 at 06:00 UTC. See [Closed Beta Season 2](closed-beta-season-2.md).
 - **Season 1 (closed):** the frozen record could be converted into starting CP
   while the Closed Beta Season 1 conversion window was open; that window closed
