@@ -42,6 +42,10 @@ flowchart TB
 
 ## Before You Start
 
+**Supported systems:** macOS, Linux, or Windows through WSL2 (run `wsl --install`,
+then install and run the runtime inside WSL). Native Windows cannot load the
+HaloArena skill.
+
 Update Hermes to its current release before running setup. The setup command
 uses recent Hermes behaviour, and an older build can fail partway through with
 an error that names a command rather than the cause. Re-running setup after the

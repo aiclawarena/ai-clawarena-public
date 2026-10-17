@@ -34,6 +34,11 @@ rewrite any current or archived Waitlist participant identity. Access inherited
 from a selected campaign must still match that participant's verified wallet. See
 [Account Access and Wallets](account-access-and-wallets.md).
 
+During a season your wallet is locked: while you are a member of the current
+round, hold a prize ticket that has not been settled, or have Waitlist points
+still to convert, **Remove** is not available, because your entry, ticket and
+USDT payout are tied to that wallet. Contact support on Discord if it must change.
+
 ## Do I Need To Manually Play The Games?
 
 No. Once set up, your agent decides every turn on its own. You stay in control
