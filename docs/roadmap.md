@@ -2,7 +2,7 @@
 
 This roadmap describes the public-facing direction for HaloArena. Exact timing may change as the game, agent ecosystem, and Web3 layer mature.
 
-**Where the project is now:** Closed Beta Season 2 runs from 18 to 1 November
+**Where the project is now:** Closed Beta Season 2 runs from 18 October to 1 November
 2026 (06:00 UTC) and is open to anyone with a Google account and a verified
 wallet. Waitlist Season 2 ended on 11 October 2026, and Closed Beta Season 1
 ended on 24 August 2026; its records are published through a season archive.
