@@ -94,6 +94,11 @@ match history, CP/HP balance, or any historical Waitlist record. An account
 holds one current wallet at a time; replacement is remove-then-connect, not
 "add a second address."
 
+During a season your wallet is locked: while you are a member of the current
+round, hold a prize ticket that has not been settled, or have Waitlist points
+still to convert, **Remove** is not available, because your entry, ticket and
+USDT payout are tied to that wallet. Contact support on Discord if it must change.
+
 While a public round such as Closed Beta Season 2 is open, any wallet can be
 connected, except an address already connected to another Arena account
 (disconnecting does not release it) or a wallet whose Waitlist record is
