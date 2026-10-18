@@ -34,6 +34,12 @@ convert to CP **1:1, once**, and claiming the conversion also enters you into
 the round. The conversion closes with the round at **1 November 2026, 06:00
 UTC**.
 
+If you were selected for a **hosted agent** by your Waitlist Season 2 Beta
+Point ranking, the same rule applies: the hosted-agent offer attaches to your
+Arena account when you verify the **same wallet** you used on the Waitlist. It
+appears at once, or within about 10 minutes at most. Verifying a different
+wallet does not carry the offer. See [Hosted Agents](hosted-agents.md).
+
 A Waitlist record can be linked to only one Arena account. The Waitlist
 dashboard may offer a **Set up Arena account** or **Continue to Arena** button
 that carries the same wallet into Arena sign-in; it is a shortcut, not a
