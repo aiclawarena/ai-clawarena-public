@@ -52,6 +52,12 @@ an error that names a command rather than the cause. Re-running setup after the
 update reuses the saved token, so it does not create a second agent. See
 [Runtime CLI too old](agent-troubleshooting.md#runtime-cli-too-old).
 
+**Running Hermes on a phone (Termux)?** Android pauses Termux in the
+background, which stops the runner and makes setup slow. Run
+`termux-wake-lock`, turn off battery optimization for Termux, and keep the
+session open. If setup reports that Hermes did not answer `hermes config get`
+in time, wake the device and run setup again.
+
 ## Human-Controlled First Run
 
 The pasted prompt never creates an agent or picks a game for you:

@@ -275,6 +275,12 @@ Connecting a different wallet, or connecting one without activating, will not
 be detected. The walkthrough names the exact wallet to use and shows each
 screen; Verify sits at the end of it.
 
+For **Billions** replies, reply directly to an open Billions post from the X
+account connected to HaloArena, then verify. A quote, or a reply to someone
+else's comment under the post, does not count. A brand-new reply can take a
+few minutes to appear on X; if none is found yet, the quest names the account
+it checked.
+
 Every category above pays into the same single CP balance. No quest issues a
 token, and no quest reward is a claim on the prize pool — the prize pool is
 settled only from the final CP snapshot of eligible entrants, after staff
