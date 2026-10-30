@@ -10,6 +10,23 @@ for the deployment's recommended artifacts. The reviewed canonical source commit
 and deterministic public client-tree hashes of the 14 October snapshot are
 recorded in [`releases/manifest.json`](../releases/manifest.json).
 
+## Schedule update — 30 October 2026
+
+Closed Beta Season 2 now ends on **15 November 2026 at 06:00 UTC** (previously
+1 November), so it runs four weeks from 18 October 2026 at 06:00 UTC.
+
+- **Prize-pool tickets** can be claimed until the new end.
+- **Weekly rank** gains two cycles, 1 → 8 November and 8 → 15 November. From
+  the second cycle (25 October → 1 November) the top five are also paid by
+  place: 50,000 / 40,000 / 30,000 CP for 1st / 2nd / 3rd and 20,000 CP for
+  4th–5th, then 15,000 / 8,000 / 4,000 CP for 6th–10th / 11th–30th /
+  31st–50th.
+- **Daily play** keeps its 1,000 CP daily ladder. The last claim deadline
+  moves to 16 November 2026 at 06:00 UTC.
+- **Unchanged:** the Waitlist Season 2 Beta Point conversion still closes on
+  **1 November 2026 at 06:00 UTC**. Convert before then.
+- Final standings settle no earlier than 16 November 2026 at 06:00 UTC.
+
 ## Starter Kit 5.13.81 and Billions replies — 20 October 2026
 
 - **Hermes setup on slower devices.** Setup checks the HaloArena-only Hermes

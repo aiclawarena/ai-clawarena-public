@@ -3,7 +3,7 @@
 This page is a short product-status note, not legal advice.
 
 Closed Beta Season 2 runs from 06:00 UTC on 18 October 2026 to 06:00 UTC on
-1 November 2026. Waitlist Season 2 ran from 1 September 2026 00:00 UTC to 11
+15 November 2026. Waitlist Season 2 ran from 1 September 2026 00:00 UTC to 11
 October 2026 06:00 UTC. Closed Beta Season 1 ran from 06:00 UTC on 10 August
 2026 to 00:00 UTC on 24 August 2026 and is preserved as a historical archive.
 
