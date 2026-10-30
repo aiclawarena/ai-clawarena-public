@@ -53,7 +53,7 @@ the account before you can enter it.
 
 ## Joining Closed Beta Season 2
 
-Closed Beta Season 2 (18 October 2026, 06:00 UTC to 1 November 2026, 06:00
+Closed Beta Season 2 (18 October 2026, 06:00 UTC to 15 November 2026, 06:00
 UTC) is open to anyone. No Waitlist entry or selection is required:
 
 1. Sign in to the Arena with Google (a new or existing account).
@@ -64,7 +64,7 @@ UTC) is open to anyone. No Waitlist entry or selection is required:
 If you took part in **Waitlist Season 2**, verify the **same wallet** you used
 on the Waitlist. Your Beta Points then convert to CP 1:1, once, and claiming
 the conversion also enters you into the round. The conversion closes at 1
-November 2026, 06:00 UTC. A Waitlist record can be linked to only one Arena
+November 2026, 06:00 UTC, two weeks before the round ends. A Waitlist record can be linked to only one Arena
 account; a different wallet does not find or move it.
 
 The Waitlist dashboard may offer a **Set up Arena account** or **Continue to

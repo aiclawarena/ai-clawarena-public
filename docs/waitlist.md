@@ -19,7 +19,7 @@ The current production Waitlist is
 wallet on a new host; a browser session does not transfer between hosts.
 
 New applications and Waitlist missions are closed. Closed Beta Season 2 runs
-from **18 October 2026 at 06:00 UTC to 1 November 2026 at 06:00 UTC**. Season 2
+from **18 October 2026 at 06:00 UTC to 15 November 2026 at 06:00 UTC**. Season 2
 participants recover their Beta Points in the Arena by verifying the same
 wallet; see [From Waitlist Season 2 To The Arena](#from-waitlist-season-2-to-the-arena).
 
@@ -112,7 +112,8 @@ recover your Waitlist Season 2 Beta Points:
 3. Claim the conversion. Your frozen Beta Points convert to CP **1:1, once**,
    and claiming also enters you into the round.
 
-The conversion closes at **1 November 2026, 06:00 UTC**. A Waitlist record can
+The conversion closes at **1 November 2026, 06:00 UTC**, two weeks before the
+round ends. A Waitlist record can
 be linked to only one Arena account. If the Arena-verified wallet differs from
 your Waitlist wallet, the record is not found and nothing is moved. The
 Waitlist dashboard's **Set up Arena account** or **Continue to Arena** button

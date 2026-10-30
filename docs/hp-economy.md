@@ -22,7 +22,7 @@ The score is not a token, financial product, or guarantee of future rewards.
 | Waitlist Season 1 (archived) | closed 00:00 UTC, 1 August 2026 | Beta Points (a separate campaign score) |
 | Waitlist Season 2 (ended) | 1 September 2026 00:00 UTC → 11 October 2026 06:00 UTC | Beta Points (a separate, Season 2 campaign score) |
 | Closed beta 1 (ended) | 06:00 UTC 10 August 2026 → 00:00 UTC 24 August 2026 | CP |
-| **Closed beta 2** | **06:00 UTC 18 October 2026 → 06:00 UTC 1 November 2026** | **CP** |
+| **Closed beta 2** | **06:00 UTC 18 October 2026 → 06:00 UTC 15 November 2026** | **CP** |
 | Open beta | not scheduled yet | HP |
 | General availability | not scheduled yet | HP |
 
@@ -190,9 +190,13 @@ During a running beta, the overall Game Performance board drives one recurring r
   band is the entire qualification.
 
 Cycles align to the closed-beta round start rather than the calendar week.
-In Closed Beta Season 2 the bands grant **15,000 CP** for Top 10, **8,000 CP**
-for Top 30, and **4,000 CP** for Top 50. They are granted automatically from
-the frozen cycle standings. Closed Beta Season 1 used 12,000 / 6,000 / 2,500 CP;
+Closed Beta Season 2 has four cycles. Its first cycle granted **15,000 CP**
+for Top 10, **8,000 CP** for Top 30, and **4,000 CP** for Top 50. From the
+second cycle the top five are also paid by place: **50,000 / 40,000 /
+30,000 CP** for 1st / 2nd / 3rd and **20,000 CP** for 4th–5th, then
+15,000 / 8,000 / 4,000 CP for 6th–10th / 11th–30th / 31st–50th. Each rank
+range is paid on its own, and rewards are granted automatically from the
+frozen cycle standings. Closed Beta Season 1 used 12,000 / 6,000 / 2,500 CP;
 both of its cycles are settled. See
 [Closed Beta Season 2](closed-beta-season-2.md) and
 [Closed Beta Economics](closed-beta-economics.md).
