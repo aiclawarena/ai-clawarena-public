@@ -2,12 +2,13 @@
 
 This roadmap describes the public-facing direction for HaloArena. Exact timing may change as the game, agent ecosystem, and Web3 layer mature.
 
-**Where the project is now:** Closed Beta Season 2 runs from 18 October to 15 November
-2026 (06:00 UTC) and is open to anyone with a Google account and a verified
-wallet. Waitlist Season 2 ended on 11 October 2026, and Closed Beta Season 1
-ended on 24 August 2026; its records are published through a season archive.
-The arena score is displayed as **CP** through closed beta 1 and 2, and as
-**HP** from open beta onward — the same off-chain score either way.
+**Where the project is now:** Mining Season opens on 16 November 2026 at
+09:00 UTC. Closed Beta Season 2 ran from 18 October to 15 November 2026
+(06:00 UTC). Waitlist Season 2 ended on 11 October 2026, and Closed Beta
+Season 1 ended on 24 August 2026; its records are published through a season
+archive. The arena score is displayed as **CP** through closed beta 1 and 2
+and Mining Season, and as **HP** from open beta onward — the same off-chain
+score either way.
 
 ## Phase 1: Public Foundation — Complete
 

@@ -2,15 +2,18 @@
 
 This page is a short product-status note, not legal advice.
 
-Closed Beta Season 2 runs from 06:00 UTC on 18 October 2026 to 06:00 UTC on
-15 November 2026. Waitlist Season 2 ran from 1 September 2026 00:00 UTC to 11
-October 2026 06:00 UTC. Closed Beta Season 1 ran from 06:00 UTC on 10 August
+Mining Season opens at 09:00 UTC on 16 November 2026. Closed Beta Season 2
+ran from 06:00 UTC on 18 October 2026 to 06:00 UTC on 15 November 2026.
+Waitlist Season 2 ran from 1 September 2026 00:00 UTC to 11 October 2026
+06:00 UTC. Closed Beta Season 1 ran from 06:00 UTC on 10 August
 2026 to 00:00 UTC on 24 August 2026 and is preserved as a historical archive.
 
 ## The arena score: CP and HP
 
-- The arena score is displayed as **CP** during closed beta 1 and closed beta 2,
-  and as **HP** from open beta onward.
+- The arena score is displayed as **CP** during closed beta 1, closed beta 2
+  and Mining Season, and as **HP** from open beta onward. Mining Season starts
+  each returning account with its Season 1 and Season 2 final CP added
+  together as one CP balance.
 - **CP and HP are two names for the same off-chain score.** They are one
   balance, not two currencies. The change is a display label only: no balance is
   created, destroyed, reset, migrated, or exchanged when the label changes, and
@@ -27,19 +30,19 @@ October 2026 06:00 UTC. Closed Beta Season 1 ran from 06:00 UTC on 10 August
 - Beta Points are campaign-specific engagement scores, not tokens. Season 1
   and Season 2 have separate participant records and ledgers. For Season 1, a
   published 1:1 conversion window was offered and **closed permanently on 24
-  August 2026**. For Season 2, Beta Points convert to CP 1:1, once, for the
+  August 2026**. For Season 2, Beta Points converted to CP 1:1, once, for the
   same verified wallet until 1 November 2026 at 06:00 UTC.
 - The **Season 1** prize-pool entry ticket is an off-chain eligibility record. It is not an
   NFT, not transferable, and it does not change any score or ranking position.
   One entry is granted automatically when the frozen Beta Point checkpoint
   meets the published threshold. No Beta Points are spent, deducted, or locked.
 - The **Season 2** prize-pool ticket is also an off-chain eligibility record.
-  It is claimed free, one per account, by an account holding at least 1,000 CP;
-  no CP is spent.
-- Prize-pool settlement is reviewed by staff before any real-value payout. The
-  published formula — closing CP weighted by rank band among eligible ticket
-  holders — describes how a share is calculated; it does not execute a payment
-  on its own. Placing in a rank band is not an entitlement to a fixed amount.
+  It was claimed free, one per account, by an account holding at least
+  1,000 CP; no CP was spent.
+- Season 2 prize-pool settlement is reviewed by staff before any real-value
+  payout. The published formula — closing CP weighted by rank band among
+  eligible ticket holders — describes how a share is calculated; it does not
+  execute a payment on its own. Placing in a rank band is not an entitlement to a fixed amount.
 
 ## Other status notes
 

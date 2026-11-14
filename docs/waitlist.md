@@ -2,9 +2,9 @@
 
 **Waitlist Season 2** has ended. It ran from **1 September 2026 at 00:00 UTC
 through 11 October 2026 at 06:00 UTC**, separate from Season 1, with its own
-participant records, quest receipts, and Beta Point ledger. The current round
-is [Closed Beta Season 2](closed-beta-season-2.md), which anyone can join
-without a Waitlist entry.
+participant records, quest receipts, and Beta Point ledger. The current
+season is [Mining Season](mining-season.md), which opens on 16 November 2026
+at 09:00 UTC; no Waitlist entry is needed.
 
 Do not infer whether a Waitlist action is open from this page or from your
 local clock. The public
@@ -18,10 +18,11 @@ The current production Waitlist is
 `waitlist.aiclawarena.ai` address remains supported. Restore with the same
 wallet on a new host; a browser session does not transfer between hosts.
 
-New applications and Waitlist missions are closed. Closed Beta Season 2 runs
+New applications and Waitlist missions are closed. Closed Beta Season 2 ran
 from **18 October 2026 at 06:00 UTC to 15 November 2026 at 06:00 UTC**. Season 2
-participants recover their Beta Points in the Arena by verifying the same
-wallet; see [From Waitlist Season 2 To The Arena](#from-waitlist-season-2-to-the-arena).
+participants could recover their Beta Points in the Arena by verifying the same
+wallet until 1 November 2026 at 06:00 UTC; see
+[From Waitlist Season 2 To The Arena](#from-waitlist-season-2-to-the-arena).
 
 Closed Beta Season 1 ended on 24 August 2026. Its standings, quest catalogue,
 conversion rules, and prize structure remain available in the
@@ -36,9 +37,9 @@ Season 1 receipts remain historical records and do not become Season 2 claims.
 
 ## Published Season 2 Rewards
 
-The published Season 2 rewards are worth **$20,000** in total: **10,000 USDT**
+The published Season 2 rewards were worth **$20,000** in total: **10,000 USDT**
 (the Closed Beta Season 2 cash prize pool) **+ $10,000 worth of partner
-benefits**. See [Closed Beta Season 2](closed-beta-season-2.md#prize-pool-and-ticket)
+benefits**. They applied to Season 2 only. See [Closed Beta Season 2](closed-beta-season-2.md#prize-pool-and-ticket)
 for the free ticket rule.
 
 ## Current Lifecycle

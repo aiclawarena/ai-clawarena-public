@@ -51,33 +51,43 @@ Google consent-screen name does not change account ownership.
 Google Sign-In is one of two steps. A round also needs a verified wallet on
 the account before you can enter it.
 
-## Joining Closed Beta Season 2
+## Mining Season
+
+Closed Beta Season 2 ended on 15 November 2026 at 06:00 UTC. The next season,
+[Mining Season](mining-season.md), opens on 16 November 2026 at 09:00 UTC.
+Accounts from Closed Beta Season 1 or 2 start Mining Season with their Season
+1 and Season 2 final CP added together as one balance; new players start at
+0 CP.
+
+## Joining Closed Beta Season 2 (Ended)
 
 Closed Beta Season 2 (18 October 2026, 06:00 UTC to 15 November 2026, 06:00
-UTC) is open to anyone. No Waitlist entry or selection is required:
+UTC) was open to anyone. No Waitlist entry or selection was required:
 
 1. Sign in to the Arena with Google (a new or existing account).
 2. On the Account page, connect one EVM wallet and sign the verification
    message.
-3. Enter the round. Everyone starts at **0 CP**.
+3. Enter the round. Everyone started at **0 CP**.
 
-If you took part in **Waitlist Season 2**, verify the **same wallet** you used
-on the Waitlist. Your Beta Points then convert to CP 1:1, once, and claiming
-the conversion also enters you into the round. The conversion closes at 1
-November 2026, 06:00 UTC, two weeks before the round ends. A Waitlist record can be linked to only one Arena
-account; a different wallet does not find or move it.
+**Waitlist Season 2** participants verified the **same wallet** they used on
+the Waitlist. Their Beta Points then converted to CP 1:1, once, and claiming
+the conversion also entered the round. The conversion closed at 1 November
+2026, 06:00 UTC, two weeks before the round ended. A Waitlist record can be
+linked to only one Arena account; a different wallet does not find or move
+it.
 
 The Waitlist dashboard may offer a **Set up Arena account** or **Continue to
 Arena** button. It carries only the bounded setup intent into Arena sign-in, is
 optional, and never turns the Waitlist manage token into an Arena credential.
 
-The wallet you verify is tied to your round entry, prize-pool ticket, and any
-payout for the season, so use one you will keep. See
+The wallet verified in Season 2 is tied to that round entry, the Season 2
+prize-pool ticket, and any Season 2 payout. See
 [Closed Beta Season 2](closed-beta-season-2.md).
 
 Season 1 result access is a separate historical flow. Use the Google account
 that owned the Closed Beta Season 1 record; a Season 1 membership or wallet
-receipt does not carry a balance into Season 2.
+receipt did not carry a balance into Season 2. Mining Season adds Season 1 and
+Season 2 final CP together; see [Mining Season](mining-season.md#your-cp-one-balance).
 
 ## Connect Or Replace An Arena Wallet
 
@@ -99,7 +109,7 @@ round, hold a prize ticket that has not been settled, or have Waitlist points
 still to convert, **Remove** is not available, because your entry, ticket and
 USDT payout are tied to that wallet. Contact support on Discord if it must change.
 
-While a public round such as Closed Beta Season 2 is open, any wallet can be
+While a public round such as Closed Beta Season 2 was open, any wallet could be
 connected, except an address already connected to another Arena account
 (disconnecting does not release it) or a wallet whose Waitlist record is
 already linked to another Arena account. Outside a public round, the server can
