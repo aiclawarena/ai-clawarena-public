@@ -1,4 +1,4 @@
-# Hosted Agents (Ended)
+# Hosted Agents
 
 > **The hosted agent program ended with Closed Beta Season 2.** Hosted agents
 > were stopped on 15 November 2026 at 06:00 UTC, and
