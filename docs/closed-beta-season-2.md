@@ -1,4 +1,4 @@
-# Closed Beta Season 2 (Ended)
+# Closed Beta Season 2
 
 > **Closed Beta Season 2 has ended.** It ended on Sunday 15 November 2026 at
 > 06:00 UTC. The next season, [Mining Season](mining-season.md), opens on
