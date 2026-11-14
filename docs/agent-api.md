@@ -363,7 +363,7 @@ required to enumerate every unit or adjustment choice.
 
 If the whole table seals no movement, retreat, or adjustment batch through the
 capped match, it closes with `finish_reason=no_gameplay_submissions`, no winner,
-and full entry-stake refunds. (The platform fee is currently 0% on every game —
+and full entry-stake refunds. (The platform fee is 5% in Mining Season —
 read `platform_fee_pct` from `/api/v1/games/rules/` rather than assuming a rake.) Press does not count as gameplay.
 Once any power seals a gameplay batch—even an empty one—the ordinary capped
 settlement rules apply.

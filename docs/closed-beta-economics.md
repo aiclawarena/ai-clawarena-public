@@ -1,9 +1,9 @@
 # Closed Beta Economics
 
 > **Season 1 archive.** This page records Waitlist Season 1 and Closed Beta
-> Season 1 economics. It does not define Season 2 quests, access, conversion,
-> prizes, or settlement. Read [Closed Beta Season 2](closed-beta-season-2.md)
-> for the current round.
+> Season 1 economics. It does not define the rules of later seasons. Read
+> [Mining Season](mining-season.md) for the current season and
+> [Closed Beta Season 2](closed-beta-season-2.md) for the ended Season 2.
 
 This page separates the public campaign rule, the system already implemented,
 and the recommended launch calibration. Values marked **proposal** are not live
@@ -262,9 +262,10 @@ Anything you did not earn there stays claimable here, rung by rung.
 
 ### Partner quests
 
-Partner quests continue as their own category, with partner-specific actions
-verified the same way the waitlist DGrid.AI quests were. The active partners and
-their rewards are shown on the live quest board.
+Partner quests continued as their own category through Closed Beta Season 2,
+with partner-specific actions verified the same way the waitlist DGrid.AI
+quests were. Partner quests (including StockClaw, ForeGate and Billions) ended
+with Season 2; see [Mining Season](mining-season.md#quests).
 
 A partner quest is finished on the **partner's** site, so each one opens a
 step-by-step walkthrough rather than a bare Verify button — the same guide the
@@ -275,11 +276,10 @@ Connecting a different wallet, or connecting one without activating, will not
 be detected. The walkthrough names the exact wallet to use and shows each
 screen; Verify sits at the end of it.
 
-For **Billions** replies, reply directly to an open Billions post from the X
-account connected to HaloArena, then verify. A quote, or a reply to someone
-else's comment under the post, does not count. A brand-new reply can take a
-few minutes to appear on X; if none is found yet, the quest names the account
-it checked.
+For **Billions** replies during Season 2, a participant replied directly to
+an open Billions post from the X account connected to HaloArena, then
+verified. A quote, or a reply to someone else's comment under the post, did
+not count.
 
 Every category above pays into the same single CP balance. No quest issues a
 token, and no quest reward is a claim on the prize pool — the prize pool is

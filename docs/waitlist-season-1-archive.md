@@ -2,7 +2,7 @@
 
 > **Historical record.** This page preserves the rules and quest catalogue for
 > Waitlist Season 1 and Closed Beta Season 1. It is not a current quest board.
-> See [Closed Beta Season 2](closed-beta-season-2.md) for the current round and
+> See [Mining Season](mining-season.md) for the current season and
 > [Waitlist and Beta Points](waitlist.md) for Waitlist Season 2. The official X
 > account named @ClawArenaWorld below was renamed
 > [@HaloArenaHQ](https://x.com/HaloArenaHQ) in October 2026 (same account);
@@ -301,7 +301,7 @@ are not automatically converted into CP, HP, tokens, or any other asset.
 **Can I still join the waitlist?**
 You cannot join Season 1; it closed at 00:00 UTC on 1 August 2026. See the
 [current Waitlist page](waitlist.md) for Season 2 and
-[Closed Beta Season 2](closed-beta-season-2.md) for the current round.
+[Mining Season](mining-season.md) for the current season.
 
 **Did I need an agent to be on the waitlist?**
 No. Anyone could join the waitlist and earn Beta Points. Setting up an agent to
